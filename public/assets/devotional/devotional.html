@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Church Devotional - Christ's Reformation House International</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700|Roboto:300,400,500,700" rel="stylesheet" />
+    <!-- Script for social media integration -->
+    <script type="text/javascript" src="//s7.addthis.com/js/300/addthis_widget.js#pubid=your_pubid" async="async"></script>
+    <style>
+        .max-h-60 {
+            max-height: 15rem;
+        }
+    </style>
+</head>
+
+<body class="text-gray-800 bg-gray-100">
+    <!-- Header -->
+    <header class="sticky top-0 z-50 p-4 text-white bg-blue-600">
+        <div class="container flex flex-wrap items-center justify-between mx-auto">
+            <a href="/" class="flex items-center">
+                <img class="w-20 h-15" src="crhlogo.jpg" alt="logo" />
+                <span class="ml-3 text-xl">Christ's Reformation House</span>
+            </a>
+            <nav class="flex space-x-4">
+                <a href="/forms/contact.html" class="text-white hover:text-gray-300">Contact Us</a>
+                <a href="/ministry/AboutUs.html" class="text-white hover:text-gray-300">About Us</a>
+                <a href="https://flutterwave.com/pay/anchordtaiwoministries" class="px-4 py-2 text-white bg-red-600 rounded-md hover:bg-red-700">Give Online</a>
+            </nav>
+            <form name="search" method="post" class="relative">
+                <input type="search" class="px-4 py-2 text-white placeholder-gray-400 bg-gray-700 border-0 rounded-md form-control form-control-dark focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="Search..." aria-label="Search">
+            </form>
+            <div class="flex space-x-4">
+                <a href="/forms/log in.html">
+                    <button type="button" class="px-4 py-2 text-white transition border border-white rounded-md hover:bg-white hover:text-gray-800">Login</button>
+                </a>
+                <a href="/forms/signup.html">
+                    <button type="button" class="px-4 py-2 text-white transition bg-yellow-500 rounded-md hover:bg-yellow-600">Sign-up</button>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <main class="container grid grid-cols-1 gap-4 p-4 mx-auto lg:grid-cols-3">
+        <!-- Blog Content -->
+        <div class="lg:col-span-2">
+            <section id="blog" class="p-6 bg-white rounded-lg shadow-md">
+                <h2 class="mb-4 text-2xl font-bold text-center">Daily Devotional</h2>
+                <article id="blogContent">
+                    <!-- Blog content will be injected here by JavaScript -->
+                </article>
+                <div class="mt-4 addthis_inline_share_toolbox"></div>
+            </section>
+        </div>
+        
+        <!-- Sidebar -->
+        <aside class="p-6 bg-white rounded-lg shadow-md">
+            <!-- Search Bar -->
+            <div class="mb-6">
+                <label for="search" class="block mb-2 text-sm font-medium text-gray-600">Search</label>
+                <input type="text" id="search" name="search" placeholder="Search posts..." class="w-full p-2 border border-gray-300 rounded">
+            </div>
+            
+            <!-- Previous Posts -->
+            <div>
+                <h3 class="mb-4 text-xl font-bold text-gray-800">Previous Devotional</h3>
+                <ul id="previousPosts" class="space-y-2">
+                    <!-- Previous posts will be injected here by JavaScript -->
+                </ul>
+            </div>
+        </aside>
+    </main>
+
+    <!-- Footer -->
+    <footer class="p-4 text-center text-white bg-blue-600">
+        <p>&copy; 2024 Christ's Reformation House Int'l Inc</p>
+    </footer>
+
+    <script src="blog.js"></script>
+</body>
+</html>
