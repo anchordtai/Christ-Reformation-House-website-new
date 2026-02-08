@@ -1,24 +1,29 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { Menu, X } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const location = useLocation()
+  const { isAdmin } = useAuth()
 
   const isActive = (path) => location.pathname === path
 
-  const navLinks = [
+  const allNavLinks = [
     { path: '/', label: 'Home' },
     { path: '/about', label: 'About' },
     { path: '/sermons', label: 'Sermons' },
+    { path: '/live', label: 'Live', adminOnly: true },
     { path: '/events', label: 'Events' },
     { path: '/devotional', label: 'Devotional' },
     { path: '/blog', label: 'Blog' },
     { path: '/ministries', label: 'Ministries' },
+    { path: '/meetings', label: 'Meetings' },
     { path: '/donate', label: 'Give' },
     { path: '/contact', label: 'Contact' },
   ]
+  const navLinks = allNavLinks.filter((link) => !link.adminOnly || isAdmin)
 
   return (
     <header className="bg-white/95 backdrop-blur-md shadow-lg sticky top-0 z-50 border-b border-gray-100">

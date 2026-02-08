@@ -1,26 +1,32 @@
-# Backend Donation Verification API
+# Backend API
 
 ## Setup
 
 1. Install dependencies:
    ```bash
-   npm install express axios cors dotenv
+   npm install
    ```
 
-2. Create a `.env` file in the `backend/` directory with your Flutterwave secret key:
-   ```env
-   FLW_SECRET_KEY=YOUR_FLUTTERWAVE_SECRET_KEY
-   ```
-
-3. Start the backend server:
+2. Copy environment template and add your keys (never commit `.env`):
    ```bash
-   node server.js
+   cp .env.example .env
    ```
+   Edit `.env` and set at least:
+   - `FLW_SECRET_KEY` – Flutterwave secret key (test: `FLWSECK_TEST-...`)
+   - `FRONTEND_ORIGIN` – e.g. `http://localhost:3000` (where users are sent after payment)
 
-The server will run on port 5000 by default.
+3. Start the server:
+   ```bash
+   npm start
+   ```
+   Server runs on port 5000 by default.
 
-## API Endpoint
+## Donations (Flutterwave)
 
-- **POST** `/api/verify-payment`
-  - Body: `{ transaction_id, tx_ref, amount, currency, email, name, country, state, address, donationType }`
-  - Returns: `{ verified: true }` if payment is verified, otherwise `{ verified: false, error: ... }` 
+- **Security**: Flutterwave secret key and any other payment keys must **only** be in `backend/.env`. Never put them in the frontend or in code.
+- **Flow**: User submits the donation form → frontend calls `POST /api/donations` → backend creates a pending donation and a Flutterwave payment link → frontend redirects the user to Flutterwave → after payment, Flutterwave redirects to `/donate/return` → frontend calls `POST /api/donations/verify` → backend verifies with Flutterwave and marks the donation verified.
+
+## API
+
+- **POST** `/api/donations` – Body: `{ amount, donationType, name, email, phone?, message? }`. Returns `{ success: true, redirectUrl }` (redirect user to `redirectUrl`).
+- **POST** `/api/donations/verify` – Body: `{ transaction_id, tx_ref? }`. Returns `{ verified: true }` or `{ verified: false, error }`.

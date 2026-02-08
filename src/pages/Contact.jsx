@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Mail, Phone, MapPin, Send } from 'lucide-react'
+import { Mail, Phone, MapPin, Send, MessageCircle } from 'lucide-react'
 import { useFormSubmit } from '../hooks/useApi'
 import { contactService } from '../services/api'
 import { APP_CONFIG } from '../utils/constants'
@@ -98,6 +98,20 @@ const Contact = () => {
                     <p className="text-gray-600">
                       <a href={`mailto:${APP_CONFIG.CHURCH_EMAIL}`} className="hover:text-blue-600">
                         {APP_CONFIG.CHURCH_EMAIL}
+                      </a>
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="card">
+                <div className="flex items-start">
+                  <MessageCircle className="w-6 h-6 text-green-600 mr-3 mt-1 flex-shrink-0" />
+                  <div>
+                    <h3 className="font-semibold mb-2">WhatsApp</h3>
+                    <p className="text-gray-600">
+                      <a href={APP_CONFIG.CHURCH_WHATSAPP_LINK} target="_blank" rel="noopener noreferrer" className="hover:text-green-600">
+                        {APP_CONFIG.CHURCH_WHATSAPP}
                       </a>
                     </p>
                   </div>

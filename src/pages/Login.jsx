@@ -1,9 +1,13 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { Mail, Lock, ArrowRight } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
+import { authService } from '../services/api'
 
 const Login = () => {
   const navigate = useNavigate()
+  const location = useLocation()
+  const { login } = useAuth()
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -11,23 +15,27 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
 
+  const from = location.state?.from?.pathname || '/'
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setIsLoading(true)
     setError('')
-
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500))
-
-    // In production, authenticate with backend
-    if (formData.email && formData.password) {
-      // Success - redirect to home or dashboard
-      navigate('/')
-    } else {
-      setError('Please enter both email and password')
+    try {
+      const res = await authService.login(formData)
+      const token = res?.data?.token
+      const user = res?.data?.user
+      if (token) {
+        login(token, user)
+        navigate(from, { replace: true })
+      } else {
+        setError(res?.data?.message || 'Invalid credentials')
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || err.message || 'Please enter both email and password')
+    } finally {
+      setIsLoading(false)
     }
-
-    setIsLoading(false)
   }
 
   const handleChange = (e) => {

@@ -1,29 +1,51 @@
 import { useState } from 'react'
-import { Heart, CreditCard, DollarSign } from 'lucide-react'
-import { useFormSubmit } from '../hooks/useApi'
+import { Heart, CreditCard } from 'lucide-react'
 import { donationService } from '../services/api'
-import { DONATION_TYPES } from '../utils/constants'
+import { DONATION_TYPES, DONATION_CURRENCIES } from '../utils/constants'
 import Error from '../components/Error'
 
 const Donate = () => {
   const [formData, setFormData] = useState({
     amount: '',
+    currency: 'NGN',
     donationType: 'general',
     name: '',
     email: '',
     phone: '',
     message: '',
   })
-  const { submit, loading, error } = useFormSubmit((data) => donationService.create(data))
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
 
-  const quickAmounts = [50, 100, 250, 500, 1000]
+  const selectedCurrency = DONATION_CURRENCIES.find((c) => c.code === formData.currency) || DONATION_CURRENCIES[0]
+  const quickAmounts = [50, 100, 250, 500, 1000, 5000, 10000]
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    await submit(formData)
-    // In production, redirect to payment gateway after successful submission
-    if (!error) {
-      alert('Thank you for your donation! You will be redirected to the payment gateway.')
+    setError(null)
+    setLoading(true)
+    try {
+      const rawAmount = parseFloat(formData.amount)
+      if (!rawAmount || rawAmount <= 0) {
+        setError('Please enter a valid amount.')
+        setLoading(false)
+        return
+      }
+      const decimals = selectedCurrency.decimals
+      const amount = decimals === 0 ? Math.round(rawAmount) : Math.round(rawAmount * 100) / 100
+      const payload = { ...formData, amount }
+      const res = await donationService.create(payload)
+      // Backend returns { success: true, redirectUrl: "https://..." } – Flutterwave checkout link
+      const redirectUrl = res?.data?.redirectUrl || res?.data?.data?.redirectUrl
+      if (redirectUrl && typeof redirectUrl === 'string') {
+        window.location.assign(redirectUrl)
+        return
+      }
+      setError('Could not start payment. Please try again.')
+    } catch (err) {
+      setError(err.response?.data?.error || err.message || 'Something went wrong. Please try again.')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -58,10 +80,30 @@ const Donate = () => {
                   <h2 className="text-2xl font-bold mb-6">Donation Information</h2>
                   {error && <Error message={error} />}
                   <form onSubmit={handleSubmit} className="space-y-6">
+                    {/* Currency */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Currency *
+                      </label>
+                      <select
+                        name="currency"
+                        required
+                        value={formData.currency}
+                        onChange={handleChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        {DONATION_CURRENCIES.map((c) => (
+                          <option key={c.code} value={c.code}>
+                            {c.symbol} {c.label} ({c.code})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
                     {/* Amount */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Donation Amount *
+                        Donation Amount * ({selectedCurrency.code})
                       </label>
                       <div className="flex flex-wrap gap-2 mb-3">
                         {quickAmounts.map((amount) => (
@@ -75,23 +117,31 @@ const Donate = () => {
                                 : 'border-gray-300 hover:border-blue-300'
                             }`}
                           >
-                            ${amount}
+                            {selectedCurrency.symbol}{amount.toLocaleString()}
                           </button>
                         ))}
                       </div>
                       <div className="relative">
-                        <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                        <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">
+                          {selectedCurrency.symbol}
+                        </span>
                         <input
                           type="number"
                           name="amount"
                           required
-                          min="1"
+                          min="0.01"
+                          step={selectedCurrency.decimals === 0 ? '1' : '0.01'}
                           value={formData.amount}
                           onChange={handleChange}
-                          placeholder="Enter amount"
+                          placeholder={
+                            selectedCurrency.decimals === 0 ? 'e.g. 5000' : 'e.g. 25.50'
+                          }
                           className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         />
                       </div>
+                      <p className="text-sm text-gray-500 mt-1">
+                        Amount will be charged in {selectedCurrency.label}. No conversion applied.
+                      </p>
                     </div>
 
                     {/* Donation Type */}
