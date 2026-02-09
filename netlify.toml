@@ -1,0 +1,11 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+  functions = "netlify/functions"
+
+[functions]
+  # Ensure Node 18+ for functions
+  node_bundler = "esbuild"
+  node_version = "18"
+  external_node_modules = ["pg", "axios"]
+
