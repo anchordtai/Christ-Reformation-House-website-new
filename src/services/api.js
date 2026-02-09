@@ -1,8 +1,17 @@
 import axios from 'axios'
 
-// Create axios instance with default config
+// Create axios instance with default config for traditional REST API (Express or similar)
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+})
+
+// Separate axios instance for Netlify Functions (same-origin, serverless backend)
+// Netlify exposes functions at /.netlify/functions/<name>
+const netlifyFunctionsApi = axios.create({
+  baseURL: '/.netlify/functions',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -67,10 +76,14 @@ export const devotionalService = {
   getAll: () => api.get('/devotionals'),
 }
 
+// Donations now go through Netlify Functions (Flutterwave + PostgreSQL)
 export const donationService = {
-  create: (data) => api.post('/donations', data),
+  create: (data) => netlifyFunctionsApi.post('/create-payment', data),
   verify: (transactionId, txRef) =>
-    api.post('/donations/verify', { transaction_id: transactionId, tx_ref: txRef }),
+    netlifyFunctionsApi.post('/verify-payment', {
+      transaction_id: transactionId,
+      tx_ref: txRef,
+    }),
 }
 
 export const prayerService = {
