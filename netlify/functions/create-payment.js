@@ -94,7 +94,7 @@ exports.handler = async (event) => {
         phonenumber: phone || undefined,
       },
       customizations: {
-        title: \"Christ's Reformation House - Donation\",
+        title: "Christ's Reformation House - Donation",
         description: donationType,
       },
       meta: { donation_id: donationId, donation_type: donationType },
