@@ -1,7 +1,6 @@
 {
   "name": "christ-reformation-house",
   "version": "1.0.0",
-  "type": "module",
   "description": "Christ's Reformation House International - Global Church Application",
   "scripts": {
     "dev": "vite",
