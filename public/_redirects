@@ -1,0 +1,2 @@
+# SPA fallback: serve index.html for all routes so React Router can handle /donate/return, etc.
+/*    /index.html   200

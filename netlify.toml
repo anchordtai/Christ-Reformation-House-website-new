@@ -1,11 +1,13 @@
+# Static site only – no Netlify Functions. API is your own Express backend.
 [build]
   command = "npm run build"
   publish = "dist"
-  functions = "netlify/functions"
 
-[functions]
-  # Ensure Node 18+ for functions
-  node_bundler = "esbuild"
-  node_version = "18"
-  external_node_modules = ["pg", "axios"]
+[build.environment]
+  NODE_VERSION = "18"
 
+# SPA: serve index.html for all routes (e.g. /donate/return after payment redirect)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

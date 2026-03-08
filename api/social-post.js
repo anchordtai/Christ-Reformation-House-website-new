@@ -1,10 +1,9 @@
 /**
  * Serverless function example: post to Facebook, Twitter/X, Instagram, LinkedIn.
- * Deploy to Vercel/Netlify and call from cron or admin UI.
+ * Deploy to Vercel (or your own backend) and call from cron or admin UI.
  * Store API tokens in env (never in client).
  *
- * Vercel: put in /api/social-post.js and use Vercel serverless.
- * Netlify: put in netlify/functions/social-post.js.
+ * Vercel: put in /api/social-post.js. For Express, replicate this logic in your backend.
  */
 
 // Example for Vercel serverless (export default handler)
