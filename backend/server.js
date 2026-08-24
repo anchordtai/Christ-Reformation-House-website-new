@@ -23,6 +23,16 @@ if (!FLW_SECRET_KEY) {
 app.use(cors());
 app.use(express.json());
 
+// ==================== HEALTH CHECK ====================
+// Used by Render and uptime monitoring. This endpoint does not expose secrets.
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    service: "Christ's Reformation House API",
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // ==================== FILE HELPERS ====================
 const readJSONFile = (filename) => {
   const filePath = path.join(__dirname, filename);
@@ -353,7 +363,7 @@ app.get('/api/store/products', (req, res) => {
 });
 
 // ==================== START SERVER ====================
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Backend server running on port ${PORT}`);
   console.log(`API available at /api`);
 });
