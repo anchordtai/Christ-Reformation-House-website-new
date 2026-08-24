@@ -5,6 +5,7 @@ const path = require('path');
 const cors = require('cors');
 const crypto = require('crypto');
 require('dotenv').config();
+const { checkDatabaseConnection } = require('./db');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -14,7 +15,6 @@ const FLW_SECRET_KEY = process.env.FLW_SECRET_KEY;
 const FRONTEND_ORIGIN_DONATE =
   process.env.FRONTEND_ORIGIN || 'http://localhost:3000';
 
-// Warn on startup if critical env is missing
 if (!FLW_SECRET_KEY) {
   console.warn('⚠️ WARNING: FLW_SECRET_KEY is missing in environment variables');
 }
@@ -31,6 +31,23 @@ app.get('/health', (req, res) => {
     service: "Christ's Reformation House API",
     timestamp: new Date().toISOString(),
   });
+});
+
+// Secure database connectivity check. Deliberately returns no connection details.
+app.get('/health/db', async (req, res) => {
+  try {
+    await checkDatabaseConnection();
+    return res.status(200).json({
+      status: 'ok',
+      database: 'connected',
+    });
+  } catch (error) {
+    console.error('Database health check failed:', error.message);
+    return res.status(503).json({
+      status: 'error',
+      database: 'disconnected',
+    });
+  }
 });
 
 // ==================== FILE HELPERS ====================
@@ -71,7 +88,6 @@ app.post('/api/auth/login', (req, res) => {
 
 app.post('/api/auth/signup', (req, res) => {
   const { name, email, phone } = req.body;
-
   const token = 'mock-jwt-token-' + Date.now();
 
   return res.json({
@@ -209,9 +225,7 @@ app.post('/api/donations', async (req, res) => {
     const currencyCode = (currency || 'NGN').toUpperCase().trim();
 
     if (!DONATION_ALLOWED_CURRENCIES.includes(currencyCode)) {
-      return res.status(400).json({
-        error: `Currency not supported`,
-      });
+      return res.status(400).json({ error: 'Currency not supported' });
     }
 
     if (!email || !email.includes('@')) {
@@ -357,7 +371,7 @@ app.post('/api/contact', (req, res) => {
   res.json({ success: true, message });
 });
 
-// ==================== STORE (kept unchanged) ====================
+// ==================== STORE ====================
 app.get('/api/store/products', (req, res) => {
   res.json(readJSONFile('store-products.json'));
 });
@@ -365,5 +379,5 @@ app.get('/api/store/products', (req, res) => {
 // ==================== START SERVER ====================
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Backend server running on port ${PORT}`);
-  console.log(`API available at /api`);
+  console.log('API available at /api');
 });
