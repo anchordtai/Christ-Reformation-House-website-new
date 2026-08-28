@@ -3,13 +3,16 @@ const crypto = require('crypto');
 
 const CLIENT_ID = process.env.FLW_CLIENT_ID;
 const CLIENT_SECRET = process.env.FLW_CLIENT_SECRET;
+const TOKEN_URL = 'https://idp.flutterwave.com/realms/flutterwave/protocol/openid-connect/token';
 const API_BASE_URL = (process.env.FLW_API_BASE_URL || 'https://developersandbox-api.flutterwave.com').replace(/\/$/, '');
 
 let cachedToken = null;
 let tokenExpiresAt = 0;
 
 function requireCredentials() {
-  if (!CLIENT_ID || !CLIENT_SECRET) throw new Error('Flutterwave V4 credentials are not configured');
+  if (!CLIENT_ID || !CLIENT_SECRET) {
+    throw new Error('Flutterwave V4 credentials are not configured');
+  }
 }
 
 function newId() {
@@ -18,28 +21,47 @@ function newId() {
 
 async function getAccessToken() {
   requireCredentials();
-  if (cachedToken && Date.now() < tokenExpiresAt - 60000) return cachedToken;
 
-  const response = await axios.post(`${API_BASE_URL}/oauth2/token`, new URLSearchParams({
-    client_id: CLIENT_ID,
-    client_secret: CLIENT_SECRET,
-    grant_type: 'client_credentials',
-  }).toString(), {
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    timeout: 10000,
-  });
+  if (cachedToken && Date.now() < tokenExpiresAt - 60000) {
+    return cachedToken;
+  }
 
-  const token = response.data?.data?.access_token || response.data?.access_token;
-  const expiresIn = Number(response.data?.data?.expires_in || response.data?.expires_in || 600);
-  if (!token) throw new Error('Flutterwave authentication failed');
+  const response = await axios.post(
+    TOKEN_URL,
+    new URLSearchParams({
+      client_id: CLIENT_ID,
+      client_secret: CLIENT_SECRET,
+      grant_type: 'client_credentials',
+    }).toString(),
+    {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      timeout: 10000,
+      validateStatus: () => true,
+    }
+  );
+
+  const token = response.data?.access_token || response.data?.data?.access_token;
+  const expiresIn = Number(response.data?.expires_in || response.data?.data?.expires_in || 600);
+
+  if (response.status < 200 || response.status >= 300 || !token) {
+    const error = new Error('Flutterwave authentication failed');
+    error.providerStatus = response.status;
+    throw error;
+  }
 
   cachedToken = token;
   tokenExpiresAt = Date.now() + Math.max(60, expiresIn) * 1000;
-  return token;
+  return cachedToken;
+}
+
+async function checkFlutterwaveConnection() {
+  await getAccessToken();
+  return true;
 }
 
 async function v4Request(method, endpoint, data, idempotencyKey = newId()) {
   const token = await getAccessToken();
+
   return axios({
     method,
     url: `${API_BASE_URL}${endpoint}`,
@@ -69,4 +91,9 @@ async function retrieveCharge(chargeId) {
   return v4Request('GET', `/charges/${encodeURIComponent(chargeId)}`, undefined, newId());
 }
 
-module.exports = { getAccessToken, createDirectCharge, retrieveCharge };
+module.exports = {
+  getAccessToken,
+  checkFlutterwaveConnection,
+  createDirectCharge,
+  retrieveCharge,
+};
