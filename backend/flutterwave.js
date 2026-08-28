@@ -13,7 +13,7 @@ function requireCredentials() {
 }
 
 function newId() {
-  return crypto.randomUUID().replace(/-/g, '');
+  return crypto.randomBytes(18).toString('hex');
 }
 
 async function getAccessToken() {
@@ -65,4 +65,8 @@ async function createDirectCharge({ amount, currency, reference, customer, payme
   }, idempotencyKey);
 }
 
-module.exports = { getAccessToken, createDirectCharge };
+async function retrieveCharge(chargeId) {
+  return v4Request('GET', `/charges/${encodeURIComponent(chargeId)}`, undefined, newId());
+}
+
+module.exports = { getAccessToken, createDirectCharge, retrieveCharge };
