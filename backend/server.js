@@ -41,6 +41,7 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Secure Supabase REST health check. Never exposes keys or internal errors.
 app.get('/health/db', async (req, res) => {
   try {
     await checkSupabaseConnection();
