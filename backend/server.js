@@ -20,8 +20,7 @@ const PORT = process.env.PORT || 5000;
 const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || 'http://localhost:3000';
 const FLW_WEBHOOK_SECRET_HASH = process.env.FLW_WEBHOOK_SECRET_HASH;
 
-const allowedOrigins = ['http://localhost:3000', 'http://localhost:3001', FRONTEND_ORIGIN]
-  .filter(Boolean);
+const allowedOrigins = ['http://localhost:3000', 'http://localhost:3001', FRONTEND_ORIGIN].filter(Boolean);
 
 app.use(cors({
   origin(origin, callback) {
@@ -32,7 +31,6 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
-// Preserve the exact request bytes for Flutterwave HMAC-SHA256 webhook verification.
 app.use(express.json({
   limit: '100kb',
   verify: (req, res, buf) => { req.rawBody = Buffer.from(buf); },
@@ -54,14 +52,28 @@ app.get('/health/db', async (req, res) => {
   }
 });
 
-// Confirms that the V4 OAuth credentials work without exposing the access token.
+// Safe V4 OAuth diagnostic: exposes only configuration state and provider HTTP status.
+// It never returns credentials, access tokens, or provider response bodies.
 app.get('/health/flutterwave', async (req, res) => {
   try {
     await getAccessToken();
     return res.status(200).json({ status: 'ok', provider: 'flutterwave', api: 'v4' });
   } catch (error) {
-    console.error('Flutterwave V4 health check failed:', error.response?.status || error.message);
-    return res.status(503).json({ status: 'error', provider: 'flutterwave', api: 'v4' });
+    const configured = Boolean(String(process.env.FLW_CLIENT_ID || '').trim() && String(process.env.FLW_CLIENT_SECRET || '').trim());
+    const providerStatus = Number.isInteger(error.providerStatus) ? error.providerStatus : null;
+    console.error('Flutterwave V4 health check failed:', {
+      code: error.code || 'UNKNOWN',
+      providerStatus,
+      credentialsConfigured: configured,
+    });
+    return res.status(503).json({
+      status: 'error',
+      provider: 'flutterwave',
+      api: 'v4',
+      stage: error.code === 'MISSING_CREDENTIALS' ? 'configuration' : 'oauth',
+      credentials_configured: configured,
+      provider_status: providerStatus,
+    });
   }
 });
 
@@ -87,9 +99,6 @@ const isValidCurrency = (currency) => ['NGN', 'USD', 'GBP', 'EUR', 'GHS', 'ZAR',
 const makeTxRef = () => `crh-${Date.now()}-${crypto.randomBytes(16).toString('hex')}`;
 const makeIdempotencyKey = () => crypto.randomBytes(24).toString('hex');
 
-// Flutterwave V4: creates a pending Supabase donation, then initiates a V4 direct charge.
-// paymentMethod must contain only Flutterwave-approved payment data; raw card data must be
-// encrypted/tokenized according to Flutterwave's V4 client-side integration before submission.
 app.post('/api/donations', async (req, res) => {
   const { amount, currency = 'NGN', donationType, name, email, phone, message, paymentMethod } = req.body || {};
   const numAmount = typeof amount === 'number' ? amount : Number(amount);
@@ -100,9 +109,7 @@ app.post('/api/donations', async (req, res) => {
   if (!isValidCurrency(currencyCode)) return res.status(400).json({ error: 'Currency not supported' });
   if (!isValidEmail(email)) return res.status(400).json({ error: 'Valid email is required' });
   if (!donationCode) return res.status(400).json({ error: 'Donation type is required' });
-  if (!paymentMethod || typeof paymentMethod !== 'object' || Array.isArray(paymentMethod)) {
-    return res.status(400).json({ error: 'Flutterwave payment method is required' });
-  }
+  if (!paymentMethod || typeof paymentMethod !== 'object' || Array.isArray(paymentMethod)) return res.status(400).json({ error: 'Flutterwave payment method is required' });
 
   try {
     const type = await getActiveDonationType(donationCode);
@@ -179,7 +186,6 @@ app.post('/api/donations', async (req, res) => {
   }
 });
 
-// V4 charge verification: retrieves the charge and checks reference, amount, currency and status.
 app.get('/api/payments/verify', async (req, res) => {
   const txRef = String(req.query.tx_ref || '').trim();
   const chargeId = String(req.query.charge_id || '').trim();
@@ -205,16 +211,14 @@ app.get('/api/payments/verify', async (req, res) => {
       failure_reason: successful ? null : 'Flutterwave V4 verification did not match the expected transaction',
     });
 
-    if (successful) {
-      await createPaymentEvent({
-        donation_id: donation.id,
-        event_type: 'charge_verified',
-        provider: 'flutterwave',
-        provider_transaction_id: String(charge.id),
-        status: 'succeeded',
-        payload: { id: charge.id, reference: charge.reference, amount: charge.amount, currency: charge.currency, status: charge.status },
-      });
-    }
+    if (successful) await createPaymentEvent({
+      donation_id: donation.id,
+      event_type: 'charge_verified',
+      provider: 'flutterwave',
+      provider_transaction_id: String(charge.id),
+      status: 'succeeded',
+      payload: { id: charge.id, reference: charge.reference, amount: charge.amount, currency: charge.currency, status: charge.status },
+    });
 
     return res.json({ success: successful, status: successful ? 'successful' : (charge?.status || 'pending'), tx_ref: donation.tx_ref });
   } catch (error) {
@@ -223,11 +227,8 @@ app.get('/api/payments/verify', async (req, res) => {
   }
 });
 
-// V4 webhook signature verification. Flutterwave signs the raw body using HMAC-SHA256 and
-// returns the base64 digest in the flutterwave-signature header.
 app.post('/api/payments/webhook', async (req, res) => {
   if (!FLW_WEBHOOK_SECRET_HASH) return res.status(503).json({ error: 'Webhook verification is not configured' });
-
   const signature = req.headers['flutterwave-signature'];
   if (typeof signature !== 'string' || !req.rawBody) return res.status(401).json({ error: 'Invalid webhook signature' });
 
@@ -246,7 +247,6 @@ app.post('/api/payments/webhook', async (req, res) => {
     const donation = await getDonationByTxRef(txRef);
     if (!donation) return res.status(200).json({ received: true });
 
-    // Always re-query Flutterwave before changing the donation to successful.
     const response = await retrieveCharge(chargeId);
     const charge = response.data?.data || response.data;
     const valid = charge?.status === 'succeeded'
