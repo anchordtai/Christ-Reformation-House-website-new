@@ -1,7 +1,10 @@
 import axios from 'axios'
 
-// Production API is Render. VITE_API_URL may override this for local/staging builds.
-const API_BASE_URL = (import.meta.env.VITE_API_URL || 'https://christ-reformation-house-website-new-1.onrender.com/api').replace(/\/$/, '')
+// Production must always use the current Render backend. This prevents a stale
+// VITE_API_URL in Netlify from sending production payment requests to an old host.
+const PRODUCTION_API_BASE_URL = 'https://christ-reformation-house-website-new-1.onrender.com/api'
+const configuredApiUrl = (import.meta.env.VITE_API_URL || '').trim()
+const API_BASE_URL = (import.meta.env.PROD ? PRODUCTION_API_BASE_URL : (configuredApiUrl || PRODUCTION_API_BASE_URL)).replace(/\/$/, '')
 
 const api = axios.create({
   baseURL: API_BASE_URL,
