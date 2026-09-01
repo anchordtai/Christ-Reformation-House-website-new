@@ -25,19 +25,15 @@ async function getAccessToken() {
   requireCredentials();
   if (cachedToken && Date.now() < tokenExpiresAt - 60000) return cachedToken;
 
-  const response = await axios.post(
-    TOKEN_URL,
-    new URLSearchParams({
-      client_id: CLIENT_ID(),
-      client_secret: CLIENT_SECRET(),
-      grant_type: 'client_credentials',
-    }).toString(),
-    {
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      timeout: 10000,
-      validateStatus: () => true,
-    }
-  );
+  const response = await axios.post(TOKEN_URL, new URLSearchParams({
+    client_id: CLIENT_ID(),
+    client_secret: CLIENT_SECRET(),
+    grant_type: 'client_credentials',
+  }).toString(), {
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    timeout: 10000,
+    validateStatus: () => true,
+  });
 
   const token = response.data?.access_token || response.data?.data?.access_token;
   const expiresIn = Number(response.data?.expires_in || response.data?.data?.expires_in || 600);
@@ -46,18 +42,12 @@ async function getAccessToken() {
     const error = new Error('Flutterwave authentication failed');
     error.code = 'AUTHENTICATION_FAILED';
     error.providerStatus = response.status;
-    error.providerCode = response.data?.error || response.data?.error_description || response.data?.data?.error || null;
     throw error;
   }
 
   cachedToken = token;
   tokenExpiresAt = Date.now() + Math.max(60, expiresIn) * 1000;
   return cachedToken;
-}
-
-async function checkFlutterwaveConnection() {
-  await getAccessToken();
-  return true;
 }
 
 async function v4Request(method, endpoint, data, idempotencyKey = newId()) {
@@ -69,6 +59,7 @@ async function v4Request(method, endpoint, data, idempotencyKey = newId()) {
     headers: {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
+      Accept: 'application/json',
       'X-Trace-Id': newId(),
       'X-Idempotency-Key': idempotencyKey,
     },
@@ -87,8 +78,35 @@ async function createDirectCharge({ amount, currency, reference, customer, payme
   }, idempotencyKey);
 }
 
+async function createCustomer({ first, last, email }) {
+  return v4Request('POST', '/customers', {
+    name: { first, last },
+    email,
+  });
+}
+
+async function createVirtualAccount({ reference, customerId, amount, currency, bankCode, expiry, narration, idempotencyKey }) {
+  const body = {
+    reference,
+    customer_id: customerId,
+    amount,
+    currency,
+    account_type: 'dynamic',
+    narration,
+    ...(bankCode ? { bank_code: bankCode } : {}),
+    ...(expiry ? { expiry } : {}),
+  };
+  return v4Request('POST', '/virtual-accounts', body, idempotencyKey);
+}
+
 async function retrieveCharge(chargeId) {
   return v4Request('GET', `/charges/${encodeURIComponent(chargeId)}`, undefined, newId());
 }
 
-module.exports = { getAccessToken, checkFlutterwaveConnection, createDirectCharge, retrieveCharge };
+module.exports = {
+  getAccessToken,
+  createDirectCharge,
+  createCustomer,
+  createVirtualAccount,
+  retrieveCharge,
+};
