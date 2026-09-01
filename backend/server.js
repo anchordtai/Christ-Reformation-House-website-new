@@ -1,5 +1,4 @@
 const express = require('express');
-const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 const cors = require('cors');
@@ -13,21 +12,29 @@ const {
   updateDonationById,
   createPaymentEvent,
 } = require('./supabase');
-const { getAccessToken, createDirectCharge, retrieveCharge } = require('./flutterwave');
+const {
+  getAccessToken,
+  createDirectCharge,
+  retrieveCharge,
+} = require('./flutterwave');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || 'http://localhost:3000';
-const FLW_WEBHOOK_SECRET_HASH = process.env.FLW_WEBHOOK_SECRET_HASH;
+const FRONTEND_ORIGIN = String(process.env.FRONTEND_ORIGIN || 'http://localhost:3000').trim().replace(/\/$/, '');
+const FLW_WEBHOOK_SECRET_HASH = String(process.env.FLW_WEBHOOK_SECRET_HASH || '').trim();
 
-const allowedOrigins = ['http://localhost:3000', 'http://localhost:3001', FRONTEND_ORIGIN].filter(Boolean);
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:3001',
+  FRONTEND_ORIGIN,
+].filter(Boolean);
 
 app.use(cors({
   origin(origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
     return callback(new Error('Origin not allowed by CORS'));
   },
-  methods: ['GET', 'POST'],
+  methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
@@ -52,8 +59,6 @@ app.get('/health/db', async (req, res) => {
   }
 });
 
-// Safe V4 OAuth diagnostic: exposes only configuration state and provider HTTP status.
-// It never returns credentials, access tokens, or provider response bodies.
 app.get('/health/flutterwave', async (req, res) => {
   try {
     await getAccessToken();
@@ -61,18 +66,11 @@ app.get('/health/flutterwave', async (req, res) => {
   } catch (error) {
     const configured = Boolean(String(process.env.FLW_CLIENT_ID || '').trim() && String(process.env.FLW_CLIENT_SECRET || '').trim());
     const providerStatus = Number.isInteger(error.providerStatus) ? error.providerStatus : null;
-    console.error('Flutterwave V4 health check failed:', {
-      code: error.code || 'UNKNOWN',
-      providerStatus,
-      credentialsConfigured: configured,
-    });
+    console.error('Flutterwave V4 health check failed:', { code: error.code || 'UNKNOWN', providerStatus, credentialsConfigured: configured });
     return res.status(503).json({
-      status: 'error',
-      provider: 'flutterwave',
-      api: 'v4',
+      status: 'error', provider: 'flutterwave', api: 'v4',
       stage: error.code === 'MISSING_CREDENTIALS' ? 'configuration' : 'oauth',
-      credentials_configured: configured,
-      provider_status: providerStatus,
+      credentials_configured: configured, provider_status: providerStatus,
     });
   }
 });
@@ -99,8 +97,36 @@ const isValidCurrency = (currency) => ['NGN', 'USD', 'GBP', 'EUR', 'GHS', 'ZAR',
 const makeTxRef = () => `crh-${Date.now()}-${crypto.randomBytes(16).toString('hex')}`;
 const makeIdempotencyKey = () => crypto.randomBytes(24).toString('hex');
 
+function safePaymentMethod(paymentMethod) {
+  if (!paymentMethod || typeof paymentMethod !== 'object' || Array.isArray(paymentMethod)) return null;
+  // Do not accept raw card numbers/CVV from the public API. Payment method objects must be
+  // created by a supported Flutterwave client/hosted flow and contain no server secrets.
+  const blocked = ['card_number', 'cvv', 'cvc', 'pin', 'expiry', 'expiry_month', 'expiry_year'];
+  if (blocked.some((key) => Object.prototype.hasOwnProperty.call(paymentMethod, key))) return null;
+  return paymentMethod;
+}
+
+async function getDonationOr404(txRef, res) {
+  const donation = await getDonationByTxRef(txRef);
+  if (!donation) {
+    res.status(404).json({ error: 'Donation not found' });
+    return null;
+  }
+  return donation;
+}
+
+async function verifyChargeAgainstDonation(donation, charge) {
+  return Boolean(
+    charge?.status === 'succeeded' &&
+    String(charge.reference || '') === String(donation.tx_ref || '') &&
+    Number(charge.amount) === Number(donation.amount) &&
+    String(charge.currency || '').toUpperCase() === String(donation.currency || '').toUpperCase()
+  );
+}
+
+// Step 1: create a pending donation only. No payment is charged here.
 app.post('/api/donations', async (req, res) => {
-  const { amount, currency = 'NGN', donationType, name, email, phone, message, paymentMethod } = req.body || {};
+  const { amount, currency = 'NGN', donationType, name, email, phone, message } = req.body || {};
   const numAmount = typeof amount === 'number' ? amount : Number(amount);
   const currencyCode = String(currency).toUpperCase().trim();
   const donationCode = String(donationType || '').trim().slice(0, 80);
@@ -109,15 +135,12 @@ app.post('/api/donations', async (req, res) => {
   if (!isValidCurrency(currencyCode)) return res.status(400).json({ error: 'Currency not supported' });
   if (!isValidEmail(email)) return res.status(400).json({ error: 'Valid email is required' });
   if (!donationCode) return res.status(400).json({ error: 'Donation type is required' });
-  if (!paymentMethod || typeof paymentMethod !== 'object' || Array.isArray(paymentMethod)) return res.status(400).json({ error: 'Flutterwave payment method is required' });
 
   try {
     const type = await getActiveDonationType(donationCode);
     if (!type) return res.status(400).json({ error: 'Invalid or inactive donation type' });
 
     const txRef = makeTxRef();
-    const redirectUrl = `${FRONTEND_ORIGIN.replace(/\/$/, '')}/donate/return?tx_ref=${encodeURIComponent(txRef)}`;
-
     const donation = await createDonation({
       donor_name: String(name || 'Donor').trim().slice(0, 120),
       email: email.trim().toLowerCase(),
@@ -134,19 +157,38 @@ app.post('/api/donations', async (req, res) => {
     });
 
     if (!donation) return res.status(502).json({ error: 'Unable to create donation record' });
+    return res.status(201).json({ success: true, donation_id: donation.id, tx_ref: txRef, status: 'pending' });
+  } catch (error) {
+    console.error('Donation creation failed:', error.message);
+    return res.status(502).json({ error: 'Unable to create donation' });
+  }
+});
 
+// Step 2: initialize a V4 payment for an existing pending donation.
+app.post('/api/payments/initialize', async (req, res) => {
+  const { tx_ref: txRef, paymentMethod } = req.body || {};
+  if (!txRef || typeof txRef !== 'string') return res.status(400).json({ error: 'tx_ref is required' });
+  const sanitizedPaymentMethod = safePaymentMethod(paymentMethod);
+  if (!sanitizedPaymentMethod) return res.status(400).json({ error: 'A valid Flutterwave payment method is required' });
+
+  try {
+    const donation = await getDonationOr404(txRef.trim(), res);
+    if (!donation) return;
+    if (donation.status === 'successful') return res.status(409).json({ error: 'Donation is already successful' });
+
+    const redirectUrl = `${FRONTEND_ORIGIN}/donate/return?tx_ref=${encodeURIComponent(donation.tx_ref)}`;
     const customer = {
-      email: email.trim().toLowerCase(),
-      name: String(name || 'Donor').trim().slice(0, 120),
-      ...(phone ? { phone: { country_code: '234', number: String(phone).replace(/\D/g, '').slice(-15) } } : {}),
+      email: donation.email,
+      name: donation.donor_name || 'Donor',
+      ...(donation.phone ? { phone: { country_code: '234', number: String(donation.phone).replace(/\D/g, '').slice(-15) } } : {}),
     };
 
     const chargeResponse = await createDirectCharge({
-      amount: numAmount,
-      currency: currencyCode,
-      reference: txRef,
+      amount: Number(donation.amount),
+      currency: String(donation.currency).toUpperCase(),
+      reference: donation.tx_ref,
       customer,
-      paymentMethod,
+      paymentMethod: sanitizedPaymentMethod,
       redirectUrl,
       idempotencyKey: makeIdempotencyKey(),
     });
@@ -159,8 +201,8 @@ app.post('/api/donations', async (req, res) => {
 
     await updateDonationById(donation.id, {
       flutterwave_transaction_id: String(charge.id),
-      status: charge.status === 'succeeded' ? 'successful' : 'pending',
-      metadata: { donation_type_id: type.id, flutterwave_charge_id: String(charge.id) },
+      status: 'pending',
+      metadata: { ...(donation.metadata || {}), flutterwave_charge_id: String(charge.id) },
     });
 
     await createPaymentEvent({
@@ -174,59 +216,61 @@ app.post('/api/donations', async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      tx_ref: txRef,
+      tx_ref: donation.tx_ref,
       charge_id: String(charge.id),
-      status: charge.status || 'pending',
+      status: String(charge.status || 'pending'),
       next_action: charge.next_action || null,
-      redirect_url: charge.redirect_url || redirectUrl,
+      redirect_url: charge.redirect_url || null,
     });
   } catch (error) {
-    console.error('Flutterwave V4 payment initialization failed:', error.response?.status || error.message);
-    return res.status(502).json({ error: 'Payment initiation failed' });
+    const providerStatus = error.response?.status || null;
+    console.error('Flutterwave V4 payment initialization failed:', providerStatus || error.message);
+    return res.status(502).json({ error: 'Payment initiation failed', provider_status: providerStatus });
   }
 });
 
-app.get('/api/payments/verify', async (req, res) => {
-  const txRef = String(req.query.tx_ref || '').trim();
-  const chargeId = String(req.query.charge_id || '').trim();
-  if (!txRef || !chargeId) return res.status(400).json({ error: 'tx_ref and charge_id are required' });
+// Step 3: explicit server-side verification endpoint.
+app.get('/api/payments/verify/:tx_ref', async (req, res) => {
+  const txRef = String(req.params.tx_ref || '').trim();
+  if (!txRef) return res.status(400).json({ error: 'tx_ref is required' });
 
   try {
-    const donation = await getDonationByTxRef(txRef);
-    if (!donation) return res.status(404).json({ error: 'Donation not found' });
+    const donation = await getDonationOr404(txRef, res);
+    if (!donation) return;
+    const chargeId = String(donation.flutterwave_transaction_id || '').trim();
+    if (!chargeId) return res.status(409).json({ verified: false, status: donation.status, error: 'Payment has not been initialized' });
 
     const response = await retrieveCharge(chargeId);
     const charge = response.data?.data || response.data;
-    const amountMatches = Number(charge?.amount) === Number(donation.amount);
-    const currencyMatches = String(charge?.currency || '').toUpperCase() === String(donation.currency || '').toUpperCase();
-    const referenceMatches = String(charge?.reference || '') === String(donation.tx_ref || '');
-    const successful = charge?.status === 'succeeded' && amountMatches && currencyMatches && referenceMatches;
+    const successful = await verifyChargeAgainstDonation(donation, charge);
     const attempts = Number(donation.verification_attempts || 0) + 1;
 
     await updateDonationById(donation.id, {
       verification_attempts: attempts,
-      flutterwave_transaction_id: String(charge?.id || chargeId),
       status: successful ? 'successful' : (['failed', 'cancelled'].includes(charge?.status) ? charge.status : 'pending'),
       verified_at: successful ? new Date().toISOString() : null,
       failure_reason: successful ? null : 'Flutterwave V4 verification did not match the expected transaction',
     });
 
-    if (successful) await createPaymentEvent({
-      donation_id: donation.id,
-      event_type: 'charge_verified',
-      provider: 'flutterwave',
-      provider_transaction_id: String(charge.id),
-      status: 'succeeded',
-      payload: { id: charge.id, reference: charge.reference, amount: charge.amount, currency: charge.currency, status: charge.status },
-    });
+    if (successful && donation.status !== 'successful') {
+      await createPaymentEvent({
+        donation_id: donation.id,
+        event_type: 'charge_verified',
+        provider: 'flutterwave',
+        provider_transaction_id: String(charge.id),
+        status: 'succeeded',
+        payload: { id: charge.id, reference: charge.reference, amount: charge.amount, currency: charge.currency, status: charge.status },
+      });
+    }
 
-    return res.json({ success: successful, status: successful ? 'successful' : (charge?.status || 'pending'), tx_ref: donation.tx_ref });
+    return res.json({ verified: successful, success: successful, status: successful ? 'successful' : String(charge?.status || 'pending'), tx_ref: donation.tx_ref });
   } catch (error) {
     console.error('Flutterwave V4 verification failed:', error.response?.status || error.message);
-    return res.status(502).json({ error: 'Payment verification failed' });
+    return res.status(502).json({ verified: false, error: 'Payment verification failed' });
   }
 });
 
+// Flutterwave webhook: signature verification + independent transaction verification.
 app.post('/api/payments/webhook', async (req, res) => {
   if (!FLW_WEBHOOK_SECRET_HASH) return res.status(503).json({ error: 'Webhook verification is not configured' });
   const signature = req.headers['flutterwave-signature'];
@@ -247,12 +291,10 @@ app.post('/api/payments/webhook', async (req, res) => {
     const donation = await getDonationByTxRef(txRef);
     if (!donation) return res.status(200).json({ received: true });
 
+    // Ignore a duplicate successful notification after the donation has already been finalized.
     const response = await retrieveCharge(chargeId);
     const charge = response.data?.data || response.data;
-    const valid = charge?.status === 'succeeded'
-      && String(charge.reference) === String(donation.tx_ref)
-      && Number(charge.amount) === Number(donation.amount)
-      && String(charge.currency).toUpperCase() === String(donation.currency).toUpperCase();
+    const valid = await verifyChargeAgainstDonation(donation, charge);
 
     await createPaymentEvent({
       donation_id: donation.id,
@@ -282,6 +324,11 @@ app.post('/api/payments/webhook', async (req, res) => {
     return res.status(500).json({ error: 'Webhook processing failed' });
   }
 });
+
+// Keep legacy paths unavailable rather than silently executing a different payment architecture.
+app.post('/api/payments/create', (req, res) => res.status(410).json({ error: 'Use POST /api/donations followed by POST /api/payments/initialize' }));
+app.post('/api/payments/verify', (req, res) => res.status(410).json({ error: 'Use GET /api/payments/verify/:tx_ref' }));
+app.get('/api/payments/verify', (req, res) => res.status(410).json({ error: 'Use GET /api/payments/verify/:tx_ref' }));
 
 app.use((err, req, res, next) => {
   if (err?.message === 'Origin not allowed by CORS') return res.status(403).json({ error: 'Origin not allowed' });
