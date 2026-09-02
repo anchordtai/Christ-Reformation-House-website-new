@@ -56,6 +56,7 @@ function generateNonce() {
 function encryptAESGCM(value, keyBytes, nonce) {
   if (value === undefined || value === null || String(value) === '') throw new Error('Cannot encrypt an empty card field');
   if (!nonce || nonce.length !== 12) throw new Error('Flutterwave encryption nonce must be exactly 12 characters');
+  if (keyBytes.length !== 32) throw new Error('Flutterwave AES-256 encryption requires a 32-byte key');
   const cipher = crypto.createCipheriv('aes-256-gcm', keyBytes, Buffer.from(nonce, 'utf8'));
   const ciphertext = Buffer.concat([cipher.update(String(value), 'utf8'), cipher.final()]);
   const authTag = cipher.getAuthTag();
@@ -87,11 +88,65 @@ function encryptCardPaymentMethod(card) {
   };
 }
 
+function sanitizeProviderError(data) {
+  const error = data?.error;
+  if (!error || typeof error !== 'object') {
+    const message = typeof data?.message === 'string' ? data.message : null;
+    return message ? { message: message.slice(0, 500) } : null;
+  }
+
+  const details = {
+    type: typeof error.type === 'string' ? error.type.slice(0, 100) : undefined,
+    code: typeof error.code === 'string' || typeof error.code === 'number' ? String(error.code).slice(0, 100) : undefined,
+    message: typeof error.message === 'string' ? error.message.slice(0, 500) : undefined,
+  };
+
+  if (Array.isArray(error.validation_errors)) {
+    details.validation_errors = error.validation_errors.slice(0, 20).map((item) => ({
+      field_name: typeof item?.field_name === 'string' ? item.field_name.slice(0, 150) : undefined,
+      message: typeof item?.message === 'string' ? item.message.slice(0, 300) : undefined,
+    }));
+  }
+
+  return Object.fromEntries(Object.entries(details).filter(([, value]) => value !== undefined));
+}
+
+function makeProviderError(response, endpoint) {
+  const providerDetails = sanitizeProviderError(response?.data);
+  const status = Number(response?.status || 0) || null;
+  const providerCode = providerDetails?.code || null;
+  const providerMessage = providerDetails?.message || null;
+  const message = providerMessage
+    ? `Flutterwave API request failed: ${providerMessage}`
+    : `Flutterwave API request failed with HTTP ${status || 'unknown'}`;
+  const error = new Error(message);
+  error.code = 'FLUTTERWAVE_API_ERROR';
+  error.providerStatus = status;
+  error.providerCode = providerCode;
+  error.providerDetails = providerDetails;
+  error.providerEndpoint = endpoint;
+  return error;
+}
+
 async function v4Request(method, endpoint, data, idempotencyKey = newId()) {
   const token = await getAccessToken();
   const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', Accept: 'application/json', 'X-Trace-Id': newId() };
   if (['POST', 'PUT', 'PATCH'].includes(method.toUpperCase())) headers['X-Idempotency-Key'] = idempotencyKey;
-  return axios({ method, url: `${getApiBaseUrl()}${endpoint}`, data, headers, timeout: 20000 });
+
+  const response = await axios({
+    method,
+    url: `${getApiBaseUrl()}${endpoint}`,
+    data,
+    headers,
+    timeout: 20000,
+    validateStatus: () => true,
+  });
+
+  if (response.status < 200 || response.status >= 300) {
+    throw makeProviderError(response, endpoint);
+  }
+
+  return response;
 }
 
 async function createDirectCharge({ amount, currency, reference, customer, paymentMethod, redirectUrl, idempotencyKey }) {
