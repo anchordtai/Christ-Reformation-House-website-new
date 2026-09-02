@@ -25,8 +25,6 @@ const FRONTEND_ORIGIN = String(process.env.FRONTEND_ORIGIN || 'http://localhost:
 const FLW_WEBHOOK_SECRET_HASH = String(process.env.FLW_WEBHOOK_SECRET_HASH || '').trim();
 const FLW_ENCRYPTION_KEY = String(process.env.FLW_ENCRYPTION_KEY || '').trim();
 
-// Only explicitly trusted browser origins are allowed.
-// Both the apex and www production domains are supported.
 const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:3001',
@@ -113,7 +111,8 @@ app.get('/api/store/products', (req, res) => res.json(readJSONFile('store-produc
 
 const isValidEmail = (email) => typeof email === 'string' && email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 const isValidCurrency = (currency) => ['NGN', 'USD', 'GBP', 'EUR', 'GHS', 'ZAR', 'KES'].includes(currency);
-const makeTxRef = () => `crh-${Date.now()}-${crypto.randomBytes(16).toString('hex')}`;
+// Flutterwave V4 references must be 6-42 characters. Keep the reference short and unique.
+const makeTxRef = () => `crh-${Date.now().toString(36)}-${crypto.randomBytes(8).toString('hex')}`.slice(0, 42);
 const makeIdempotencyKey = () => crypto.randomBytes(24).toString('hex');
 
 function safePaymentMethod(paymentMethod) {
@@ -130,6 +129,16 @@ function buildFlutterwaveCustomerName(fullName) {
   const first = parts.shift() || 'Donor';
   const last = parts.join(' ') || first;
   return { first, last };
+}
+
+function buildFlutterwavePhone(phone) {
+  if (!phone) return null;
+  let digits = String(phone).replace(/\D/g, '');
+  if (digits.startsWith('234')) digits = digits.slice(3);
+  if (digits.startsWith('0')) digits = digits.slice(1);
+  // Flutterwave V4 direct charges currently require a 7-10 digit phone number.
+  if (digits.length < 7 || digits.length > 10) return null;
+  return { country_code: '234', number: digits };
 }
 
 async function getDonationOr404(txRef, res) {
@@ -193,10 +202,11 @@ app.post('/api/payments/initialize', async (req, res) => {
     if (!donation) return;
     if (donation.status === 'successful') return res.status(409).json({ error: 'Donation is already successful' });
     const redirectUrl = `${FRONTEND_ORIGIN}/donate/return?tx_ref=${encodeURIComponent(donation.tx_ref)}`;
+    const customerPhone = buildFlutterwavePhone(donation.phone);
     const customer = {
       email: donation.email,
       name: buildFlutterwaveCustomerName(donation.donor_name || 'Donor'),
-      ...(donation.phone ? { phone: { country_code: '234', number: String(donation.phone).replace(/\D/g, '').slice(-15) } } : {}),
+      ...(customerPhone ? { phone: customerPhone } : {}),
     };
     let chargeResponse;
     if (customerId && paymentMethodId) {
