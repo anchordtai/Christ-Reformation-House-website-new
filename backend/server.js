@@ -125,6 +125,13 @@ function safePaymentMethod(paymentMethod) {
   return paymentMethod;
 }
 
+function buildFlutterwaveCustomerName(fullName) {
+  const parts = String(fullName || 'Donor').trim().split(/\s+/).filter(Boolean);
+  const first = parts.shift() || 'Donor';
+  const last = parts.join(' ') || first;
+  return { first, last };
+}
+
 async function getDonationOr404(txRef, res) {
   const donation = await getDonationByTxRef(txRef);
   if (!donation) {
@@ -188,7 +195,7 @@ app.post('/api/payments/initialize', async (req, res) => {
     const redirectUrl = `${FRONTEND_ORIGIN}/donate/return?tx_ref=${encodeURIComponent(donation.tx_ref)}`;
     const customer = {
       email: donation.email,
-      name: donation.donor_name || 'Donor',
+      name: buildFlutterwaveCustomerName(donation.donor_name || 'Donor'),
       ...(donation.phone ? { phone: { country_code: '234', number: String(donation.phone).replace(/\D/g, '').slice(-15) } } : {}),
     };
     let chargeResponse;
