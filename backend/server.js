@@ -22,17 +22,17 @@ const {
 const app = express();
 const PORT = process.env.PORT || 5000;
 const FRONTEND_ORIGIN = String(process.env.FRONTEND_ORIGIN || 'http://localhost:3000').trim().replace(/\/$/, '');
-const VERCEL_FRONTEND_ORIGIN = 'https://christ-reformation-house-website-ne.vercel.app';
 const FLW_WEBHOOK_SECRET_HASH = String(process.env.FLW_WEBHOOK_SECRET_HASH || '').trim();
 const FLW_ENCRYPTION_KEY = String(process.env.FLW_ENCRYPTION_KEY || '').trim();
 
-// Only explicitly trusted browser origins are allowed. The Vercel origin is
-// included for production testing; the custom domain remains the primary origin.
+// Only explicitly trusted browser origins are allowed.
+// Both the apex and www production domains are supported.
 const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:3001',
   FRONTEND_ORIGIN,
-  VERCEL_FRONTEND_ORIGIN,
+  'https://christreformationhouse.org.ng',
+  'https://www.christreformationhouse.org.ng',
 ].filter(Boolean);
 
 app.use(cors({
