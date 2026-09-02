@@ -244,8 +244,21 @@ app.post('/api/payments/initialize', async (req, res) => {
     });
   } catch (error) {
     const providerStatus = error.response?.status || error.providerStatus || null;
-    console.error('Flutterwave V4 payment initialization failed:', providerStatus || error.message);
-    return res.status(502).json({ error: 'Payment initiation failed', provider_status: providerStatus });
+    const providerDetails = error.providerDetails || null;
+    console.error('Flutterwave V4 payment initialization failed:', {
+      provider_status: providerStatus,
+      provider_code: error.providerCode || null,
+      provider_error_type: providerDetails?.type || null,
+      provider_message: providerDetails?.message || null,
+      validation_errors: Array.isArray(providerDetails?.validation_errors) ? providerDetails.validation_errors : [],
+      endpoint: error.providerEndpoint || null,
+      internal_code: error.code || null,
+    });
+    return res.status(502).json({
+      error: 'Payment initiation failed',
+      provider_status: providerStatus,
+      provider_code: error.providerCode || null,
+    });
   }
 });
 
