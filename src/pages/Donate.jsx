@@ -17,36 +17,61 @@ const Donate = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError(null)
-    setLoading(true)
+
+    const rawAmount = Number.parseFloat(formData.amount)
+    const cardNumber = String(card.number || '').replace(/\s/g, '')
+    const expiryMonth = String(card.expiryMonth || '').trim()
+    const expiryYear = String(card.expiryYear || '').trim()
+    const cvv = String(card.cvv || '').trim()
 
     try {
-      const rawAmount = Number.parseFloat(formData.amount)
+      // Use JavaScript validation instead of browser-native form validation so
+      // every failure is visible in the page and the request flow is debuggable.
       if (!Number.isFinite(rawAmount) || rawAmount <= 0) throw new Error('Please enter a valid donation amount.')
       if (formData.currency !== 'NGN') throw new Error('For the first Live V4 test, please use NGN.')
+      if (!String(formData.name || '').trim()) throw new Error('Please enter your full name.')
+      if (!/^\S+@\S+\.\S+$/.test(String(formData.email || '').trim())) throw new Error('Please enter a valid email address.')
       if (paymentMethod !== 'card') throw new Error('Bank transfer will be enabled after the card V4 flow is verified.')
-      if (!/^\d[\d\s]{11,22}\d$/.test(card.number.trim())) throw new Error('Please enter a valid card number.')
-      if (!/^\d{2}$/.test(card.expiryMonth) || !/^\d{4}$/.test(card.expiryYear)) throw new Error('Please enter a valid card expiry date.')
-      if (!/^\d{3,4}$/.test(card.cvv)) throw new Error('Please enter a valid CVV.')
+      if (!/^\d{12,19}$/.test(cardNumber)) throw new Error('Please enter a valid 12-19 digit card number.')
+      if (!/^\d{2}$/.test(expiryMonth) || !/^\d{4}$/.test(expiryYear)) throw new Error('Please enter the card expiry as MM and YYYY.')
+      if (!/^\d{3,4}$/.test(cvv)) throw new Error('Please enter a valid 3 or 4 digit CVV.')
+
+      setLoading(true)
+      console.info('[CRH Payment] Starting donation request')
 
       const amount = selectedCurrency.decimals === 0 ? Math.round(rawAmount) : Math.round(rawAmount * 100) / 100
-      const donationResponse = await donationService.create({ ...formData, amount })
+      const donationResponse = await donationService.create({
+        ...formData,
+        name: String(formData.name).trim(),
+        email: String(formData.email).trim(),
+        phone: String(formData.phone || '').trim(),
+        amount,
+      })
       const txRef = donationResponse?.data?.tx_ref
       if (!txRef) throw new Error('The donation reference could not be created.')
+      console.info('[CRH Payment] Donation created', { tx_ref: txRef })
 
       // Raw card fields are sent only over HTTPS to our Render backend.
       // The backend encrypts them with FLW_ENCRYPTION_KEY and never logs or persists them.
       const paymentMethodPayload = {
         type: 'card',
         card: {
-          number: card.number,
-          expiry_month: card.expiryMonth,
-          expiry_year: card.expiryYear,
-          cvv: card.cvv,
+          number: cardNumber,
+          expiry_month: expiryMonth,
+          expiry_year: expiryYear,
+          cvv,
         },
       }
 
+      console.info('[CRH Payment] Initializing Flutterwave charge', { tx_ref: txRef })
       const paymentResponse = await donationService.initialize(txRef, paymentMethodPayload)
-      const payment = paymentResponse?.data
+      const payment = paymentResponse?.data || {}
+      console.info('[CRH Payment] Flutterwave initialization response', {
+        tx_ref: txRef,
+        status: payment.status || null,
+        charge_id: payment.charge_id || null,
+        next_action: payment.next_action?.type || null,
+      })
 
       if (payment?.next_action?.type === 'redirect_url' && payment.next_action.redirect_url?.url) {
         window.location.assign(payment.next_action.redirect_url.url)
@@ -61,12 +86,36 @@ const Donate = () => {
         return
       }
 
-      throw new Error('Flutterwave requires an additional payment authorization step. No charge was marked successful.')
+      if (payment?.next_action?.type) {
+        throw new Error(`Flutterwave requires additional authorization (${payment.next_action.type}). The current checkout does not yet support this authorization step.`)
+      }
+
+      throw new Error('Flutterwave did not return a payment authorization or redirect URL.')
     } catch (err) {
       const status = err.response?.status
-      if (!err.response && err.message) setError(err.message)
-      else if (!err.response) setError('Network error: the website could not reach the payment server. Please check your connection and try again.')
-      else setError(err.response?.data?.error || `Payment setup failed${status ? ` (HTTP ${status})` : ''}. Please try again.`)
+      const providerStatus = err.response?.data?.provider_status
+      const providerCode = err.response?.data?.provider_code
+      const serverError = err.response?.data?.error
+
+      console.error('[CRH Payment] Payment flow failed', {
+        http_status: status || null,
+        provider_status: providerStatus || null,
+        provider_code: providerCode || null,
+        message: err.message || null,
+      })
+
+      if (serverError) {
+        const diagnostic = [
+          serverError,
+          providerStatus ? `Provider HTTP ${providerStatus}` : null,
+          providerCode ? `Provider code ${providerCode}` : null,
+        ].filter(Boolean).join(' — ')
+        setError(diagnostic)
+      } else if (err.message) {
+        setError(err.message)
+      } else {
+        setError('Payment setup failed. Please try again.')
+      }
     } finally {
       setLoading(false)
     }
@@ -93,7 +142,7 @@ const Donate = () => {
                 <div className="card">
                   <h2 className="text-2xl font-bold mb-6">Donation Information</h2>
                   {error && <Error message={error} />}
-                  <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
+                  <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off" noValidate>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Currency *</label>
                       <select name="currency" required value={formData.currency} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg">
