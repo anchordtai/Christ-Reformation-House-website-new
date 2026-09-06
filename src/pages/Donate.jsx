@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Heart, CreditCard, Loader2, ShieldCheck, Building2 } from 'lucide-react'
 import { donationService } from '../services/api'
 import { DONATION_TYPES, DONATION_CURRENCIES } from '../utils/constants'
-import Error from '../components/Error'
+import ErrorMessage from '../components/Error'
 
 const Donate = () => {
   const [formData, setFormData] = useState({ amount: '', currency: 'NGN', donationType: 'general', name: '', email: '', phone: '', message: '' })
@@ -141,7 +141,7 @@ const Donate = () => {
               <div className="lg:col-span-2">
                 <div className="card">
                   <h2 className="text-2xl font-bold mb-6">Donation Information</h2>
-                  {error && <Error message={error} />}
+                  {error && <ErrorMessage message={error} />}
                   <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off" noValidate>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Currency *</label>
