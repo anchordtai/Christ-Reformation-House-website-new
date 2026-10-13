@@ -17,12 +17,49 @@ function getSupabaseRestUrl(resource) {
   return `${SUPABASE_URL.replace(/\/$/, '')}/rest/v1/${resource}`;
 }
 
+function getSupabaseConfigStatus() {
+  return {
+    url_configured: Boolean(String(SUPABASE_URL || '').trim()),
+    service_role_configured: Boolean(String(SUPABASE_SERVICE_ROLE_KEY || '').trim()),
+  };
+}
+
 async function checkSupabaseConnection() {
+  const config = getSupabaseConfigStatus();
+  if (!config.url_configured || !config.service_role_configured) {
+    const error = new Error('Supabase credentials are not configured');
+    error.code = 'MISSING_CREDENTIALS';
+    throw error;
+  }
+
   const response = await axios.get(getSupabaseRestUrl('donation_types'), {
-    headers: getSupabaseHeaders(), params: { select: 'id', limit: 1 },
-    timeout: 10000, validateStatus: () => true,
+    headers: getSupabaseHeaders(),
+    params: { select: 'id', limit: 1 },
+    timeout: 10000,
+    validateStatus: () => true,
   });
-  if (response.status < 200 || response.status >= 300) throw new Error(`Supabase REST returned HTTP ${response.status}`);
+
+  if (response.status === 404) {
+    const error = new Error('donation_types table not found');
+    error.code = 'MISSING_TABLE';
+    error.providerStatus = 404;
+    throw error;
+  }
+
+  if (response.status === 401 || response.status === 403) {
+    const error = new Error(`Supabase authentication failed with HTTP ${response.status}`);
+    error.code = 'AUTH_FAILED';
+    error.providerStatus = response.status;
+    throw error;
+  }
+
+  if (response.status < 200 || response.status >= 300) {
+    const error = new Error(`Supabase REST returned HTTP ${response.status}`);
+    error.code = 'QUERY_FAILED';
+    error.providerStatus = response.status;
+    throw error;
+  }
+
   return true;
 }
 
@@ -44,8 +81,14 @@ async function createDonation(donation) {
 
 async function getDonationByTxRef(txRef) {
   const response = await axios.get(getSupabaseRestUrl('donations'), {
-    headers: getSupabaseHeaders(), params: { select: '*', tx_ref: `eq.${txRef}`, limit: 1 }, timeout: 10000,
+    headers: getSupabaseHeaders(), params: { select: '*', tx_ref: `eq.${txRef}`, limit: 1 }, timeout: 10000, validateStatus: () => true,
   });
+  if (response.status < 200 || response.status >= 300) {
+    const error = new Error(`Supabase donation lookup failed with HTTP ${response.status}`);
+    error.code = 'SUPABASE_QUERY_FAILED';
+    error.providerStatus = response.status;
+    throw error;
+  }
   return response.data?.[0] || null;
 }
 
@@ -63,4 +106,14 @@ async function createPaymentEvent(event) {
   return response.data?.[0] || null;
 }
 
-module.exports = { checkSupabaseConnection, getSupabaseHeaders, getSupabaseRestUrl, getActiveDonationType, createDonation, getDonationByTxRef, updateDonationById, createPaymentEvent };
+module.exports = {
+  checkSupabaseConnection,
+  getSupabaseConfigStatus,
+  getSupabaseHeaders,
+  getSupabaseRestUrl,
+  getActiveDonationType,
+  createDonation,
+  getDonationByTxRef,
+  updateDonationById,
+  createPaymentEvent,
+};

@@ -6,6 +6,7 @@ const crypto = require('crypto');
 require('dotenv').config();
 const {
   checkSupabaseConnection,
+  getSupabaseConfigStatus,
   getActiveDonationType,
   createDonation,
   getDonationByTxRef,
@@ -54,12 +55,29 @@ app.get('/health', (req, res) => res.status(200).json({
 }));
 
 app.get('/health/db', async (req, res) => {
+  const credentials = getSupabaseConfigStatus();
   try {
     await checkSupabaseConnection();
-    return res.status(200).json({ status: 'ok', database: 'connected' });
+    return res.status(200).json({
+      status: 'ok',
+      database: 'connected',
+      credentials_configured: credentials.url_configured && credentials.service_role_configured,
+    });
   } catch (error) {
-    console.error('Supabase health check failed:', error.message);
-    return res.status(503).json({ status: 'error', database: 'disconnected' });
+    console.error('Supabase health check failed:', {
+      code: error.code || 'UNKNOWN',
+      providerStatus: error.providerStatus || null,
+      message: error.message,
+    });
+    return res.status(503).json({
+      status: 'error',
+      database: 'disconnected',
+      stage: error.code === 'MISSING_CREDENTIALS' ? 'configuration' : (error.code === 'MISSING_TABLE' ? 'schema' : (error.code === 'AUTH_FAILED' ? 'authentication' : 'query')),
+      credentials_configured: credentials.url_configured && credentials.service_role_configured,
+      url_configured: credentials.url_configured,
+      service_role_configured: credentials.service_role_configured,
+      provider_status: Number.isInteger(error.providerStatus) ? error.providerStatus : null,
+    });
   }
 });
 
@@ -150,13 +168,45 @@ async function getDonationOr404(txRef, res) {
   return donation;
 }
 
+const SUCCESSFUL_CHARGE_STATUSES = new Set(['succeeded', 'successful', 'completed']);
+
+function normalizeDonationStatus(status) {
+  if (status === 'verified') return 'successful';
+  return status;
+}
+
+function isSuccessfulChargeStatus(status) {
+  return SUCCESSFUL_CHARGE_STATUSES.has(String(status || '').toLowerCase());
+}
+
 async function verifyChargeAgainstDonation(donation, charge) {
   return Boolean(
-    charge?.status === 'succeeded' &&
+    isSuccessfulChargeStatus(charge?.status) &&
     String(charge.reference || '') === String(donation.tx_ref || '') &&
     Number(charge.amount) === Number(donation.amount) &&
     String(charge.currency || '').toUpperCase() === String(donation.currency || '').toUpperCase()
   );
+}
+
+function mapProviderError(error, fallbackMessage) {
+  if (error?.code === 'SUPABASE_QUERY_FAILED' || error?.message?.includes('Supabase')) {
+    return { status: 503, body: { verified: false, error: 'Database is temporarily unavailable. If you were charged, please save your reference and contact us.' } };
+  }
+  if (error?.code === 'MISSING_CREDENTIALS' || error?.code === 'AUTHENTICATION_FAILED') {
+    return { status: 503, body: { verified: false, error: 'Payment provider is not configured on the server.' } };
+  }
+  if (error?.code === 'FLUTTERWAVE_API_ERROR') {
+    return {
+      status: 502,
+      body: {
+        verified: false,
+        error: 'Could not confirm payment with Flutterwave right now.',
+        provider_status: error.providerStatus || null,
+        provider_code: error.providerCode || null,
+      },
+    };
+  }
+  return { status: 502, body: { verified: false, error: fallbackMessage || 'Payment verification failed' } };
 }
 
 app.post('/api/donations', async (req, res) => {
@@ -283,34 +333,94 @@ app.get('/api/payments/verify/:tx_ref', async (req, res) => {
   const txRef = String(req.params.tx_ref || '').trim();
   if (!txRef) return res.status(400).json({ error: 'tx_ref is required' });
   try {
-    const donation = await getDonationOr404(txRef, res);
-    if (!donation) return;
+    let donation;
+    try {
+      donation = await getDonationByTxRef(txRef);
+    } catch (error) {
+      console.error('Donation lookup failed during verification:', error.message);
+      const mapped = mapProviderError(error, 'Could not load donation record for verification');
+      return res.status(mapped.status).json(mapped.body);
+    }
+    if (!donation) return res.status(404).json({ verified: false, error: 'Donation not found' });
+
+    const currentStatus = normalizeDonationStatus(donation.status);
+    if (currentStatus === 'successful') {
+      return res.json({ verified: true, success: true, status: 'successful', tx_ref: donation.tx_ref });
+    }
+
     const chargeId = String(donation.flutterwave_transaction_id || '').trim();
-    if (!chargeId) return res.status(409).json({ verified: false, status: donation.status, error: 'Payment has not been initialized' });
+    if (!chargeId) {
+      return res.status(409).json({
+        verified: false,
+        status: donation.status,
+        error: 'Payment has not been initialized yet. If you just paid, wait a moment and refresh.',
+      });
+    }
+
     const response = await retrieveCharge(chargeId);
     const charge = response.data?.data || response.data;
     const successful = await verifyChargeAgainstDonation(donation, charge);
+    const chargeStatus = String(charge?.status || 'pending');
     const attempts = Number(donation.verification_attempts || 0) + 1;
-    await updateDonationById(donation.id, {
-      verification_attempts: attempts,
-      status: successful ? 'successful' : (['failed', 'cancelled'].includes(charge?.status) ? charge.status : 'pending'),
-      verified_at: successful ? new Date().toISOString() : null,
-      failure_reason: successful ? null : 'Flutterwave V4 verification did not match the expected transaction',
-    });
-    if (successful && donation.status !== 'successful') {
-      await createPaymentEvent({
-        donation_id: donation.id,
-        event_type: 'charge_verified',
-        provider: 'flutterwave',
-        provider_transaction_id: String(charge.id),
-        status: 'succeeded',
-        payload: { id: charge.id, reference: charge.reference, amount: charge.amount, currency: charge.currency, status: charge.status },
+
+    try {
+      await updateDonationById(donation.id, {
+        verification_attempts: attempts,
+        status: successful ? 'successful' : (['failed', 'cancelled'].includes(chargeStatus) ? chargeStatus : 'pending'),
+        verified_at: successful ? new Date().toISOString() : null,
+        failure_reason: successful ? null : 'Flutterwave verification did not match the expected transaction',
+      });
+      if (successful && currentStatus !== 'successful') {
+        await createPaymentEvent({
+          donation_id: donation.id,
+          event_type: 'charge_verified',
+          provider: 'flutterwave',
+          provider_transaction_id: String(charge.id),
+          status: chargeStatus,
+          payload: { id: charge.id, reference: charge.reference, amount: charge.amount, currency: charge.currency, status: charge.status },
+        });
+      }
+    } catch (dbError) {
+      console.error('Donation update failed during verification:', dbError.message);
+      if (successful) {
+        return res.json({
+          verified: true,
+          success: true,
+          status: 'successful',
+          tx_ref: donation.tx_ref,
+          charge_status: chargeStatus,
+          warning: 'Payment confirmed with Flutterwave, but the database could not be updated.',
+        });
+      }
+    }
+
+    if (!successful && isSuccessfulChargeStatus(chargeStatus)) {
+      return res.json({
+        verified: false,
+        success: false,
+        status: chargeStatus,
+        tx_ref: donation.tx_ref,
+        charge_status: chargeStatus,
+        error: 'Payment was received, but the amount or reference did not match our records. Please contact us with your reference.',
       });
     }
-    return res.json({ verified: successful, success: successful, status: successful ? 'successful' : String(charge?.status || 'pending'), tx_ref: donation.tx_ref });
+
+    return res.json({
+      verified: successful,
+      success: successful,
+      status: successful ? 'successful' : chargeStatus,
+      tx_ref: donation.tx_ref,
+      charge_status: chargeStatus,
+      ...(successful ? {} : { error: chargeStatus === 'pending' ? 'Payment is still processing. Please wait and try again.' : 'Payment verification did not succeed.' }),
+    });
   } catch (error) {
-    console.error('Flutterwave V4 verification failed:', error.response?.status || error.message);
-    return res.status(502).json({ verified: false, error: 'Payment verification failed' });
+    console.error('Flutterwave V4 verification failed:', {
+      message: error.message,
+      code: error.code || null,
+      provider_status: error.providerStatus || error.response?.status || null,
+    });
+    const mapped = mapProviderError(error, 'Payment verification failed');
+    return res.status(mapped.status).json({ ...mapped.body, tx_ref: txRef });
   }
 });
 
