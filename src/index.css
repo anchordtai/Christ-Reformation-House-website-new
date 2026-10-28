@@ -171,3 +171,60 @@
  .ministry-giving { padding:48px 24px; }
 }
 @media(prefers-reduced-motion:reduce) { .ministry-hero-slide,.ministry-pathway { transition:none; } }
+
+/* Shared polish: finite entrance motion, clear focus, and useful navigation. */
+.site-skip-link { position:fixed; left:16px; top:12px; z-index:100; padding:12px 20px; color:white; background:#101b2d; border:2px solid #efc477; border-radius:8px; transform:translateY(-150%); }
+.site-skip-link:focus { transform:translateY(0); }
+.site-back-top { position:fixed; bottom:24px; right:24px; z-index:45; display:flex; align-items:center; justify-content:center; gap:7px; padding:13px 17px; border-radius:40px; background:#172438; color:white; box-shadow:0 8px 30px #101b2d30; font-size:12px; border:1px solid #efc47770; }
+.site-back-top:hover { background:#263b59; }
+.site-back-top:focus-visible { outline:3px solid #d3993d; outline-offset:4px; }
+.ministry-hero { position:relative; isolation:isolate; }
+.ministry-hero-copy { position:relative; z-index:1; }
+.ministry-hero-copy:before { content:''; position:absolute; inset:8% -10% 0 -40%; z-index:-1; pointer-events:none; background:radial-gradient(ellipse,#d9a54a15,transparent 65%); }
+.ministry-hero h1 .hero-title-line { display:block; color:#fff; animation:title-arrive .85s cubic-bezier(.2,.7,.2,1) both; }
+.ministry-hero h1 .hero-title-accent { color:#efc477; animation-delay:.14s; text-wrap:balance; }
+.hero-values { display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin-top:24px; animation:title-arrive .8s .25s both; }
+.hero-values span { font-size:10px; text-transform:uppercase; letter-spacing:.17em; color:#e2d5ba; border:1px solid #d4b47740; border-radius:30px; padding:7px 12px; background:#ffffff05; }
+.ministry-hero-intro { animation:title-arrive .8s .3s both; }
+.ministry-slide-copy { animation:copy-arrive .55s ease-out both; }
+.ministry-actions { animation:title-arrive .8s .4s both; }
+.ministry-button { box-shadow:0 5px 18px #efc47715; transition:background .2s, transform .2s, box-shadow .2s; }
+.ministry-button:hover { transform:translateY(-3px); box-shadow:0 10px 25px #efc47725; }
+.ministry-button-outline { transition:background .2s, border-color .2s, transform .2s; }
+.ministry-button-outline:hover { background:#ffffff0d; border-color:#efc477; transform:translateY(-3px); }
+.ministry-controls { border-top:1px solid #ffffff12; padding-top:18px; }
+.ministry-hero-visual { border-left:1px solid #ffffff0c; }
+.ministry-hero-visual:after { content:''; position:absolute; inset:0; pointer-events:none; box-shadow:inset 20px 0 60px -50px #000; }
+.ministry-pathway { position:relative; overflow:hidden; transition:transform .25s,box-shadow .25s,border-color .25s; }
+.ministry-pathway:before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background:linear-gradient(90deg,#c48c35,#f4d9a4); transform:scaleX(0); transform-origin:left; transition:transform .3s; }
+.ministry-pathway:hover:before,.ministry-pathway:focus-visible:before { transform:scaleX(1); }
+.ministry-pathway:hover { transform:translateY(-6px); border-color:#dfc18c; box-shadow:0 18px 40px #1720330d; }
+.ministry-card-action svg,.ministry-text-link svg,.ministry-feature span svg { transition:transform .2s; }
+.ministry-pathway:hover .ministry-card-action svg,.ministry-text-link:hover svg,.ministry-feature:hover span svg { transform:translateX(4px); }
+.ministry-feature { position:relative; overflow:hidden; transition:transform .25s,box-shadow .25s; }
+.ministry-feature:after { content:''; width:180px; height:180px; position:absolute; right:-60px; top:-60px; border:1px solid #ffffff15; border-radius:50%; pointer-events:none; }
+.ministry-feature:hover { transform:translateY(-4px); box-shadow:0 16px 40px #17203312; }
+.ministry-feature-light:after { border-color:#a86d2320; }
+.ministry-pastor-inner figure { border-radius:14px; }
+.ministry-pastor-inner figure img { box-shadow:0 18px 45px #17203315; }
+.ministry-giving { position:relative; overflow:hidden; }
+.ministry-giving:before { content:''; position:absolute; width:400px; height:400px; right:-160px; top:-180px; border-radius:50%; border:1px solid #efc47720; pointer-events:none; }
+main input:not([type=checkbox]):not([type=radio]), main select, main textarea { transition:border-color .2s,box-shadow .2s; }
+main input:focus-visible,main select:focus-visible,main textarea:focus-visible { outline:2px solid #b8893d; outline-offset:2px; }
+main .card { border:1px solid #e5e7eb; }
+main .card img { border-radius:10px; }
+main section.bg-gradient-to-r.from-blue-600.to-purple-600 { background:radial-gradient(ellipse at top right,#314766,#101b2d 70%); position:relative; overflow:hidden; }
+main section.bg-gradient-to-r.from-blue-600.to-purple-600 h1 { letter-spacing:-.035em; animation:title-arrive .8s ease both; }
+main section.bg-gradient-to-r.from-blue-600.to-purple-600 p { color:#d7e0ed; }
+.motion-enter { animation:section-arrive .65s cubic-bezier(.2,.7,.2,1) var(--motion-delay,0ms) both; }
+@keyframes title-arrive { from { opacity:0; transform:translateY(22px); } to { opacity:1; transform:translateY(0); } }
+@keyframes copy-arrive { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+@keyframes section-arrive { from { opacity:.35; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
+@media(max-width:639px) { .site-back-top { right:16px; bottom:16px; } .hero-values { margin-top:20px; } .ministry-hero-copy { padding-top:40px; } }
+@media(prefers-reduced-motion:reduce) {
+ html { scroll-behavior:auto; }
+ *,*::before,*::after { scroll-behavior:auto !important; }
+ .motion-enter,.ministry-hero h1 .hero-title-line,.hero-values,.ministry-hero-intro,.ministry-actions,.ministry-slide-copy,main section.bg-gradient-to-r.from-blue-600.to-purple-600 h1 { animation:none !important; opacity:1 !important; transform:none !important; }
+ .ministry-button,.ministry-button-outline,.ministry-pathway,.ministry-pathway:before,.ministry-feature,.ministry-card-action svg,.ministry-text-link svg,.ministry-feature span svg { transition:none; }
+ .ministry-button:hover,.ministry-button-outline:hover,.ministry-pathway:hover,.ministry-feature:hover { transform:none; }
+}

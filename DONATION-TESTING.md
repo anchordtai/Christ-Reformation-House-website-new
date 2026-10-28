@@ -1,6 +1,6 @@
 # Donation checkout release checks
 
-This branch changes the giving page, Flutterwave V4 authorization, duplicate initialization protection, payment recovery, and return states. It does not enable bank transfer, subscriptions, or additional currencies by default.
+This branch changes the giving page, Flutterwave V4 authorization, duplicate initialization protection, payment recovery, and return states. It does not enable bank transfer or subscriptions. The default currency menu includes NGN, USD, GBP, EUR, GHS, ZAR, and KES; merchant-account acceptance must still be checked.
 
 ## Local setup
 
@@ -34,6 +34,6 @@ Start `npm run dev` at the root and `npm start` from `backend`. Frontend API cal
 
 An atomic Supabase metadata claim is saved before contacting Flutterwave. The application intentionally does not repeat initialization after an uncertain outcome, even after a restart. If the provider accepted a charge but its ID was not saved, a valid webhook can recover it. Otherwise a maintainer must reconcile the reference in Flutterwave and Supabase before clearing or resolving the attempt. Do not clear a claim merely because a request timed out.
 
-A definitive provider initialization rejection (HTTP 400/422) is recorded as failed; an ambiguous timeout remains unresolved. Additional currencies must be explicitly listed in `DONATION_CURRENCIES` only after confirming the merchant account supports them. NGN remains the default.
+A definitive provider initialization rejection (HTTP 400/422) is recorded as failed; an ambiguous timeout remains unresolved. The default currency allowlist includes NGN, USD, GBP, EUR, GHS, ZAR, and KES. `DONATION_CURRENCIES` overrides it, including an explicit empty value to disable all currencies. If Render still has `DONATION_CURRENCIES=NGN`, update it to the desired comma-separated list and redeploy the backend. Vercel deployment alone cannot update the Render API. Verify each enabled currency with the merchant account and sandbox. NGN remains the initial selection; changing currency clears the amount to prevent accidental reinterpretation.
 
 Automated mocks and local browser checks do not establish that merchant credentials, account permissions, production configuration, or real payment settlement work. A completed sandbox transaction and verified webhook remain release requirements.

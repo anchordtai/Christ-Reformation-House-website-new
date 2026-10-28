@@ -29,7 +29,7 @@ const selected = () => node.querySelector('.ministry-slide-dot[aria-pressed="tru
 test('both local ministry portraits are available with descriptive alt text and one main heading', async () => {
   await render(); assert.equal(node.querySelectorAll('h1').length, 1);
   for (const image of node.querySelectorAll('img')) { assert.ok(fs.existsSync('public' + image.getAttribute('src'))); assert.ok(image.alt.includes('Anchord Taiwo')); }
-  assert.ok(node.textContent.includes('AI-created ministry portraits'));
+  assert.equal(node.textContent.includes('AI-created'), false); assert.ok(node.textContent.includes('Senior Pastor')); assert.ok(node.textContent.includes('Worship'));
 });
 test('next, previous, dots, and keyboard navigation update the visible slide', async () => {
   await render(); await click('Next ministry slide'); assert.ok(selected().includes('slide 2')); assert.equal(node.querySelector('.ministry-actions a').getAttribute('href'), '/prayer-request');

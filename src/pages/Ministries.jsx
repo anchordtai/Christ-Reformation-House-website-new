@@ -84,7 +84,7 @@ const Ministries = () => {
       <section className="section-padding bg-slate-50" aria-labelledby="ministry-invitation">
         <div className="container-custom grid gap-10 items-center lg:grid-cols-2">
           <div><p className="text-xs font-bold uppercase tracking-widest text-amber-700 mb-4">Grow together. Serve together.</p><h2 id="ministry-invitation" className="text-3xl md:text-4xl font-bold mb-5">Faith finds expression in service.</h2><p className="text-slate-600 leading-relaxed mb-6">Explore our ministries and speak with us about opportunities to participate. Wherever you are in your walk with Christ, there is a next step you can take.</p><Link to="/contact" className="inline-flex bg-slate-900 text-white rounded-lg px-6 py-3 font-semibold">Find your next step</Link></div>
-          <figure><img src="/assets/portraits/anchord-charcoal.webp" alt="Leadership portrait of Apostle (Dr) Anchord Taiwo in a charcoal suit" width="1200" height="800" loading="lazy" decoding="async" className="w-full rounded-2xl" /><figcaption className="mt-2 text-xs text-slate-500">Apostle (Dr) Anchord Taiwo · AI-created portrait</figcaption></figure>
+          <figure><img src="/assets/portraits/anchord-charcoal.webp" alt="Leadership portrait of Apostle (Dr) Anchord Taiwo in a charcoal suit" width="1200" height="800" loading="lazy" decoding="async" className="w-full rounded-2xl" /><figcaption className="mt-2 text-xs text-slate-500">Apostle (Dr) Anchord Taiwo</figcaption></figure>
         </div>
       </section>
 

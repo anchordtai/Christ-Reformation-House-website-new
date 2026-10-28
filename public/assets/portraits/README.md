@@ -10,7 +10,7 @@ Placement:
 - anchord-charcoal.webp: Ministries invitation section
 - anchord-black.webp: Contact page introduction
 
-The homepage presents the portrait scenes with descriptive alternatives and a visible AI-created caption. Portraits are contained in the slider to avoid cutting off heads, hands, or feet. Formal portraits retain their original composition. Static images below the fold load lazily. All assets are hosted locally; the slider no longer depends on third-party stock photography.
+The homepage presents the portrait scenes with descriptive alternatives and captions showing the pastor’s name and ministry role. Portraits are contained in the slider to avoid cutting off heads, hands, or feet. Formal portraits retain their original composition. Static images below the fold load lazily. All assets are hosted locally; the slider no longer depends on third-party stock photography.
 
 Slider checks: previous/next, slide selection, keyboard arrows, pause/play, pause on hover and keyboard focus, hidden-tab suspension, and reduced-motion preference. Autoplay advances every seven seconds unless paused. Keyboard focus and manual selection pause rotation until explicitly played.
 

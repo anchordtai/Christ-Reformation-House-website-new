@@ -2,7 +2,7 @@ const crypto = require('node:crypto');
 
 function enabledCurrencies() {
   const supported = new Set(['NGN', 'USD', 'GBP', 'EUR', 'GHS', 'ZAR', 'KES']);
-  return [...new Set(String(process.env.DONATION_CURRENCIES || 'NGN').split(',').map(s => s.trim().toUpperCase()).filter(s => supported.has(s)))];
+  return [...new Set(String(process.env.DONATION_CURRENCIES ?? 'NGN,USD,GBP,EUR,GHS,ZAR,KES').split(',').map(s => s.trim().toUpperCase()).filter(s => supported.has(s)))];
 }
 
 function authorizationType(action) {
