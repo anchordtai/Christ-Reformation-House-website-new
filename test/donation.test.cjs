@@ -129,3 +129,12 @@ test('global currency menu follows API configuration and clears amounts when swi
   assert.ok(node.textContent.includes('Amount (USD)')); assert.ok(node.textContent.includes('$25'));
   assert.ok(node.textContent.includes('Continue to payment (USD)'));
 });
+
+test('database rejection clears the uninitialized checkout and permits a corrected retry', async () => {
+  api.create = async () => { const error = new Error('Database unavailable'); error.response = { status: 503, data: { error: 'Donation database is unavailable' } }; throw error; };
+  await render(Donate); await fillGift(); await submit();
+  assert.equal(sessionStorage.getItem('crh-donation-checkout'), null);
+  assert.ok(node.querySelector('[role="alert"]').textContent.includes('database'));
+  assert.equal(node.querySelector('#amount').disabled, false);
+  assert.equal(initializeCalls, 0);
+});

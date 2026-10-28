@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 /**
  * Custom hook for API calls with loading and error states
@@ -8,21 +8,24 @@ export const useApi = (apiFunction, dependencies = []) => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
+  const requestId = useRef(0)
   const fetchData = async () => {
+    const id = ++requestId.current
     try {
       setLoading(true)
       setError(null)
       const response = await apiFunction()
-      setData(response.data)
+      if (id === requestId.current) setData(response.data)
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'An error occurred')
+      if (id === requestId.current) setError(err.response?.data?.error || err.response?.data?.message || err.message || 'An error occurred')
     } finally {
-      setLoading(false)
+      if (id === requestId.current) setLoading(false)
     }
   }
 
   useEffect(() => {
     fetchData()
+    return () => { requestId.current += 1 }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, dependencies)
 
@@ -37,20 +40,26 @@ export const useFormSubmit = (submitFunction) => {
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(false)
 
+  const busy = useRef(false)
   const submit = async (data) => {
+    if (busy.current) return
+    busy.current = true
     try {
       setLoading(true)
       setError(null)
       setSuccess(false)
-      await submitFunction(data)
+      const result = await submitFunction(data)
       setSuccess(true)
+      return result
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'An error occurred')
+      setError(err.response?.data?.error || err.response?.data?.message || err.message || 'An error occurred')
     } finally {
+      busy.current = false
       setLoading(false)
     }
   }
 
   return { submit, loading, error, success, reset: () => { setError(null); setSuccess(false) } }
 }
+
 

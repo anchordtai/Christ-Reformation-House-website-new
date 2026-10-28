@@ -21,18 +21,16 @@ export default function MeetingSchedule() {
     const payload = {
       title: sanitizeHtml(data.title),
       description: sanitizeHtml(data.description),
-      startTime: data.startTime,
-      endTime: data.endTime,
-      inviteEmails: data.inviteEmails
-        ? data.inviteEmails.split(/[\s,]+/).filter(Boolean)
-        : [],
+      startTime: new Date(data.startTime).toISOString(),
+      endTime: new Date(data.endTime).toISOString(),
+      inviteEmails: [],
     }
     const res = await meetingsService.create(payload)
     const id = res?.data?.id
     const joinToken = res?.data?.joinToken
     if (id) {
       const query = joinToken ? `?token=${joinToken}` : ''
-      navigate(`/meetings/room/${id}${query}`)
+      navigate(`/meetings/${id}${query}`)
     }
     return res
   })
@@ -53,7 +51,7 @@ export default function MeetingSchedule() {
       <section className="bg-gradient-to-br from-slate-900 via-indigo-900 to-slate-900 text-white py-10">
         <div className="container-custom">
           <h1 className="text-3xl sm:text-4xl font-bold">Schedule a meeting</h1>
-          <p className="text-slate-300 mt-2">Create a meeting and send calendar invites to members.</p>
+          <p className="text-slate-300 mt-2">Create a meeting, then share its join link with members.</p>
         </div>
       </section>
 
@@ -109,24 +107,14 @@ export default function MeetingSchedule() {
                   />
                 </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Invite emails (comma-separated)</label>
-                <input
-                  type="text"
-                  name="inviteEmails"
-                  value={formData.inviteEmails}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500"
-                  placeholder="email1@example.com, email2@example.com"
-                />
-              </div>
+              <p className="text-sm text-slate-500">Times use your device timezone ({Intl.DateTimeFormat().resolvedOptions().timeZone}). After creating the meeting, copy its join link or prepare an email invitation.</p>
               <button
                 type="submit"
                 disabled={loading}
                 className="w-full flex items-center justify-center gap-2 py-3.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-400 text-white font-semibold rounded-xl"
               >
                 <Send className="w-5 h-5" />
-                {loading ? 'Creating...' : 'Create & send invites'}
+                {loading ? 'Creating...' : 'Create meeting'}
               </button>
             </form>
           </div>
@@ -135,3 +123,4 @@ export default function MeetingSchedule() {
     </div>
   )
 }
+

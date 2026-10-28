@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Video, Calendar, Clock, Share2, Edit2, Trash2 } from 'lucide-react'
 import { format } from 'date-fns'
+import { meetingCalendar } from '../utils/calendar.mjs'
 import { useApi } from '../hooks/useApi'
 import { useAuth } from '../context/AuthContext'
 import { meetingsService } from '../services/api'
@@ -27,6 +28,11 @@ export default function MeetingDetail() {
   const isPast = end && end < new Date()
   const duration = start && end ? Math.round((end - start) / 60000) : null
 
+  const downloadCalendar = () => {
+    const content = meetingCalendar(meeting, `${window.location.origin}/meetings/room/${meeting.id}`)
+    const url = URL.createObjectURL(new Blob([content], { type: 'text/calendar;charset=utf-8' }))
+    const link = document.createElement('a'); link.href = url; link.download = 'ministry-meeting.ics'; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000)
+  }
   const handleSendInvites = async (e) => {
     e.preventDefault()
     const emails = inviteEmails.split(/[\s,]+/).filter(Boolean)
@@ -34,8 +40,9 @@ export default function MeetingDetail() {
     setSendingInvites(true)
     setInviteMessage(null)
     try {
-      await meetingsService.sendInvites(meeting.id, emails)
-      setInviteMessage(`Invites sent to ${emails.length} email(s).`)
+      const link = `${window.location.origin}/meetings/room/${meeting.id}`
+      window.location.assign(`mailto:?bcc=${encodeURIComponent(emails.join(','))}&subject=${encodeURIComponent(meeting.title)}&body=${encodeURIComponent(`You are invited to ${meeting.title}.\n\nJoin: ${link}\nStarts: ${new Date(meeting.startTime).toLocaleString()}`)}`)
+      setInviteMessage('Your email app was opened with an invitation draft. Review and send it there.')
       setInviteEmails('')
     } catch (err) {
       setInviteMessage(err.response?.data?.message || 'Failed to send invites.')
@@ -45,14 +52,14 @@ export default function MeetingDetail() {
   }
 
   const handleCancel = async () => {
-    if (!meeting?.id || !window.confirm('Cancel this meeting? Invitees can be notified.')) return
+    if (!meeting?.id || !window.confirm('Cancel this meeting? This prevents new joins through the website; it does not disconnect an ongoing call.')) return
     setCancelling(true)
     try {
       await meetingsService.cancel(meeting.id, cancelReason)
       refetch?.()
       setCancelReason('')
     } catch (err) {
-      console.error(err)
+      setInviteMessage(err.response?.data?.error || 'The meeting could not be cancelled. Please retry.')
     } finally {
       setCancelling(false)
     }
@@ -132,7 +139,7 @@ export default function MeetingDetail() {
           {isAdmin && !isCancelled && (
             <div className="bg-white rounded-2xl border border-slate-200 p-6 mb-6">
               <h2 className="font-semibold text-slate-900 mb-2">Invite by email</h2>
-              <p className="text-sm text-slate-600 mb-3">Send meeting link and details to members.</p>
+              <p className="text-sm text-slate-600 mb-3">Prepare an invitation in your email app, then review and send it there.</p>
               <form onSubmit={handleSendInvites} className="flex flex-wrap gap-2">
                 <input
                   type="text"
@@ -146,11 +153,11 @@ export default function MeetingDetail() {
                   disabled={sendingInvites}
                   className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-xl hover:bg-indigo-700 disabled:opacity-50"
                 >
-                  {sendingInvites ? 'Sending...' : 'Send invites'}
+                  {sendingInvites ? 'Preparing…' : 'Prepare email invitation'}
                 </button>
               </form>
               {inviteMessage && (
-                <p className={`mt-2 text-sm ${inviteMessage.startsWith('Invites') ? 'text-green-600' : 'text-rose-600'}`}>
+                <p className={`mt-2 text-sm ${inviteMessage.startsWith('Your email') ? 'text-green-600' : 'text-rose-600'}`}>
                   {inviteMessage}
                 </p>
               )}
@@ -160,7 +167,7 @@ export default function MeetingDetail() {
             <div className="bg-white rounded-2xl border border-slate-200 p-6 mb-6">
               <h2 className="font-semibold text-slate-900 mb-2">Cancel meeting</h2>
               <p className="text-sm text-slate-600 mb-3">
-                Cancelling will update the meeting status. Optionally notify invitees via your backend.
+                Cancelling prevents new joins through the website. Share the change with invitees; it does not end an ongoing video call.
               </p>
               <input
                 type="text"
@@ -185,3 +192,4 @@ export default function MeetingDetail() {
     </div>
   )
 }
+

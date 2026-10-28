@@ -23,6 +23,7 @@ function shareLinks(meeting) {
 export default function ShareMeeting({ meeting, className = '' }) {
   const [open, setOpen] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [copyError, setCopyError] = useState(false)
   const url = buildMeetingUrl(meeting)
   const links = shareLinks(meeting)
 
@@ -30,9 +31,11 @@ export default function ShareMeeting({ meeting, className = '' }) {
     try {
       await navigator.clipboard.writeText(url)
       setCopied(true)
+      setCopyError(false)
       setTimeout(() => setCopied(false), 2000)
     } catch {
       setCopied(false)
+      setCopyError(true)
     }
   }
 
@@ -70,6 +73,8 @@ export default function ShareMeeting({ meeting, className = '' }) {
               <Mail className="w-4 h-4" />
               Email
             </a>
+            <label className="block px-4 py-2 text-xs text-slate-500">Meeting link<input aria-label="Meeting link" readOnly value={url} onFocus={e => e.target.select()} className="mt-2 w-full rounded border p-2 text-slate-800" /></label>
+            {copyError && <p role="status" className="px-4 text-xs text-amber-700">Select and copy the link manually.</p>}
             <div className="border-t border-slate-100 my-2" />
             <div className="px-3 py-1 text-xs text-slate-500">Share on</div>
             <div className="flex gap-1 px-2">
@@ -112,3 +117,4 @@ export default function ShareMeeting({ meeting, className = '' }) {
     </div>
   )
 }
+

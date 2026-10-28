@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 
+import { authService } from '../services/api'
+
 const AuthContext = createContext(null)
 
 const TOKEN_KEY = 'authToken'
@@ -14,11 +16,11 @@ export function AuthProvider({ children }) {
       return null
     }
   })
-  const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY) || null)
+  const [token, setToken] = useState(() => sessionStorage.getItem(TOKEN_KEY) || null)
   const [loading, setLoading] = useState(true)
 
   const login = useCallback((newToken, userData) => {
-    if (newToken) localStorage.setItem(TOKEN_KEY, newToken)
+    if (newToken) sessionStorage.setItem(TOKEN_KEY, newToken)
     setToken(newToken || null)
     if (userData) {
       sessionStorage.setItem(USER_KEY, JSON.stringify(userData))
@@ -27,6 +29,7 @@ export function AuthProvider({ children }) {
   }, [])
 
   const logout = useCallback(() => {
+    sessionStorage.removeItem(TOKEN_KEY)
     localStorage.removeItem(TOKEN_KEY)
     sessionStorage.removeItem(USER_KEY)
     setToken(null)
@@ -38,9 +41,15 @@ export function AuthProvider({ children }) {
       setLoading(false)
       return
     }
-    // Optional: validate token / fetch current user from API
-    setLoading(false)
-  }, [token])
+    let active = true
+    setLoading(true)
+    authService.getCurrentUser().then(({ data }) => {
+      if (!active) return
+      setUser(data); sessionStorage.setItem(USER_KEY, JSON.stringify(data))
+    }).catch(() => { if (active) logout() }).finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+
+  }, [token, logout])
 
   const isAdmin = !!user && (user.role === 'admin' || user.isAdmin === true)
 
@@ -62,3 +71,4 @@ export function useAuth() {
   if (!ctx) throw new Error('useAuth must be used within AuthProvider')
   return ctx
 }
+

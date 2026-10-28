@@ -1,7 +1,23 @@
 const axios = require('axios');
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+function cleanEnv(value) {
+  return String(value || '').trim().replace(/^(["'])(.*)\1$/, '$2').trim();
+}
+const SUPABASE_URL = cleanEnv(process.env.SUPABASE_URL).replace(/\/$/, '');
+const SUPABASE_SERVICE_ROLE_KEY = cleanEnv(process.env.SUPABASE_SERVICE_ROLE_KEY);
+
+function databaseFailure(error) {
+  const status = error.providerStatus || error.response?.status;
+  if (['ENOTFOUND', 'EAI_AGAIN'].includes(error.code)) return 'DNS_ERROR';
+  if (['ECONNABORTED', 'ETIMEDOUT'].includes(error.code)) return 'TIMEOUT';
+  if (error.code === 'ERR_INVALID_URL') return 'INVALID_URL';
+  if (['ECONNREFUSED', 'ECONNRESET'].includes(error.code)) return 'CONNECTION_ERROR';
+  if ([401, 403].includes(status)) return 'AUTH_FAILED';
+  if (status === 404 || ['42P01', 'PGRST205'].includes(error.response?.data?.code)) return 'MISSING_TABLE';
+  if (error.code === 'MISSING_CREDENTIALS') return 'MISSING_CREDENTIALS';
+  return 'QUERY_FAILED';
+}
+
 
 function getSupabaseHeaders() {
   if (!SUPABASE_SERVICE_ROLE_KEY) throw new Error('Supabase service configuration is missing');
@@ -108,6 +124,8 @@ async function createPaymentEvent(event) {
 
 module.exports = {
   checkSupabaseConnection,
+  databaseFailure,
+  cleanEnv,
   getSupabaseConfigStatus,
   getSupabaseHeaders,
   getSupabaseRestUrl,

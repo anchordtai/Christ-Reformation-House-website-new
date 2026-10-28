@@ -13,7 +13,7 @@ const api = axios.create({
 })
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('authToken')
+  const token = sessionStorage.getItem('authToken')
   if (token) config.headers.Authorization = `Bearer ${token}`
   return config
 })
@@ -25,7 +25,7 @@ api.interceptors.response.use(
       const url = error.config?.url || ''
       const isPublicOrAuth = url.includes('/donations') || url.includes('/payments/') || url.includes('/auth/login') || url.includes('/auth/signup')
       if (!isPublicOrAuth) {
-        localStorage.removeItem('authToken')
+        sessionStorage.removeItem('authToken'); localStorage.removeItem('authToken')
         window.location.href = '/login'
       }
     }
@@ -67,7 +67,7 @@ export const contactService = { send: (data) => api.post('/contact', data) }
 export const authService = {
   login: (credentials) => api.post('/auth/login', credentials),
   signup: (data) => api.post('/auth/signup', data),
-  logout: () => { localStorage.removeItem('authToken'); return Promise.resolve() },
+  logout: () => { sessionStorage.removeItem('authToken'); localStorage.removeItem('authToken'); return Promise.resolve() },
   getCurrentUser: () => api.get('/auth/me'),
 }
 export const storeService = {
@@ -97,3 +97,10 @@ export const socialAutomationService = { postNow: (payload) => api.post('/social
 
 export default api
 
+
+export const adminService = {
+  getContent: kind => api.get(`/admin/content/${kind}`),
+  saveContent: (kind, data, id) => id ? api.patch(`/admin/content/${kind}/${id}`, data) : api.post(`/admin/content/${kind}`, data),
+  deleteContent: (kind, id) => api.delete(`/admin/content/${kind}/${id}`),
+  getInbox: kind => api.get(kind === 'prayers' ? '/prayer-requests' : `/admin/${kind}`),
+}

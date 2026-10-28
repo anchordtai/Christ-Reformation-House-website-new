@@ -1,48 +1,30 @@
+import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { Play, Calendar, User, ArrowLeft, Clock, BookOpen, Share2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { useApi } from '../hooks/useApi'
 import { sermonService } from '../services/api'
 import Loading from '../components/Loading'
-
-const defaultSermon = (id) => ({
-  id: parseInt(id),
-  title: 'The Power of Faith',
-  speaker: 'Pastor John Doe',
-  date: new Date('2024-01-15'),
-  duration: '45 min',
-  image: '/assets/img/bible.jpeg',
-  description: 'Exploring how faith transforms our lives and circumstances.',
-  category: 'Faith',
-  videoUrl: '',
-  transcript: `In this powerful message, we explore the transformative power of faith. 
-Faith is not just believing in something we cannot see, but it's an active trust in God's 
-promises and His character. When we exercise faith, we open ourselves to God's miraculous 
-work in our lives.`,
-  scripture: 'Hebrews 11:1 - Now faith is the substance of things hoped for, the evidence of things not seen.',
-})
+import Error from '../components/Error'
+import VideoPlayer from '../components/live-stream/VideoPlayer'
 
 const SermonDetail = () => {
   const { id } = useParams()
   const { data: sermon, loading, error } = useApi(() => sermonService.getById(id), [id])
 
-  const sermonData = sermon || defaultSermon(id)
+  const sermonData = sermon || {}
   const dateObj = sermonData.date ? new Date(sermonData.date) : null
 
-  const handleShare = () => {
-    if (navigator.share) {
-      navigator.share({
-        title: sermonData.title,
-        text: sermonData.description,
-        url: window.location.href,
-      }).catch(() => {})
-    } else {
-      navigator.clipboard.writeText(window.location.href)
-    }
+  const [shareMessage, setShareMessage] = useState('')
+  const handleShare = async () => {
+    try {
+      if (navigator.share) await navigator.share({ title: sermonData.title, text: sermonData.description, url: window.location.href })
+      else { await navigator.clipboard.writeText(window.location.href); setShareMessage('Link copied.') }
+    } catch { setShareMessage(`Copy this link to share: ${window.location.href}`) }
   }
 
   if (loading && !sermon) return <Loading message="Loading sermon..." />
-  // When API fails (e.g. no backend), we still show content using default sermon
+  if (error || !sermon) return <Error message={error || 'Sermon not found'} />
 
   return (
     <div className="min-h-screen bg-[#fafbfc]">
@@ -98,6 +80,7 @@ const SermonDetail = () => {
               <Share2 className="w-5 h-5" />
               Share
             </button>
+            {shareMessage && <p role="status" className="text-sm text-slate-200">{shareMessage}</p>}
           </div>
         </div>
       </section>
@@ -108,13 +91,7 @@ const SermonDetail = () => {
           <div className="max-w-4xl mx-auto">
             <div className="relative rounded-2xl overflow-hidden bg-slate-900 shadow-2xl border border-slate-200/50 aspect-video">
               {sermonData.videoUrl ? (
-                <iframe
-                  src={sermonData.videoUrl}
-                  title={sermonData.title}
-                  className="absolute inset-0 w-full h-full"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
+                <VideoPlayer url={sermonData.videoUrl} />
               ) : (
                 <div className="absolute inset-0 flex items-center justify-center">
                   <img
@@ -123,14 +100,7 @@ const SermonDetail = () => {
                     className="w-full h-full object-cover opacity-60"
                   />
                   <div className="absolute inset-0 bg-black/40" />
-                  <a
-                    href={sermonData.videoUrl || '#'}
-                    className="absolute inset-0 flex items-center justify-center group"
-                  >
-                    <span className="flex items-center justify-center w-20 h-20 rounded-full bg-white/95 text-indigo-600 shadow-2xl group-hover:scale-110 transition-transform duration-300">
-                      <Play className="w-10 h-10 ml-1" fill="currentColor" />
-                    </span>
-                  </a>
+                  <p className="absolute bottom-6 text-white">Video has not been published for this message.</p>
                 </div>
               )}
             </div>
@@ -185,3 +155,4 @@ const SermonDetail = () => {
 }
 
 export default SermonDetail
+

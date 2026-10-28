@@ -1,68 +1,37 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useApi } from '../hooks/useApi'
+import { storeService } from '../services/api'
+import Error from '../components/Error'
+import Loading from '../components/Loading'
 import { ShoppingCart, Plus, Minus, Search } from 'lucide-react'
 
 const ChurchStore = () => {
   const [searchTerm, setSearchTerm] = useState('')
-  const [cart, setCart] = useState([])
+  const [cart, setCart] = useState(() => { try { const saved = JSON.parse(sessionStorage.getItem('crh-store-cart') || '[]'); return Array.isArray(saved) ? saved.slice(0,30) : [] } catch { return [] } })
 
-  // Sample products - in production, fetch from API
-  const products = [
-    {
-      id: 1,
-      name: 'Church T-Shirt',
-      price: 25.99,
-      image: '/assets/img/portfolio/portfolio-1.jpg',
-      category: 'Apparel',
-      description: 'Comfortable cotton t-shirt with church logo.',
-    },
-    {
-      id: 2,
-      name: 'Study Bible',
-      price: 49.99,
-      image: '/assets/img/bible.jpeg',
-      category: 'Books',
-      description: 'Comprehensive study Bible with commentary and notes.',
-    },
-    {
-      id: 3,
-      name: 'Worship CD',
-      price: 15.99,
-      image: '/assets/img/portfolio/portfolio-2.jpg',
-      category: 'Media',
-      description: 'Collection of our favorite worship songs.',
-    },
-    {
-      id: 4,
-      name: 'Devotional Book',
-      price: 19.99,
-      image: '/assets/img/portfolio/portfolio-3.jpg',
-      category: 'Books',
-      description: '365 daily devotionals to strengthen your faith.',
-    },
-    {
-      id: 5,
-      name: 'Church Hoodie',
-      price: 45.99,
-      image: '/assets/img/portfolio/portfolio-4.jpg',
-      category: 'Apparel',
-      description: 'Warm and cozy hoodie perfect for any season.',
-    },
-    {
-      id: 6,
-      name: 'Prayer Journal',
-      price: 12.99,
-      image: '/assets/img/portfolio/portfolio-5.jpg',
-      category: 'Accessories',
-      description: 'Beautiful journal for recording prayers and answers.',
-    },
-  ]
-
+  const { data, loading, error } = useApi(storeService.getProducts, [])
+  const products = Array.isArray(data) ? data : []
+  useEffect(() => { try { sessionStorage.setItem('crh-store-cart', JSON.stringify(cart)) } catch { /* Optional storage. */ } }, [cart])
+  const [orderStatus, setOrderStatus] = useState('')
+  const [ordering, setOrdering] = useState(false)
+  async function checkout() {
+    if (ordering) return
+    setOrdering(true); setOrderStatus('')
+    try {
+      const response = await storeService.createOrder({ items: cart.map(item => ({ id: item.id, quantity: item.quantity })) })
+      setOrderStatus(`Order request saved. Reference: ${response.data.id}. Payment and fulfilment are not yet confirmed.`)
+      setCart([])
+    } catch (err) { setOrderStatus(err.response?.data?.error || 'Order could not be saved. Please try again.') }
+    finally { setOrdering(false) }
+  }
+  const money = (amount, currency = 'NGN') => new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(amount)
   const filteredProducts = products.filter(product =>
-    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.category.toLowerCase().includes(searchTerm.toLowerCase())
+    String(product.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    String(product.category || '').toLowerCase().includes(searchTerm.toLowerCase())
   )
 
   const addToCart = (product) => {
+    if (cart.length && (cart[0].currency || 'NGN') !== (product.currency || 'NGN')) { setOrderStatus('Please submit your current order before selecting products in another currency.'); return }
     const existingItem = cart.find(item => item.id === product.id)
     if (existingItem) {
       setCart(cart.map(item =>
@@ -79,7 +48,7 @@ const ChurchStore = () => {
     setCart(cart.map(item => {
       if (item.id === id) {
         const newQuantity = item.quantity + change
-        return { ...item, quantity: Math.max(1, newQuantity) }
+        return { ...item, quantity: Math.min(99, Math.max(1, newQuantity)) }
       }
       return item
     }))
@@ -90,6 +59,7 @@ const ChurchStore = () => {
   }
 
   const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+  const currency = cart[0]?.currency || 'NGN'
 
   return (
     <div>
@@ -122,7 +92,7 @@ const ChurchStore = () => {
               <div className="card bg-blue-50">
                 <div className="flex items-center justify-between">
                   <span className="font-semibold">Cart: {cart.length} item(s)</span>
-                  <span className="font-bold text-blue-600">${total.toFixed(2)}</span>
+                  <span className="font-bold text-blue-600">{money(total, currency)}</span>
                 </div>
               </div>
             )}
@@ -130,6 +100,10 @@ const ChurchStore = () => {
         </div>
       </section>
 
+      {loading && <Loading />}
+      {error && <Error message={error} />}
+      {orderStatus && <p role="status" className="container-custom p-5 text-blue-800">{orderStatus}</p>}
+      {!loading && !error && products.length === 0 && <p className="container-custom p-8">No products have been published yet.</p>}
       {/* Products Grid */}
       <section className="section-padding">
         <div className="container-custom">
@@ -151,7 +125,7 @@ const ChurchStore = () => {
                   <h3 className="text-xl font-semibold mb-2">{product.name}</h3>
                   <p className="text-gray-600 mb-4 text-sm">{product.description}</p>
                   <div className="flex items-center justify-between mb-4">
-                    <span className="text-2xl font-bold text-blue-600">${product.price}</span>
+                    <span className="text-2xl font-bold text-blue-600">{money(product.price, product.currency)}</span>
                     {cartItem ? (
                       <div className="flex items-center space-x-2">
                         <button
@@ -212,11 +186,11 @@ const ChurchStore = () => {
                       <img src={item.image} alt={item.name} className="w-16 h-16 object-cover rounded" />
                       <div>
                         <h3 className="font-semibold">{item.name}</h3>
-                        <p className="text-sm text-gray-600">${item.price} x {item.quantity}</p>
+                        <p className="text-sm text-gray-600">{money(item.price, item.currency)} × {item.quantity}</p>
                       </div>
                     </div>
                     <div className="flex items-center space-x-4">
-                      <span className="font-bold">${(item.price * item.quantity).toFixed(2)}</span>
+                      <span className="font-bold">{money(item.price * item.quantity, item.currency)}</span>
                       <button
                         onClick={() => removeFromCart(item.id)}
                         className="text-red-600 hover:text-red-700"
@@ -229,10 +203,10 @@ const ChurchStore = () => {
               </div>
               <div className="flex justify-between items-center mb-6 pt-4 border-t">
                 <span className="text-xl font-bold">Total:</span>
-                <span className="text-2xl font-bold text-blue-600">${total.toFixed(2)}</span>
+                <span className="text-2xl font-bold text-blue-600">{money(total, currency)}</span>
               </div>
-              <button className="btn-primary w-full">
-                Proceed to Checkout
+              <button disabled={ordering} onClick={checkout} className="btn-primary w-full">
+                {ordering ? "Saving request…" : "Request order (sign-in required)"}
               </button>
             </div>
           </div>
@@ -243,6 +217,7 @@ const ChurchStore = () => {
 }
 
 export default ChurchStore
+
 
 
 

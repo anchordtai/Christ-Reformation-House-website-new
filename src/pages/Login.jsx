@@ -32,7 +32,7 @@ const Login = () => {
         setError(res?.data?.message || 'Invalid credentials')
       }
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Please enter both email and password')
+      setError(err.response?.data?.error || err.response?.data?.message || err.message || 'Please enter both email and password')
     } finally {
       setIsLoading(false)
     }
@@ -59,6 +59,7 @@ const Login = () => {
         </div>
 
         <div className="card">
+          {location.state?.message && <p role="status" className="mb-4 rounded-lg bg-blue-50 p-4 text-blue-800">{location.state.message}</p>}
           {error && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
               {error}
@@ -151,6 +152,7 @@ const Login = () => {
 }
 
 export default Login
+
 
 
 

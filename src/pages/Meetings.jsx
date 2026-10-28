@@ -12,13 +12,14 @@ import MetaTags from '../components/MetaTags'
 
 export default function Meetings() {
   const { isAdmin } = useAuth()
+  const [actionError, setActionError] = useState('')
   const [viewMode, setViewMode] = useState('list')
   const [calendarMonth, setCalendarMonth] = useState(new Date())
   const { data, loading, error, refetch } = useApi(() => meetingsService.getAll(), [])
   const meetings = Array.isArray(data) ? data : []
 
   const upcoming = meetings.filter((m) => {
-    if (m.status === 'cancelled') return false
+    if (m.status === 'cancelled') return true
     const end = m.endTime ? new Date(m.endTime) : null
     return !end || end >= new Date()
   })
@@ -29,11 +30,12 @@ export default function Meetings() {
 
   const handleCancel = async (meetingId) => {
     if (!window.confirm('Cancel this meeting?')) return
+    setActionError('')
     try {
       await meetingsService.cancel(meetingId)
       refetch?.()
     } catch (err) {
-      console.error(err)
+      setActionError(err.response?.data?.error || 'The meeting could not be cancelled. Please retry.')
     }
   }
 
@@ -65,6 +67,7 @@ export default function Meetings() {
         <div className="container-custom">
           {loading && <Loading message="Loading meetings..." />}
           {error && <Error message={error} />}
+          {actionError && <Error message={actionError} />}
 
           {!loading && !error && (
             <>
@@ -152,3 +155,4 @@ export default function Meetings() {
     </div>
   )
 }
+
