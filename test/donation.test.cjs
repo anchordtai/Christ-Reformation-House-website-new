@@ -75,7 +75,7 @@ test('double submit is guarded while the first donation request is outstanding',
 test('restored checkout resumes authorization without card fields or a new donation', async () => {
   sessionStorage.setItem('crh-donation-checkout', JSON.stringify({ checkout_id: reference.slice(4) }));
   api.initialize = async (txRef, card) => { initializeCalls++; assert.equal(txRef, reference); assert.equal(card, undefined); return { data: { next_action: { type: 'requires_otp' } } }; };
-  await render(Donate); await click('Resume bank authorization'); assert.equal(createCalls, 0); assert.equal(initializeCalls, 1); assert.ok(node.querySelector('#bank-code'));
+  await render(Donate); await click('Resume payment instructions'); assert.equal(createCalls, 0); assert.equal(initializeCalls, 1); assert.ok(node.querySelector('#bank-code'));
 });
 test('lost initialization response keeps a recoverable reference', async () => {
   api.initialize = async () => { throw new Error('Connection interrupted'); };
@@ -115,7 +115,7 @@ test('billing authorization submits the entered address for the same checkout', 
     assert.equal(txRef, reference); assert.deepEqual(authorization, { type: 'avs', address: { line1: '1 Test Street', city: 'Abuja', state: 'FCT', postal_code: '900001', country: 'NG' } });
     return { data: { next_action: { type: 'requires_otp' } } };
   };
-  await render(Donate); await click('Resume bank authorization');
+  await render(Donate); await click('Resume payment instructions');
   for (const [field, value] of Object.entries({ line1: '1 Test Street', city: 'Abuja', state: 'FCT', postal_code: '900001', country: 'ng' })) await fill('billing-' + field, value);
   await submit(); assert.ok(node.textContent.includes('one-time code'));
 });
@@ -137,4 +137,59 @@ test('failed return displays the safe processor reason without initiating anothe
   assert.ok(node.textContent.includes('Provider support code: 51'));
   assert.ok(node.textContent.includes('If you see a debit'));
   assert.equal(initializeCalls, 0); assert.equal(createCalls, 0);
+});
+
+function alternatives(currencies = ['NGN']) {
+  api.getConfig = async () => ({ data: { ...config, currencies, payment_methods: ['card', 'bank_transfer', 'ussd', 'opay'], methods_by_currency: { NGN: ['card', 'bank_transfer', 'ussd', 'opay'], USD: ['card'] } } });
+}
+async function chooseMethod(type) {
+  await act(async () => Simulate.change(node.querySelector(`input[name="payment-method"][value="${type}"]`)));
+}
+async function fillDonor() {
+  for (const [id, value] of Object.entries({ amount: '5000', name: 'Test Donor', email: 'test@example.com' })) await fill(id, value);
+}
+function mockTransfer(expires = Date.now() + 3600000) {
+  return { status: 'pending', next_action: { type: 'bank_transfer', bank_transfer: { account_number: '1234567890', bank_name: 'Mock Bank', amount: 5010, currency: 'NGN', expires_at: new Date(expires).toISOString() } } };
+}
+test('bank transfer needs no card or PIN and a paid button only checks pending status', async () => {
+  alternatives(); let checks = 0;
+  api.initialize = async (ref, method) => { initializeCalls++; assert.equal(method.type, 'bank_transfer'); assert.equal(method.card, undefined); return { data: mockTransfer() }; };
+  api.verify = async () => { checks++; return { data: { verified: false, status: 'pending' } }; };
+  await render(Donate); await chooseMethod('bank_transfer'); await fillDonor();
+  assert.equal(node.querySelector('#card-number'), null); assert.equal(node.querySelector('#bank-code'), null);
+  await submit(); assert.ok(node.textContent.includes('Mock Bank')); assert.ok(node.textContent.includes('1234567890')); assert.ok(node.textContent.includes('5,010.00'));
+  assert.ok(node.textContent.includes('Do not save or reuse'));
+  await click('I have paid'); assert.equal(checks, 1); assert.equal(initializeCalls, 1); assert.equal(createCalls, 1);
+  assert.ok(node.textContent.includes('still awaiting confirmation'));
+  assert.equal(sessionStorage.getItem('crh-donation-checkout').includes('1234567890'), false);
+});
+test('expired transfer details are hidden and resuming cannot create another account', async () => {
+  sessionStorage.setItem('crh-donation-checkout', JSON.stringify({ checkout_id: reference.slice(4) }));
+  alternatives(); api.initialize = async () => { initializeCalls++; return { data: mockTransfer(Date.now() - 10000) }; };
+  await render(Donate); await click('Resume payment instructions');
+  assert.ok(node.textContent.includes('This account has expired')); assert.equal(node.textContent.includes('1234567890'), false);
+  assert.equal(createCalls, 0); assert.equal(initializeCalls, 1);
+});
+test('non-NGN currencies show only supported methods and clear card data on switching', async () => {
+  alternatives(['NGN', 'USD']); await render(Donate);
+  await fill('card-number', '1234567890123456'); await chooseMethod('bank_transfer'); await chooseMethod('card');
+  assert.equal(node.querySelector('#card-number').value, '');
+  await fill('currency', 'USD'); assert.equal(node.querySelectorAll('input[name="payment-method"]').length, 1);
+  assert.equal(node.querySelector('input[name="payment-method"]').value, 'card');
+});
+test('USSD loads bank codes and renders instructions as text without marking paid', async () => {
+  alternatives(); api.getBanks = async () => ({ data: { banks: [{ code: '044', name: 'Mock Bank' }] } });
+  api.initialize = async (ref, method) => { initializeCalls++; assert.deepEqual(method, { type: 'ussd', ussd: { account_bank: '044' } }); return { data: { status: 'pending', next_action: { type: 'payment_instruction', payment_instruction: { note: 'Dial *123# <img src=x onerror=alert(1)>' } } } }; };
+  await render(Donate); await chooseMethod('ussd'); await fillDonor(); await fill('ussd-bank', '044'); await submit();
+  assert.ok(node.textContent.includes('Dial *123#')); assert.equal(node.querySelector('img'), null); assert.equal(node.querySelector('#bank-code'), null); assert.equal(initializeCalls, 1);
+});
+test('bank list failure offers a retry before USSD submission', async () => {
+  alternatives(); api.getBanks = async () => { throw new Error('Unavailable'); };
+  await render(Donate); await chooseMethod('ussd'); assert.ok(node.textContent.includes('could not load the USSD bank list'));
+  api.getBanks = async () => ({ data: { banks: [{ code: '044', name: 'Mock Bank' }] } });
+  await click('Retry bank list'); assert.ok(node.querySelector('#ussd-bank')); assert.equal(createCalls, 0);
+});
+test('bank-only giving loads without a card encryption key', async () => {
+  api.getConfig = async () => ({ data: { currencies: ['NGN'], payment_methods: ['bank_transfer'], card_encryption_enabled: false, methods_by_currency: { NGN: ['bank_transfer'] } } });
+  await render(Donate); assert.ok(node.textContent.includes('Bank transfer')); assert.equal(node.querySelector('#card-number'), null);
 });

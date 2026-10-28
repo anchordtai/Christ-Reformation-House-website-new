@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { Heart, CreditCard, Loader2, ShieldCheck, Globe2, BookOpen, Users } from 'lucide-react'
 import { donationService } from '../services/api'
 import { APP_CONFIG, DONATION_TYPES, DONATION_CURRENCIES } from '../utils/constants'
-import { authorizationType, redirectUrl, validateCard } from '../utils/donation.mjs'
+import { authorizationType, redirectUrl, validateCard, availableMethods, paymentLabels, paymentInstructions } from '../utils/donation.mjs'
 
 const STORAGE_KEY = 'crh-donation-checkout'
 const emptyCard = { number: '', expiryMonth: '', expiryYear: '', cvv: '' }
@@ -26,6 +26,14 @@ export default function Donate() {
   const [configAttempt, setConfigAttempt] = useState(0)
   const [action, setAction] = useState(null)
   const [code, setCode] = useState('')
+  const [method, setMethod] = useState('card')
+  const [bankCode, setBankCode] = useState('')
+  const [banks, setBanks] = useState([])
+  const [bankError, setBankError] = useState('')
+  const [bankAttempt, setBankAttempt] = useState(0)
+  const [instructions, setInstructions] = useState(null)
+  const [now, setNow] = useState(Date.now())
+  const [confirmation, setConfirmation] = useState('')
   const [address, setAddress] = useState({ line1: '', city: '', state: '', postal_code: '', country: '' })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -35,19 +43,44 @@ export default function Donate() {
     let cancelled = false
     setConfigError('')
     donationService.getConfig().then(({ data }) => {
-      const currencies = DONATION_CURRENCIES.filter(c => data.currencies?.includes(c.code))
-      if (!currencies.length || !data.payment_methods?.includes('card') || !data.card_encryption_enabled) throw new Error('Giving unavailable')
+      const currencies = DONATION_CURRENCIES.filter(c => data.currencies?.includes(c.code) && availableMethods(data, c.code).length)
+      if (!currencies.length) throw new Error('Giving unavailable')
       if (cancelled) return
       setConfig({ ...data, currencies })
       setForm(current => ({ ...current, currency: currencies.some(c => c.code === current.currency) ? current.currency : currencies[0].code }))
     }).catch(() => { if (!cancelled) setConfigError('We could not load online giving. Please retry or contact the church for assistance.') })
     return () => { cancelled = true }
   }, [configAttempt])
+  useEffect(() => {
+    const available = availableMethods(config, form.currency)
+    setMethod(current => available.includes(current) ? current : available[0] || '')
+    setCard(emptyCard); setBankCode('')
+  }, [config, form.currency])
+  useEffect(() => {
+    let cancelled = false
+    if (method !== 'ussd') return
+    setBanks([]); setBankError('')
+    donationService.getBanks().then(({ data }) => {
+      if (cancelled) return
+      if (!Array.isArray(data.banks) || !data.banks.length) throw new Error('Empty bank list')
+      setBanks(data.banks)
+    }).catch(() => { if (!cancelled) setBankError('We could not load the USSD bank list. Retry or choose another payment method.') })
+    return () => { cancelled = true }
+  }, [method, bankAttempt])
+  useEffect(() => {
+    if (instructions?.type !== 'bank_transfer') return
+    setNow(Date.now())
+    const timer = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(timer)
+  }, [instructions])
   useEffect(() => { if (error) errorRef.current?.focus() }, [error])
   const txRef = checkout ? `crh-${checkout.checkout_id}` : ''
   const returnPath = `/donate/return?tx_ref=${encodeURIComponent(txRef)}`
   const currency = DONATION_CURRENCIES.find(c => c.code === form.currency)
   const authType = authorizationType(action)
+  const methods = availableMethods(config, form.currency)
+  const submitLabel = { card: 'Continue to payment', bank_transfer: 'Generate bank transfer details', ussd: 'Get USSD instructions', opay: 'Continue to OPay' }[method] || 'Continue'
+  const expired = instructions?.type === 'bank_transfer' && (instructions.expired || Date.parse(instructions.expires_at) <= now)
   const change = e => { const { name, value } = e.target; setForm(current => ({ ...current, [name]: value, ...(name === 'currency' ? { amount: '' } : {}) })) }
   const changeCard = (key, value) => setCard(current => ({ ...current, [key]: value }))
   const changeAddress = (key, value) => setAddress(current => ({ ...current, [key]: key === 'country' ? value.toUpperCase() : value }))
@@ -62,6 +95,8 @@ export default function Donate() {
     const url = redirectUrl(payment)
     if (url) { window.location.assign(url); return }
     if (authorizationType(payment.next_action)) { setAction(payment.next_action); return }
+    const details = paymentInstructions(payment)
+    if (details) { setAction(null); setInstructions(details); setConfirmation(''); return }
     if (payment.next_action?.type && !['payment_instruction', 'payment_instructions'].includes(payment.next_action.type)) throw new Error('This payment requires assistance from the ministry. Keep your reference and check its status before paying again.');
     window.location.assign(`/donate/return?tx_ref=${encodeURIComponent(reference)}`)
   }
@@ -82,14 +117,16 @@ export default function Donate() {
   function submit(e) {
     e.preventDefault()
     run(async () => {
-      const method = validateCard(card)
+      const paymentMethod = method === 'card' ? validateCard(card) : method === 'ussd' ? { type: 'ussd', ussd: { account_bank: bankCode } } : { type: method }
+      if (!checkout && !methods.includes(method)) throw new Error('Choose an available payment method.')
+      if (method === 'ussd' && !banks.some(bank => bank.code === bankCode)) throw new Error('Choose your bank for USSD.')
       const amount = Number(form.amount)
       if (!checkout && (!Number.isFinite(amount) || amount < 0.01 || amount > 100000000)) throw new Error('Enter an amount between 0.01 and 100,000,000.')
       const attempt = checkout || { checkout_id: crypto.randomUUID() }
       if (!checkout) saveCheckout(attempt)
       const reference = `crh-${attempt.checkout_id}`
       if (!checkout) await donationService.create({ ...form, name: form.name.trim(), email: form.email.trim(), amount: Math.round(amount * 100) / 100, checkout_id: attempt.checkout_id })
-      const response = await donationService.initialize(reference, method)
+      const response = await donationService.initialize(reference, paymentMethod)
       handlePayment(response.data, reference)
     })
   }
@@ -102,6 +139,13 @@ export default function Donate() {
       const authorization = authType === 'avs' ? { type: 'avs', address } : { type: authType, code }
       const { data } = await donationService.authorize(txRef, authorization)
       handlePayment(data, txRef)
+    })
+  }
+  function checkTransfer() {
+    run(async () => {
+      const { data } = await donationService.verify(txRef)
+      if (data.verified === true || ['failed', 'cancelled'].includes(data.status)) { window.location.assign(returnPath); return }
+      setConfirmation(data.transfer_expired ? 'These account details have expired. If you already transferred, contact the ministry with your reference. Do not transfer again.' : 'Payment is still awaiting confirmation. If you already paid, please wait and check again. Do not make another transfer.')
     })
   }
   return <div className="bg-slate-50 text-slate-900">
@@ -121,8 +165,22 @@ export default function Donate() {
       <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8 lg:col-span-2">
         <div className="mb-7 flex items-start justify-between gap-4"><div><h2 className="text-2xl font-bold">{checkout ? 'Continue your gift' : 'Give online'}</h2><p className="mt-2 text-sm text-slate-600">Global giving · Powered by Flutterwave</p></div><ShieldCheck className="h-7 w-7 shrink-0 text-emerald-700" /></div>
         {error && <div ref={errorRef} tabIndex={-1} role="alert" className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{error}</div>}
-        {checkout && <div className="mb-6 space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm"><p>Keep this reference to resume or check your payment. Please check before giving again.</p><p className="break-all font-mono text-xs">{txRef}</p><div className="flex flex-wrap gap-4"><Link className="font-semibold text-blue-800 underline" to={returnPath}>Check payment status</Link><button type="button" disabled={loading} onClick={resume} className="font-semibold text-blue-800 underline disabled:opacity-50">Resume bank authorization</button></div></div>}
-        {configError ? <div role="alert"><p className="text-slate-700">{configError}</p><button className="mt-4 rounded-xl bg-slate-900 px-5 py-3 text-white" onClick={() => setConfigAttempt(n => n + 1)}>Retry connection</button></div> : !config ? <p role="status" className="flex gap-3 text-slate-600"><Loader2 className="h-5 w-5 animate-spin" />Loading giving options…</p> : authType ? <form onSubmit={authorize} className="space-y-5">
+        {checkout && <div className="mb-6 space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm"><p>Keep this reference to resume or check your payment. Please check before giving again.</p><p className="break-all font-mono text-xs">{txRef}</p><div className="flex flex-wrap gap-4"><Link className="font-semibold text-blue-800 underline" to={returnPath}>Check payment status</Link><button type="button" disabled={loading} onClick={resume} className="font-semibold text-blue-800 underline disabled:opacity-50">Resume payment instructions</button></div></div>}
+        {configError ? <div role="alert"><p className="text-slate-700">{configError}</p><button className="mt-4 rounded-xl bg-slate-900 px-5 py-3 text-white" onClick={() => setConfigAttempt(n => n + 1)}>Retry connection</button></div> : !config ? <p role="status" className="flex gap-3 text-slate-600"><Loader2 className="h-5 w-5 animate-spin" />Loading giving options…</p> : instructions ? <div className="space-y-5" aria-labelledby="payment-instructions-title">
+          <h3 id="payment-instructions-title" className="text-2xl font-semibold">{instructions.type === 'bank_transfer' ? 'Complete your bank transfer' : 'Complete your USSD payment'}</h3>
+          {instructions.type === 'bank_transfer' ? <>
+            <p className="text-sm text-slate-600">Open your banking app and transfer the exact amount below. These details are for this gift only. Do not save or reuse this temporary account.</p>
+            {expired ? <div role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-4">This account has expired. Do not send money to it. If you already transferred, keep your reference and contact the ministry.</div> : <dl className="grid gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-5 sm:grid-cols-2">
+              {[['Bank', instructions.bank_name], ['Account number', instructions.account_number], ['Beneficiary name', instructions.account_name], ['Transfer amount', `${instructions.currency} ${Number(instructions.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`]].filter(([, value]) => value).map(([label, value]) => <div key={label}><dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</dt><dd className="mt-1 break-words text-lg font-semibold text-slate-900">{value}</dd></div>)}
+              <div className="sm:col-span-2"><dt className="text-xs text-slate-500">Expires</dt><dd>{new Date(instructions.expires_at).toLocaleString()} (your local time)</dd></div>
+            </dl>}
+            {instructions.note && <p className="text-sm text-slate-700">{instructions.note}</p>}
+            <p className="text-xs text-slate-600">Confirm the bank account details in your banking app before sending. The transfer amount may include the provider’s fees. A transfer is confirmed only after server verification.</p>
+          </> : <p className="whitespace-pre-wrap rounded-xl bg-slate-50 p-5">{instructions.note}</p>}
+          <button type="button" disabled={loading} onClick={checkTransfer} className="btn-primary w-full">{loading ? 'Checking payment…' : 'I have paid — check payment status'}</button>
+          {confirmation && <p role="status" className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900">{confirmation}</p>}
+          <p className="text-xs text-slate-500">Checking does not mark your gift as paid or initiate another payment.</p>
+        </div> : authType ? <form onSubmit={authorize} className="space-y-5">
           <h3 className="text-xl font-semibold">{authType === 'otp' ? 'Enter your bank’s one-time code' : authType === 'pin' ? 'Authorize with your card PIN' : 'Confirm your billing address'}</h3><p className="text-sm text-slate-600">Your bank requires this step to continue this payment. Authorization details are not saved.</p>
           <fieldset disabled={loading} className="space-y-4">{authType === 'avs' ? Object.keys(address).map(field => <Field key={field} id={`billing-${field}`} label={{ line1: 'Street address', city: 'City', state: 'State / region', postal_code: 'Postal code', country: 'Country code (e.g. NG)' }[field]} required maxLength={field === 'country' ? 2 : 150} value={address[field]} onChange={e => changeAddress(field, e.target.value)} />) : <Field id="bank-code" label={authType === 'otp' ? 'One-time code' : 'Card PIN'} type="password" autoComplete={authType === 'otp' ? 'one-time-code' : 'off'} inputMode="numeric" required pattern={authType === 'otp' ? '[0-9]{4,10}' : '[0-9]{4,6}'} maxLength={authType === 'otp' ? 10 : 6} value={code} onChange={e => setCode(e.target.value)} />}</fieldset>
           <button disabled={loading} className="btn-primary w-full">{loading ? 'Confirming…' : 'Continue authorization'}</button>
@@ -137,12 +195,19 @@ export default function Donate() {
             <Field id="phone" label="Phone number (optional, Nigerian number)" name="phone" type="tel" autoComplete="tel" value={form.phone} onChange={change} />
             <label htmlFor="message" className="block text-sm font-medium text-slate-700">Message (optional)<textarea id="message" name="message" rows={3} maxLength={1000} className={`${inputClass} mt-2`} value={form.message} onChange={change} /></label>
           </fieldset>
-          <fieldset disabled={loading} className="space-y-4 border-t border-slate-200 pt-6"><legend className="font-semibold">2. Card payment</legend><p className="text-sm text-slate-600">{checkout ? 'If a charge already exists, use “Resume bank authorization” above. Only enter card details if checkout has not started.' : 'Your bank may ask you to authorize the payment in the next step.'}</p>
+          <fieldset disabled={loading || Boolean(checkout)} className="space-y-3 border-t border-slate-200 pt-6"><legend className="font-semibold">2. Choose how to give</legend>
+            <div className="grid gap-3 sm:grid-cols-2">{methods.map(type => <label key={type} className={`flex cursor-pointer items-center gap-3 rounded-xl border p-4 ${method === type ? 'border-slate-900 bg-slate-50' : 'border-slate-200'}`}><input type="radio" name="payment-method" value={type} checked={method === type} onChange={() => { setMethod(type); setCard(emptyCard); setCode('') }} /><span className="font-semibold">{paymentLabels[type]}</span></label>)}</div>
+            <p className="text-xs text-slate-500">Available methods depend on the selected currency and the ministry’s payment account. Bank transfer, USSD and OPay are currently offered for NGN when enabled.</p>
+          </fieldset>
+          {method === 'ussd' && <div className="space-y-3">{bankError ? <><p role="alert" className="text-sm text-red-700">{bankError}</p><button type="button" onClick={() => setBankAttempt(n => n + 1)} className="text-blue-700 underline">Retry bank list</button></> : !banks.length ? <p role="status">Loading banks…</p> : <label htmlFor="ussd-bank" className="block text-sm font-medium">Your bank<select id="ussd-bank" required className={`${inputClass} mt-2`} value={bankCode} onChange={e => setBankCode(e.target.value)}><option value="">Select your bank</option>{banks.map(bank => <option key={bank.code} value={bank.code}>{bank.name}</option>)}</select></label>}<p className="text-sm text-slate-600">Dial the supplied code on the phone linked to your bank account. Authorize on your phone; do not enter your USSD PIN on this website.</p></div>}
+          {method === 'bank_transfer' && <p className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900">We will generate a temporary bank account for this gift. No card number or PIN is needed. Complete the transfer from your banking app before the account expires.</p>}
+          {method === 'opay' && <p className="rounded-xl bg-slate-50 p-4 text-sm">You will continue to OPay to log in and authorize this gift. Enter wallet credentials only on OPay’s authorization page.</p>}
+          {method === 'card' && <fieldset disabled={loading} className="space-y-4 border-t border-slate-200 pt-6"><legend className="font-semibold">Card details</legend><p className="text-sm text-slate-600">{checkout ? 'If a charge already exists, use “Resume bank authorization” above. Only enter card details if checkout has not started.' : 'Your bank may ask you to authorize the payment in the next step.'}</p>
             <Field id="card-number" label="Card number" inputMode="numeric" autoComplete="cc-number" required maxLength={23} value={card.number} onChange={e => changeCard('number', e.target.value)} />
             <div className="grid grid-cols-3 gap-3">{[{ key: 'expiryMonth', label: 'Month (MM)', length: 2, auto: 'cc-exp-month' }, { key: 'expiryYear', label: 'Year (YYYY)', length: 4, auto: 'cc-exp-year' }, { key: 'cvv', label: 'CVV', length: 4, auto: 'cc-csc' }].map(f => <Field key={f.key} id={f.key} label={f.label} type={f.key === 'cvv' ? 'password' : 'text'} inputMode="numeric" autoComplete={f.auto} maxLength={f.length} required value={card[f.key]} onChange={e => changeCard(f.key, e.target.value)} />)}</div>
-          </fieldset>
-          <p className="rounded-xl bg-slate-50 p-4 text-xs leading-relaxed text-slate-600">Card details are sent to our payment backend for encrypted submission to Flutterwave. They are not saved as part of your donation record. Your gift is charged in your selected currency. We do not convert the amount; your bank may apply its own exchange rate or fees.</p>
-          <button disabled={loading} className="flex w-full items-center justify-center gap-3 rounded-xl bg-slate-950 px-6 py-4 font-semibold text-white hover:bg-slate-800 disabled:opacity-60">{loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <CreditCard className="h-5 w-5" />}{loading ? 'Preparing your payment…' : `Continue to payment (${form.currency})`}</button>
+          </fieldset>}
+          <p className="rounded-xl bg-slate-50 p-4 text-xs leading-relaxed text-slate-600">For card payments, card details are sent to our payment backend for encrypted submission to Flutterwave. They are not saved as part of your donation record. Your gift is charged in your selected currency. We do not convert the amount; your bank may apply its own exchange rate or fees.</p>
+          <button disabled={loading || !method || (method === 'ussd' && (!banks.length || Boolean(bankError)))} className="flex w-full items-center justify-center gap-3 rounded-xl bg-slate-950 px-6 py-4 font-semibold text-white hover:bg-slate-800 disabled:opacity-60">{loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <CreditCard className="h-5 w-5" />}{loading ? 'Preparing your payment…' : `${submitLabel} (${form.currency})`}</button>
         </form>}
         <p className="mt-5 text-center text-xs text-slate-500">Your gift is confirmed only after server verification.</p>
       </div>
