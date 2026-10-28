@@ -117,3 +117,18 @@ module.exports = {
   updateDonationById,
   createPaymentEvent,
 };
+
+
+// Atomically claim initialization across tabs, workers, and server restarts.
+// An uncertain provider response is never retried as a new charge.
+async function claimDonationInitialization(donation, key) {
+  const response = await axios.patch(getSupabaseRestUrl('donations'), {
+    metadata: { ...(donation.metadata || {}), initialization_state: 'started', initialization_key: key },
+  }, {
+    headers: { ...getSupabaseHeaders(), Prefer: 'return=representation' },
+    params: { id: `eq.${donation.id}`, flutterwave_transaction_id: 'is.null', 'metadata->>initialization_state': 'is.null' },
+    timeout: 10000,
+  });
+  return response.data?.[0] || null;
+}
+module.exports.claimDonationInitialization = claimDonationInitialization;

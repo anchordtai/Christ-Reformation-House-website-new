@@ -1,129 +1,83 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
-import { CheckCircle, XCircle, Loader2, RefreshCw } from 'lucide-react'
+import { CheckCircle, XCircle, Loader2, RefreshCw, Clock, HelpCircle } from 'lucide-react'
 import { donationService } from '../services/api'
+import { APP_CONFIG } from '../utils/constants'
+import { paymentState } from '../utils/donation.mjs'
 
 const MAX_RETRIES = 6
 const RETRY_DELAY_MS = 4000
-
+const descriptions = {
+  success: { title: 'Thank you for your generosity', text: 'Your donation has been verified. Thank you for partnering with the ministry.', Icon: CheckCircle, color: 'text-emerald-700' },
+  pending: { title: 'Your payment is still processing', text: 'We have not received final confirmation. Please check again before making another payment.', Icon: Clock, color: 'text-amber-700' },
+  failed: { title: 'Payment was not completed', text: 'The payment provider reported this payment as failed. If you see a debit, contact the ministry with your reference before trying again.', Icon: XCircle, color: 'text-red-700' },
+  cancelled: { title: 'Payment cancelled', text: 'The payment provider reported this payment as cancelled. If you see a debit, contact the ministry before trying again.', Icon: XCircle, color: 'text-slate-600' },
+  unconfirmed: { title: 'We could not confirm your payment', text: 'This does not mean your payment failed. Save your reference and check again or contact the ministry. Please do not pay again until the status is resolved.', Icon: HelpCircle, color: 'text-amber-700' },
+}
 export default function DonateReturn() {
-  const [searchParams] = useSearchParams()
+  const [params] = useSearchParams()
+  const txRef = params.get('tx_ref') || ''
   const [status, setStatus] = useState('loading')
-  const [message, setMessage] = useState('Verifying your payment securely with the server...')
-  const [retryCount, setRetryCount] = useState(0)
-  const txRef = searchParams.get('tx_ref')
-
+  const [message, setMessage] = useState('Checking your payment with the server…')
+  const [attempt, setAttempt] = useState(0)
+  const [retry, setRetry] = useState(0)
   useEffect(() => {
-    if (!txRef) {
-      setStatus('failed')
-      setMessage('The payment reference is missing. Please contact the church if you were charged.')
-      return
-    }
-
     let cancelled = false
-    let retryTimer
-
-    const verify = async (attempt = 0) => {
+    let timer
+    setAttempt(0)
+    if (!/^crh-[a-z0-9-]{6,38}$/i.test(txRef)) {
+      setStatus('unconfirmed'); setMessage('A valid payment reference is missing. Contact the ministry if you were charged.'); return
+    }
+    setStatus('loading'); setMessage('Checking your payment with the server…')
+    async function verify(n = 0) {
       try {
-        const response = await donationService.verify(txRef)
+        const { data } = await donationService.verify(txRef)
         if (cancelled) return
-
-        if (response.data?.verified) {
-          setStatus('success')
-          setMessage(response.data?.warning || 'Your donation has been verified successfully. Thank you for your generosity!')
-          return
+        const next = paymentState(data)
+        if (next === 'pending' && n < MAX_RETRIES) {
+          setAttempt(n + 1); setMessage('Your payment is processing. Checking for confirmation…')
+          timer = setTimeout(() => verify(n + 1), RETRY_DELAY_MS); return
         }
-
-        const chargeStatus = String(response.data?.charge_status || response.data?.status || '').toLowerCase()
-        const isPending = chargeStatus === 'pending' || chargeStatus === 'processing'
-        const serverMessage = response.data?.error
-
-        if (isPending && attempt < MAX_RETRIES) {
-          setRetryCount(attempt + 1)
-          setMessage(`Payment is still processing. Checking again (${attempt + 1}/${MAX_RETRIES})...`)
-          retryTimer = window.setTimeout(() => verify(attempt + 1), RETRY_DELAY_MS)
-          return
-        }
-
-        setStatus('failed')
-        setMessage(
-          serverMessage ||
-            `Payment status: ${response.data?.status || chargeStatus || 'unknown'}. If you were charged, please keep your transaction reference and contact us.`
-        )
+        setStatus(next); setMessage(data.warning || descriptions[next].text)
+        if (next === 'success') clearThisCheckout()
       } catch (err) {
         if (cancelled) return
-
-        const httpStatus = err.response?.status
-        const serverMessage = err.response?.data?.error
-        const isRetryable = httpStatus === 502 || httpStatus === 503 || httpStatus === 409
-
-        if (isRetryable && attempt < MAX_RETRIES) {
-          setRetryCount(attempt + 1)
-          setMessage(`Verification is taking longer than expected. Retrying (${attempt + 1}/${MAX_RETRIES})...`)
-          retryTimer = window.setTimeout(() => verify(attempt + 1), RETRY_DELAY_MS)
-          return
+        const retryable = !err.response || [409, 429, 500, 502, 503, 504].includes(err.response.status)
+        if (retryable && n < MAX_RETRIES) {
+          setAttempt(n + 1); setMessage('Confirmation is taking longer than expected. Checking again…')
+          timer = setTimeout(() => verify(n + 1), RETRY_DELAY_MS); return
         }
-
-        setStatus('failed')
-        setMessage(
-          serverMessage ||
-            'We could not verify the payment right now. If you were charged, please contact us with your transaction reference.'
-        )
+        setStatus('unconfirmed')
+        setMessage(err.response?.status === 404 ? 'We could not find this donation reference. Contact the ministry if you were charged.' : descriptions.unconfirmed.text)
       }
     }
-
-    verify()
-
-    return () => {
-      cancelled = true
-      if (retryTimer) window.clearTimeout(retryTimer)
+    function clearThisCheckout() {
+      try {
+        const saved = JSON.parse(sessionStorage.getItem('crh-donation-checkout') || 'null')
+        if (`crh-${saved?.checkout_id}` === txRef) sessionStorage.removeItem('crh-donation-checkout')
+      } catch { /* Storage is optional. */ }
     }
-  }, [txRef])
-
-  const handleManualRetry = () => {
-    setStatus('loading')
-    setMessage('Verifying your payment securely with the server...')
-    setRetryCount(0)
-    window.location.reload()
+    verify()
+    return () => { cancelled = true; clearTimeout(timer) }
+  }, [txRef, retry])
+  const state = descriptions[status]
+  function clearResolvedCheckout() {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem('crh-donation-checkout') || 'null')
+      if (`crh-${saved?.checkout_id}` === txRef) sessionStorage.removeItem('crh-donation-checkout')
+    } catch { /* Storage is optional. */ }
   }
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 section-padding">
-      <div className="max-w-md w-full text-center">
-        {status === 'loading' && (
-          <>
-            <Loader2 className="w-16 h-16 text-indigo-600 animate-spin mx-auto mb-4" />
-            <h1 className="text-2xl font-bold mb-2">Verifying your donation</h1>
-            <p className="text-gray-600">{message}</p>
-            {retryCount > 0 && <p className="text-sm text-gray-500 mt-3">Attempt {retryCount} of {MAX_RETRIES}</p>}
-          </>
-        )}
-
-        {status === 'success' && (
-          <div className="card">
-            <CheckCircle className="w-16 h-16 text-green-600 mx-auto mb-4" />
-            <h1 className="text-2xl font-bold mb-2">Thank you!</h1>
-            <p className="text-gray-600 mb-6">{message}</p>
-            <Link to="/" className="btn-primary inline-block">Back to Home</Link>
-          </div>
-        )}
-
-        {status === 'failed' && (
-          <div className="card">
-            <XCircle className="w-16 h-16 text-red-600 mx-auto mb-4" />
-            <h1 className="text-2xl font-bold mb-2">Payment status</h1>
-            <p className="text-gray-600 mb-6">{message}</p>
-            <p className="text-xs text-gray-500 mb-6 break-all">Reference: {txRef || 'not available'}</p>
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <button type="button" onClick={handleManualRetry} className="btn-secondary inline-flex items-center justify-center gap-2">
-                <RefreshCw className="w-4 h-4" />
-                Check again
-              </button>
-              <Link to="/donate" className="btn-primary inline-block">Return to Donation</Link>
-            </div>
-          </div>
-        )}
-      </div>
+  return <section className="flex min-h-screen items-center justify-center bg-slate-50 px-5 py-16">
+    <div className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-7 text-center shadow-sm sm:p-10" aria-live="polite" aria-atomic="true">
+      {status === 'loading' ? <><Loader2 className="mx-auto mb-6 h-14 w-14 animate-spin text-slate-700" /><h1 className="mb-4 text-3xl font-bold">Verifying your gift</h1><p className="text-slate-600">{message}</p>{attempt > 0 && <p className="mt-3 text-sm text-slate-500">Recheck {attempt} of {MAX_RETRIES}</p>}</> : <><state.Icon className={`mx-auto mb-6 h-14 w-14 ${state.color}`} /><h1 className="mb-4 text-3xl font-bold text-slate-900">{state.title}</h1><p className="leading-relaxed text-slate-600">{message}</p></>}
+      {txRef && <div className="my-6 rounded-xl bg-slate-50 p-4"><p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">Payment reference</p><p className="break-all font-mono text-xs text-slate-700">{txRef}</p></div>}
+      {status !== 'loading' && <div className="mt-6 space-y-4">
+        {status !== 'success' && <button onClick={() => setRetry(n => n + 1)} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-3 font-semibold text-white"><RefreshCw className="h-4 w-4" />Check again</button>}
+        {['pending', 'unconfirmed'].includes(status) && <Link className="block font-medium text-blue-700 underline" to="/donate">Resume existing checkout</Link>}
+        {['failed', 'cancelled'].includes(status) && <Link onClick={clearResolvedCheckout} className="block font-medium text-blue-700 underline" to="/donate">Return to giving</Link>}
+        {status !== 'success' && <a href={`mailto:${APP_CONFIG.CHURCH_EMAIL}?subject=${encodeURIComponent('Donation assistance: ' + txRef)}`} className="block text-sm text-blue-700 underline">Contact the ministry for help</a>}
+        <Link to="/" className="block text-sm text-slate-600 underline">Back to home</Link>
+      </div>}
     </div>
-  )
+  </section>
 }

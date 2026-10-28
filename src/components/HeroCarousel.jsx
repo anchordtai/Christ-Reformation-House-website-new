@@ -1,133 +1,55 @@
-import { useState, useEffect } from 'react'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { ArrowRight, ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react'
 
-const HeroCarousel = ({ images = [] }) => {
-  const [currentIndex, setCurrentIndex] = useState(0)
-
-  // Default demo images if none provided
-  const defaultImages = [
-    '/assets/img/hero-bg.jpg',
-    '/assets/img/holyspirit.jpg',
-    '/assets/img/convention-image.jpg',
-    '/assets/img/youth.jpg',
-  ]
-
-  const slides = images.length > 0 ? images : defaultImages
-
+const slides = [
+  { image: '/assets/portraits/ministering-pink.webp', alt: 'AI-created portrait of Apostle (Dr) Anchord Taiwo ministering with a microphone in a pink suit', label: 'Grow in the Word', text: 'Discover teaching that encourages faith and points you to Christ.', link: '/sermons', action: 'Explore messages' },
+  { image: '/assets/portraits/ministering-orange.webp', alt: 'AI-created portrait of Apostle (Dr) Anchord Taiwo holding a microphone and laying a hand on an adult’s head in prayer', label: 'A community of prayer', text: 'Take your next step in faith, prayer, and fellowship with our ministry.', link: '/prayer-request', action: 'Share a prayer request' },
+]
+export default function HeroCarousel() {
+  const [current, setCurrent] = useState(0)
+  const [paused, setPaused] = useState(false)
+  const [hovered, setHovered] = useState(false)
+  const [hidden, setHidden] = useState(() => document.visibilityState === 'hidden')
+  const [reducedMotion, setReducedMotion] = useState(() => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches || false)
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentIndex((prevIndex) => (prevIndex + 1) % slides.length)
-    }, 5000) // Auto-advance every 5 seconds
-
+    const query = window.matchMedia?.('(prefers-reduced-motion: reduce)')
+    const motion = () => setReducedMotion(Boolean(query?.matches))
+    const visibility = () => setHidden(document.visibilityState === 'hidden')
+    query?.addEventListener('change', motion)
+    document.addEventListener('visibilitychange', visibility)
+    return () => { query?.removeEventListener('change', motion); document.removeEventListener('visibilitychange', visibility) }
+  }, [])
+  useEffect(() => {
+    if (paused || hovered || hidden || reducedMotion) return
+    const timer = setInterval(() => setCurrent(index => (index + 1) % slides.length), 7000)
     return () => clearInterval(timer)
-  }, [slides.length])
-
-  const goToSlide = (index) => {
-    setCurrentIndex(index)
-  }
-
-  const goToPrevious = () => {
-    setCurrentIndex((prevIndex) => (prevIndex - 1 + slides.length) % slides.length)
-  }
-
-  const goToNext = () => {
-    setCurrentIndex((prevIndex) => (prevIndex + 1) % slides.length)
-  }
-
-  return (
-    <div className="relative h-screen w-full overflow-hidden">
-      {/* Carousel Images */}
-      <div className="relative h-full w-full">
-        {slides.map((image, index) => (
-          <div
-            key={index}
-            className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
-              index === currentIndex ? 'opacity-100' : 'opacity-0'
-            }`}
-          >
-            <div
-              className="h-full w-full bg-cover bg-center bg-no-repeat"
-              style={{ backgroundImage: `url(${image})` }}
-            >
-              <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/30"></div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Content Overlay */}
-      <div className="absolute inset-0 z-10 flex items-center justify-center">
-        <div className="text-center text-white px-4 max-w-5xl mx-auto">
-          <div className="mb-6 animate-fade-in-up">
-            <img 
-              src="/assets/img/crhlogo.jpg" 
-              alt="Christ's Reformation House Logo" 
-              className="w-32 h-32 md:w-40 md:h-40 mx-auto mb-6 rounded-full shadow-2xl object-cover ring-4 ring-white/20 animate-pulse-slow"
-            />
-          </div>
-          <h1 className="text-5xl md:text-7xl font-extrabold mb-6 animate-fade-in-up animation-delay-200">
-            <span className="bg-gradient-to-r from-white via-blue-100 to-purple-100 bg-clip-text text-transparent">
-              Welcome to Christ's Reformation House
-            </span>
-          </h1>
-          <p className="text-xl md:text-2xl mb-8 text-gray-100 animate-fade-in-up animation-delay-400 max-w-3xl mx-auto leading-relaxed">
-            Where Faith Meets Transformation. Join us for worship, community, and spiritual growth in Christ.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-in-up animation-delay-600">
-            <a 
-              href="/donate" 
-              className="group relative px-8 py-4 text-lg font-bold text-white bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl shadow-2xl hover:shadow-blue-500/50 transition-all duration-300 transform hover:scale-105 hover:-translate-y-1 overflow-hidden"
-            >
-              <span className="relative z-10">Give Online</span>
-              <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-blue-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            </a>
-            <a 
-              href="/about" 
-              className="group relative px-8 py-4 text-lg font-bold text-white bg-white/10 backdrop-blur-md rounded-xl border-2 border-white/30 shadow-xl hover:bg-white/20 transition-all duration-300 transform hover:scale-105 hover:-translate-y-1"
-            >
-              Discover More
-            </a>
-          </div>
+  }, [paused, hovered, hidden, reducedMotion])
+  const select = index => { setCurrent((index + slides.length) % slides.length); setPaused(true) }
+  return <section className="ministry-hero" aria-roledescription="carousel" aria-label="Welcome to Christ’s Reformation House" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} onFocusCapture={() => setPaused(true)} onKeyDown={event => {
+    if (event.target.tagName === 'INPUT') return
+    if (event.key === 'ArrowLeft') { event.preventDefault(); select(current - 1) }
+    if (event.key === 'ArrowRight') { event.preventDefault(); select(current + 1) }
+  }}>
+    <div className="ministry-hero-inner">
+      <div className="ministry-hero-copy">
+        <p className="ministry-eyebrow">Christ’s Reformation House International</p>
+        <h1>Rooted in Christ.<br /><span>Connected across nations.</span></h1>
+        <p className="ministry-hero-intro">A place to grow in faith, find fellowship, and take part in God’s work—wherever you call home.</p>
+        <div className="ministry-slide-copy" aria-live={paused || reducedMotion ? 'polite' : 'off'} aria-atomic="true"><p className="font-semibold text-amber-300">{slides[current].label}</p><p className="mt-2 text-slate-300">{slides[current].text}</p></div>
+        <div className="ministry-actions"><Link to={slides[current].link} className="ministry-button">{slides[current].action}<ArrowRight size={18} /></Link><Link to="/about" className="ministry-button-outline">Meet the ministry</Link></div>
+        <div className="ministry-controls">
+          <button type="button" onClick={() => select(current - 1)} aria-label="Previous ministry slide"><ChevronLeft size={20} /></button>
+          {slides.map((slide, index) => <button key={slide.image} type="button" onClick={() => select(index)} aria-label={`Show slide ${index + 1}: ${slide.label}`} aria-pressed={current === index} className="ministry-slide-dot"><span /></button>)}
+          <button type="button" onClick={() => select(current + 1)} aria-label="Next ministry slide"><ChevronRight size={20} /></button>
+          {!reducedMotion && <button type="button" onClick={() => setPaused(value => !value)} aria-label={paused ? 'Play slideshow' : 'Pause slideshow'}>{paused ? <Play size={18} /> : <Pause size={18} />}</button>}
+          <span className="ml-2 text-xs text-slate-400" aria-hidden="true">0{current + 1} / 0{slides.length}</span>
         </div>
       </div>
-
-      {/* Navigation Arrows */}
-      <button
-        onClick={goToPrevious}
-        className="absolute left-4 top-1/2 -translate-y-1/2 z-20 p-3 bg-white/20 backdrop-blur-sm rounded-full hover:bg-white/30 transition-all duration-300 transform hover:scale-110"
-        aria-label="Previous slide"
-      >
-        <ChevronLeft className="w-6 h-6 text-white" />
-      </button>
-      <button
-        onClick={goToNext}
-        className="absolute right-4 top-1/2 -translate-y-1/2 z-20 p-3 bg-white/20 backdrop-blur-sm rounded-full hover:bg-white/30 transition-all duration-300 transform hover:scale-110"
-        aria-label="Next slide"
-      >
-        <ChevronRight className="w-6 h-6 text-white" />
-      </button>
-
-      {/* Dots Indicator */}
-      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex gap-2">
-        {slides.map((_, index) => (
-          <button
-            key={index}
-            onClick={() => goToSlide(index)}
-            className={`h-3 rounded-full transition-all duration-300 ${
-              index === currentIndex
-                ? 'w-8 bg-white'
-                : 'w-3 bg-white/50 hover:bg-white/75'
-            }`}
-            aria-label={`Go to slide ${index + 1}`}
-          />
-        ))}
-      </div>
+      <figure className="ministry-hero-visual">
+        {slides.map((slide, index) => <div key={slide.image} className={`ministry-hero-slide ${index === current ? 'is-active' : ''}`} aria-hidden={index !== current} role="group" aria-roledescription="slide" aria-label={`${index + 1} of ${slides.length}`}><img src={slide.image} alt={slide.alt} width="933" height="1400" fetchpriority={index === 0 ? 'high' : 'low'} decoding="async" /></div>)}
+        <figcaption>Apostle (Dr) Anchord Taiwo<span>AI-created ministry portraits</span></figcaption>
+      </figure>
     </div>
-  )
+  </section>
 }
-
-export default HeroCarousel
-
-
-
-
