@@ -1,211 +1,150 @@
-import { useState } from 'react'
-import { Heart, CreditCard, Loader2, ShieldCheck, Building2 } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { Heart, CreditCard, Loader2, ShieldCheck, Globe2, BookOpen, Users } from 'lucide-react'
 import { donationService } from '../services/api'
-import { DONATION_TYPES, DONATION_CURRENCIES } from '../utils/constants'
-import ErrorMessage from '../components/Error'
+import { APP_CONFIG, DONATION_TYPES, DONATION_CURRENCIES } from '../utils/constants'
+import { authorizationType, redirectUrl, validateCard } from '../utils/donation.mjs'
 
-const Donate = () => {
-  const [formData, setFormData] = useState({ amount: '', currency: 'NGN', donationType: 'general', name: '', email: '', phone: '', message: '' })
-  const [card, setCard] = useState({ number: '', expiryMonth: '', expiryYear: '', cvv: '' })
-  const [paymentMethod, setPaymentMethod] = useState('card')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
-
-  const selectedCurrency = DONATION_CURRENCIES.find((c) => c.code === formData.currency) || DONATION_CURRENCIES[0]
-  const quickAmounts = [50, 100, 250, 500, 1000, 5000, 10000]
-
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    setError(null)
-
-    const rawAmount = Number.parseFloat(formData.amount)
-    const cardNumber = String(card.number || '').replace(/\s/g, '')
-    const expiryMonth = String(card.expiryMonth || '').trim()
-    const expiryYear = String(card.expiryYear || '').trim()
-    const cvv = String(card.cvv || '').trim()
-
-    try {
-      // Use JavaScript validation instead of browser-native form validation so
-      // every failure is visible in the page and the request flow is debuggable.
-      if (!Number.isFinite(rawAmount) || rawAmount <= 0) throw new Error('Please enter a valid donation amount.')
-      if (formData.currency !== 'NGN') throw new Error('For the first Live V4 test, please use NGN.')
-      if (!String(formData.name || '').trim()) throw new Error('Please enter your full name.')
-      if (!/^\S+@\S+\.\S+$/.test(String(formData.email || '').trim())) throw new Error('Please enter a valid email address.')
-      if (paymentMethod !== 'card') throw new Error('Bank transfer will be enabled after the card V4 flow is verified.')
-      if (!/^\d{12,19}$/.test(cardNumber)) throw new Error('Please enter a valid 12-19 digit card number.')
-      if (!/^\d{2}$/.test(expiryMonth) || !/^\d{4}$/.test(expiryYear)) throw new Error('Please enter the card expiry as MM and YYYY.')
-      if (!/^\d{3,4}$/.test(cvv)) throw new Error('Please enter a valid 3 or 4 digit CVV.')
-
-      setLoading(true)
-      console.info('[CRH Payment] Starting donation request')
-
-      const amount = selectedCurrency.decimals === 0 ? Math.round(rawAmount) : Math.round(rawAmount * 100) / 100
-      const donationResponse = await donationService.create({
-        ...formData,
-        name: String(formData.name).trim(),
-        email: String(formData.email).trim(),
-        phone: String(formData.phone || '').trim(),
-        amount,
-      })
-      const txRef = donationResponse?.data?.tx_ref
-      if (!txRef) throw new Error('The donation reference could not be created.')
-      console.info('[CRH Payment] Donation created', { tx_ref: txRef })
-
-      // Raw card fields are sent only over HTTPS to our Render backend.
-      // The backend encrypts them with FLW_ENCRYPTION_KEY and never logs or persists them.
-      const paymentMethodPayload = {
-        type: 'card',
-        card: {
-          number: cardNumber,
-          expiry_month: expiryMonth,
-          expiry_year: expiryYear,
-          cvv,
-        },
-      }
-
-      console.info('[CRH Payment] Initializing Flutterwave charge', { tx_ref: txRef })
-      const paymentResponse = await donationService.initialize(txRef, paymentMethodPayload)
-      const payment = paymentResponse?.data || {}
-      console.info('[CRH Payment] Flutterwave initialization response', {
-        tx_ref: txRef,
-        status: payment.status || null,
-        charge_id: payment.charge_id || null,
-        next_action: payment.next_action?.type || null,
-      })
-
-      if (payment?.next_action?.type === 'redirect_url' && payment.next_action.redirect_url?.url) {
-        window.location.assign(payment.next_action.redirect_url.url)
-        return
-      }
-      if (payment?.redirect_url) {
-        window.location.assign(payment.redirect_url)
-        return
-      }
-      if (payment?.status === 'succeeded') {
-        window.location.assign(`/donate/return?tx_ref=${encodeURIComponent(txRef)}`)
-        return
-      }
-
-      if (payment?.next_action?.type) {
-        throw new Error(`Flutterwave requires additional authorization (${payment.next_action.type}). The current checkout does not yet support this authorization step.`)
-      }
-
-      throw new Error('Flutterwave did not return a payment authorization or redirect URL.')
-    } catch (err) {
-      const status = err.response?.status
-      const providerStatus = err.response?.data?.provider_status
-      const providerCode = err.response?.data?.provider_code
-      const serverError = err.response?.data?.error
-
-      console.error('[CRH Payment] Payment flow failed', {
-        http_status: status || null,
-        provider_status: providerStatus || null,
-        provider_code: providerCode || null,
-        message: err.message || null,
-      })
-
-      if (serverError) {
-        const diagnostic = [
-          serverError,
-          providerStatus ? `Provider HTTP ${providerStatus}` : null,
-          providerCode ? `Provider code ${providerCode}` : null,
-        ].filter(Boolean).join(' — ')
-        setError(diagnostic)
-      } else if (err.message) {
-        setError(err.message)
-      } else {
-        setError('Payment setup failed. Please try again.')
-      }
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleChange = (e) => setFormData((current) => ({ ...current, [e.target.name]: e.target.value }))
-  const handleCardChange = (e) => setCard((current) => ({ ...current, [e.target.name]: e.target.value }))
-
-  return (
-    <div>
-      <section className="bg-gradient-to-r from-blue-600 to-purple-600 text-white section-padding">
-        <div className="container-custom text-center">
-          <Heart className="w-16 h-16 mx-auto mb-4" />
-          <h1 className="text-5xl font-bold mb-4">Give Online</h1>
-          <p className="text-xl max-w-3xl mx-auto">Your generous giving helps us spread the Gospel and serve our community. Thank you for your support!</p>
-        </div>
-      </section>
-
-      <section className="section-padding">
-        <div className="container-custom">
-          <div className="max-w-3xl mx-auto">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-2">
-                <div className="card">
-                  <h2 className="text-2xl font-bold mb-6">Donation Information</h2>
-                  {error && <ErrorMessage message={error} />}
-                  <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off" noValidate>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Currency *</label>
-                      <select name="currency" required value={formData.currency} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                        {DONATION_CURRENCIES.map((c) => <option key={c.code} value={c.code}>{c.symbol} {c.label} ({c.code})</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Donation Amount * ({selectedCurrency.code})</label>
-                      <div className="flex flex-wrap gap-2 mb-3">
-                        {quickAmounts.map((amount) => <button key={amount} type="button" onClick={() => setFormData((current) => ({ ...current, amount: amount.toString() }))} className={`px-4 py-2 rounded-lg border-2 ${formData.amount === amount.toString() ? 'border-blue-600 bg-blue-50 text-blue-600' : 'border-gray-300 hover:border-blue-300'}`}>{selectedCurrency.symbol}{amount.toLocaleString()}</button>)}
-                      </div>
-                      <input type="number" name="amount" required min="1" step={selectedCurrency.decimals === 0 ? '1' : '0.01'} value={formData.amount} onChange={handleChange} placeholder="e.g. 100" className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Donation Type *</label>
-                      <select name="donationType" required value={formData.donationType} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                        {DONATION_TYPES.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
-                      </select>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <input type="text" name="name" required value={formData.name} onChange={handleChange} placeholder="Full Name *" autoComplete="name" className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
-                      <input type="email" name="email" required value={formData.email} onChange={handleChange} placeholder="Email Address *" autoComplete="email" className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
-                    </div>
-                    <input type="tel" name="phone" value={formData.phone} onChange={handleChange} placeholder="Phone Number" autoComplete="tel" className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
-                    <textarea name="message" rows="3" value={formData.message} onChange={handleChange} placeholder="Message (Optional)" className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Payment Method</label>
-                      <div className="grid grid-cols-2 gap-3">
-                        <button type="button" onClick={() => setPaymentMethod('card')} className={`p-3 rounded-lg border-2 flex items-center justify-center ${paymentMethod === 'card' ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-300'}`}><CreditCard className="w-5 h-5 mr-2" /> Card</button>
-                        <button type="button" onClick={() => setPaymentMethod('bank_transfer')} className={`p-3 rounded-lg border-2 flex items-center justify-center ${paymentMethod === 'bank_transfer' ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-300'}`}><Building2 className="w-5 h-5 mr-2" /> Bank Transfer</button>
-                      </div>
-                    </div>
-                    {paymentMethod === 'card' && <div className="space-y-4 rounded-lg border border-gray-200 p-4 bg-gray-50">
-                      <h3 className="font-semibold">Card Details</h3>
-                      <input type="text" name="number" inputMode="numeric" maxLength="23" required value={card.number} onChange={handleCardChange} placeholder="Card number" autoComplete="cc-number" className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
-                      <div className="grid grid-cols-3 gap-3">
-                        <input type="text" name="expiryMonth" inputMode="numeric" maxLength="2" required value={card.expiryMonth} onChange={handleCardChange} placeholder="MM" autoComplete="cc-exp-month" className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
-                        <input type="text" name="expiryYear" inputMode="numeric" maxLength="4" required value={card.expiryYear} onChange={handleCardChange} placeholder="YYYY" autoComplete="cc-exp-year" className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
-                        <input type="password" name="cvv" inputMode="numeric" maxLength="4" required value={card.cvv} onChange={handleCardChange} placeholder="CVV" autoComplete="cc-csc" className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
-                      </div>
-                      <p className="text-xs text-gray-600">Card details are transmitted only over HTTPS to the secure payment backend. They are encrypted there with Flutterwave's encryption key and are never stored in the CRH database.</p>
-                    </div>}
-                    {paymentMethod === 'bank_transfer' && <div className="rounded-lg bg-blue-50 border border-blue-200 p-4 text-sm text-blue-800">Bank-transfer checkout will be enabled after we verify the first card V4 flow.</div>}
-                    <div className="rounded-lg bg-green-50 border border-green-200 p-4 flex gap-3">
-                      <ShieldCheck className="w-6 h-6 text-green-600 flex-shrink-0" />
-                      <p className="text-sm text-green-800">Payment credentials and encryption keys remain on the secure backend. Card details are not stored in the CRH database.</p>
-                    </div>
-                    <button type="submit" disabled={loading || paymentMethod !== 'card'} className="btn-primary w-full flex items-center justify-center disabled:opacity-60">
-                      {loading ? <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Preparing Secure Payment...</> : <><CreditCard className="w-5 h-5 mr-2" /> Proceed to Secure Payment</>}
-                    </button>
-                  </form>
-                </div>
-              </div>
-              <div>
-                <div className="card bg-blue-50 border-2 border-blue-200"><h3 className="text-xl font-semibold mb-4">Why Give?</h3><ul className="space-y-3 text-gray-700"><li>❤️ Support our mission to spread the Gospel</li><li>❤️ Help us serve our community</li><li>❤️ Enable our ministries to grow</li><li>❤️ Make a lasting impact</li></ul></div>
-                <div className="card mt-6"><h3 className="text-lg font-semibold mb-2">Other Ways to Give</h3><p className="text-sm text-gray-600">You can also give through bank transfer, check, or in person at our church office.</p></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-    </div>
-  )
+const STORAGE_KEY = 'crh-donation-checkout'
+const emptyCard = { number: '', expiryMonth: '', expiryYear: '', cvv: '' }
+const inputClass = 'w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500'
+function Field({ label, id, ...props }) {
+  return <label htmlFor={id} className="block text-sm font-medium text-slate-700"><span className="mb-2 block">{label}</span><input id={id} className={inputClass} {...props} /></label>
 }
-
-export default Donate
+function readCheckout() {
+  try {
+    const value = JSON.parse(sessionStorage.getItem(STORAGE_KEY) || 'null')
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value?.checkout_id || '') ? value : null
+  } catch { return null }
+}
+export default function Donate() {
+  const [form, setForm] = useState({ amount: '', currency: 'NGN', donationType: 'general', name: '', email: '', phone: '', message: '' })
+  const [card, setCard] = useState(emptyCard)
+  const [checkout, setCheckout] = useState(readCheckout)
+  const [config, setConfig] = useState(null)
+  const [configError, setConfigError] = useState('')
+  const [configAttempt, setConfigAttempt] = useState(0)
+  const [action, setAction] = useState(null)
+  const [code, setCode] = useState('')
+  const [address, setAddress] = useState({ line1: '', city: '', state: '', postal_code: '', country: '' })
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const busy = useRef(false)
+  const errorRef = useRef(null)
+  useEffect(() => {
+    let cancelled = false
+    setConfigError('')
+    donationService.getConfig().then(({ data }) => {
+      const currencies = DONATION_CURRENCIES.filter(c => data.currencies?.includes(c.code))
+      if (!currencies.length || !data.payment_methods?.includes('card') || !data.card_encryption_enabled) throw new Error('Giving unavailable')
+      if (cancelled) return
+      setConfig({ ...data, currencies })
+      setForm(current => ({ ...current, currency: currencies.some(c => c.code === current.currency) ? current.currency : currencies[0].code }))
+    }).catch(() => { if (!cancelled) setConfigError('We could not load online giving. Please retry or contact the church for assistance.') })
+    return () => { cancelled = true }
+  }, [configAttempt])
+  useEffect(() => { if (error) errorRef.current?.focus() }, [error])
+  const txRef = checkout ? `crh-${checkout.checkout_id}` : ''
+  const returnPath = `/donate/return?tx_ref=${encodeURIComponent(txRef)}`
+  const currency = DONATION_CURRENCIES.find(c => c.code === form.currency)
+  const authType = authorizationType(action)
+  const change = e => { const { name, value } = e.target; setForm(current => ({ ...current, [name]: value })) }
+  const changeCard = (key, value) => setCard(current => ({ ...current, [key]: value }))
+  const changeAddress = (key, value) => setAddress(current => ({ ...current, [key]: key === 'country' ? value.toUpperCase() : value }))
+  function saveCheckout(value) {
+    setCheckout(value)
+    // Only an opaque ID is persisted. No card, PIN, OTP, or donor details.
+    try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(value)) } catch { /* Storage is optional. */ }
+  }
+  function handlePayment(payment, reference) {
+    setCard(emptyCard)
+    setCode('')
+    const url = redirectUrl(payment)
+    if (url) { window.location.assign(url); return }
+    if (authorizationType(payment.next_action)) { setAction(payment.next_action); return }
+    if (payment.next_action?.type && !['payment_instruction', 'payment_instructions'].includes(payment.next_action.type)) throw new Error('This payment requires assistance from the ministry. Keep your reference and check its status before paying again.');
+    window.location.assign(`/donate/return?tx_ref=${encodeURIComponent(reference)}`)
+  }
+  async function run(operation) {
+    if (busy.current) return
+    busy.current = true; setLoading(true); setError('')
+    try { await operation() }
+    catch (err) {
+      setError(err.response?.data?.error || err.message || 'Checkout could not be confirmed. Check payment status before paying again.')
+      setCode('')
+      if (err.response?.status === 404) {
+        // No donation record exists, so no charge can be initialized for it.
+        setCheckout(null)
+        try { sessionStorage.removeItem(STORAGE_KEY) } catch { /* Storage is optional. */ }
+      }
+    } finally { busy.current = false; setLoading(false) }
+  }
+  function submit(e) {
+    e.preventDefault()
+    run(async () => {
+      const method = validateCard(card)
+      const amount = Number(form.amount)
+      if (!checkout && (!Number.isFinite(amount) || amount < 0.01 || amount > 100000000)) throw new Error('Enter an amount between 0.01 and 100,000,000.')
+      const attempt = checkout || { checkout_id: crypto.randomUUID() }
+      if (!checkout) saveCheckout(attempt)
+      const reference = `crh-${attempt.checkout_id}`
+      if (!checkout) await donationService.create({ ...form, name: form.name.trim(), email: form.email.trim(), amount: Math.round(amount * 100) / 100, checkout_id: attempt.checkout_id })
+      const response = await donationService.initialize(reference, method)
+      handlePayment(response.data, reference)
+    })
+  }
+  function resume() {
+    run(async () => { const { data } = await donationService.initialize(txRef); handlePayment(data, txRef) })
+  }
+  function authorize(e) {
+    e.preventDefault()
+    run(async () => {
+      const authorization = authType === 'avs' ? { type: 'avs', address } : { type: authType, code }
+      const { data } = await donationService.authorize(txRef, authorization)
+      handlePayment(data, txRef)
+    })
+  }
+  return <div className="bg-slate-50 text-slate-900">
+    <section className="relative overflow-hidden bg-slate-950 px-5 py-16 text-white md:py-24">
+      <div className="absolute right-0 top-0 h-80 w-80 rounded-full bg-amber-400/10 blur-3xl" aria-hidden="true" />
+      <div className="container-custom relative grid items-center gap-8 lg:grid-cols-2">
+        <div><p className="mb-4 text-sm font-semibold uppercase tracking-widest text-amber-300">Generosity with purpose</p><h1 className="mb-6 text-4xl font-bold leading-tight md:text-6xl">Your giving.<br /><span className="text-amber-300">A shared mission.</span></h1><p className="max-w-xl text-lg leading-relaxed text-slate-300">Help Christ’s Reformation House share the Gospel, nurture faith, and serve people in Abuja and beyond.</p></div>
+        <div className="rounded-3xl border border-white/15 bg-white/5 p-8"><Heart className="mb-5 h-8 w-8 text-amber-300" /><p className="text-xl leading-relaxed">“God loves a cheerful giver.”</p><p className="mt-3 text-sm text-slate-400">2 Corinthians 9:7</p><p className="mt-6 text-sm leading-relaxed text-slate-300">Give freely, as you purpose in your heart. Every gift is an opportunity to participate in the work of ministry.</p></div>
+      </div>
+    </section>
+    <section className="container-custom grid gap-10 px-5 py-12 lg:grid-cols-3 md:py-16">
+      <aside className="space-y-7">
+        <div><p className="mb-2 text-xs font-bold uppercase tracking-widest text-amber-700">Make an impact</p><h2 className="text-3xl font-bold">Partner in the work.</h2></div>
+        {[{ icon: Globe2, title: 'Reach people', text: 'Support missions and the sharing of the Gospel.' }, { icon: BookOpen, title: 'Build faith', text: 'Help strengthen teaching, discipleship, and ministry.' }, { icon: Users, title: 'Serve communities', text: 'Participate in outreach and the care of others.' }].map(({ icon: Icon, title, text }) => <div key={title} className="flex gap-4"><Icon className="h-6 w-6 shrink-0 text-amber-700" /><div><h3 className="font-semibold">{title}</h3><p className="mt-1 text-sm leading-relaxed text-slate-600">{text}</p></div></div>)}
+        <div className="rounded-2xl border border-slate-200 bg-white p-5"><h3 className="font-semibold">Need help with a gift?</h3><p className="mt-2 text-sm text-slate-600">If you were charged, keep your reference and check its status before making another payment.</p><a className="mt-4 inline-block break-all text-sm font-medium text-blue-700 underline" href={`mailto:${APP_CONFIG.CHURCH_EMAIL}`}>{APP_CONFIG.CHURCH_EMAIL}</a><Link to="/contact" className="mt-3 block text-sm text-blue-700 underline">Contact the ministry</Link></div>
+      </aside>
+      <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8 lg:col-span-2">
+        <div className="mb-7 flex items-start justify-between gap-4"><div><h2 className="text-2xl font-bold">{checkout ? 'Continue your gift' : 'Give online'}</h2><p className="mt-2 text-sm text-slate-600">One-time giving · Powered by Flutterwave</p></div><ShieldCheck className="h-7 w-7 shrink-0 text-emerald-700" /></div>
+        {error && <div ref={errorRef} tabIndex={-1} role="alert" className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{error}</div>}
+        {checkout && <div className="mb-6 space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm"><p>Keep this reference to resume or check your payment. Please check before giving again.</p><p className="break-all font-mono text-xs">{txRef}</p><div className="flex flex-wrap gap-4"><Link className="font-semibold text-blue-800 underline" to={returnPath}>Check payment status</Link><button type="button" disabled={loading} onClick={resume} className="font-semibold text-blue-800 underline disabled:opacity-50">Resume bank authorization</button></div></div>}
+        {configError ? <div role="alert"><p className="text-slate-700">{configError}</p><button className="mt-4 rounded-xl bg-slate-900 px-5 py-3 text-white" onClick={() => setConfigAttempt(n => n + 1)}>Retry connection</button></div> : !config ? <p role="status" className="flex gap-3 text-slate-600"><Loader2 className="h-5 w-5 animate-spin" />Loading giving options…</p> : authType ? <form onSubmit={authorize} className="space-y-5">
+          <h3 className="text-xl font-semibold">{authType === 'otp' ? 'Enter your bank’s one-time code' : authType === 'pin' ? 'Authorize with your card PIN' : 'Confirm your billing address'}</h3><p className="text-sm text-slate-600">Your bank requires this step to continue this payment. Authorization details are not saved.</p>
+          <fieldset disabled={loading} className="space-y-4">{authType === 'avs' ? Object.keys(address).map(field => <Field key={field} id={`billing-${field}`} label={{ line1: 'Street address', city: 'City', state: 'State / region', postal_code: 'Postal code', country: 'Country code (e.g. NG)' }[field]} required maxLength={field === 'country' ? 2 : 150} value={address[field]} onChange={e => changeAddress(field, e.target.value)} />) : <Field id="bank-code" label={authType === 'otp' ? 'One-time code' : 'Card PIN'} type="password" autoComplete={authType === 'otp' ? 'one-time-code' : 'off'} inputMode="numeric" required pattern={authType === 'otp' ? '[0-9]{4,10}' : '[0-9]{4,6}'} maxLength={authType === 'otp' ? 10 : 6} value={code} onChange={e => setCode(e.target.value)} />}</fieldset>
+          <button disabled={loading} className="btn-primary w-full">{loading ? 'Confirming…' : 'Continue authorization'}</button>
+        </form> : <form onSubmit={submit} className="space-y-6">
+          <fieldset disabled={loading || Boolean(checkout)} className="space-y-5 disabled:opacity-60"><legend className="mb-4 font-semibold">1. Your gift</legend>
+            <label htmlFor="currency" className="block text-sm font-medium text-slate-700">Currency<select id="currency" name="currency" className={`${inputClass} mt-2`} value={form.currency} onChange={change}>{config.currencies.map(c => <option key={c.code} value={c.code}>{c.label} ({c.code})</option>)}</select></label>
+            <div className="flex flex-wrap gap-2">{(form.currency === 'NGN' ? [1000, 5000, 10000, 25000] : [10, 25, 50, 100]).map(amount => <button key={amount} type="button" aria-pressed={form.amount === String(amount)} onClick={() => setForm(current => ({ ...current, amount: String(amount) }))} className={`rounded-xl border px-4 py-2 text-sm font-semibold ${form.amount === String(amount) ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 text-slate-700'}`}>{currency?.symbol}{amount.toLocaleString()}</button>)}</div>
+            <Field id="amount" label={`Amount (${form.currency})`} name="amount" type="number" inputMode="decimal" min="0.01" max="100000000" step="0.01" required value={form.amount} onChange={change} />
+            <label htmlFor="donationType" className="block text-sm font-medium text-slate-700">Give towards<select id="donationType" name="donationType" className={`${inputClass} mt-2`} value={form.donationType} onChange={change}>{DONATION_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}</select></label>
+            <div className="grid gap-4 sm:grid-cols-2"><Field id="name" label="Full name" name="name" autoComplete="name" required maxLength={120} value={form.name} onChange={change} /><Field id="email" label="Email address" name="email" type="email" autoComplete="email" required maxLength={254} value={form.email} onChange={change} /></div>
+            <Field id="phone" label="Phone number (optional, Nigerian number)" name="phone" type="tel" autoComplete="tel" value={form.phone} onChange={change} />
+            <label htmlFor="message" className="block text-sm font-medium text-slate-700">Message (optional)<textarea id="message" name="message" rows={3} maxLength={1000} className={`${inputClass} mt-2`} value={form.message} onChange={change} /></label>
+          </fieldset>
+          <fieldset disabled={loading} className="space-y-4 border-t border-slate-200 pt-6"><legend className="font-semibold">2. Card payment</legend><p className="text-sm text-slate-600">{checkout ? 'If a charge already exists, use “Resume bank authorization” above. Only enter card details if checkout has not started.' : 'Your bank may ask you to authorize the payment in the next step.'}</p>
+            <Field id="card-number" label="Card number" inputMode="numeric" autoComplete="cc-number" required maxLength={23} value={card.number} onChange={e => changeCard('number', e.target.value)} />
+            <div className="grid grid-cols-3 gap-3">{[{ key: 'expiryMonth', label: 'Month (MM)', length: 2, auto: 'cc-exp-month' }, { key: 'expiryYear', label: 'Year (YYYY)', length: 4, auto: 'cc-exp-year' }, { key: 'cvv', label: 'CVV', length: 4, auto: 'cc-csc' }].map(f => <Field key={f.key} id={f.key} label={f.label} type={f.key === 'cvv' ? 'password' : 'text'} inputMode="numeric" autoComplete={f.auto} maxLength={f.length} required value={card[f.key]} onChange={e => changeCard(f.key, e.target.value)} />)}</div>
+          </fieldset>
+          <p className="rounded-xl bg-slate-50 p-4 text-xs leading-relaxed text-slate-600">Card details are sent to our payment backend for encrypted submission to Flutterwave. They are not saved as part of your donation record. Only currently enabled currencies are shown.</p>
+          <button disabled={loading} className="flex w-full items-center justify-center gap-3 rounded-xl bg-slate-950 px-6 py-4 font-semibold text-white hover:bg-slate-800 disabled:opacity-60">{loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <CreditCard className="h-5 w-5" />}{loading ? 'Preparing your payment…' : 'Continue to payment'}</button>
+        </form>}
+        <p className="mt-5 text-center text-xs text-slate-500">Your gift is confirmed only after server verification.</p>
+      </div>
+    </section>
+  </div>
+}

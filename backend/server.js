@@ -12,19 +12,23 @@ const {
   getDonationByTxRef,
   updateDonationById,
   createPaymentEvent,
+  claimDonationInitialization,
 } = require('./supabase');
 const {
   getAccessToken,
   createDirectCharge,
-  createCharge,
   retrieveCharge,
+  encryptCardPaymentMethod,
+  prepareAuthorization,
+  authorizeCharge,
 } = require('./flutterwave');
+
+const { enabledCurrencies, authorizationType, paymentResponse, matchesDonation, initializationKey } = require('./payment-state');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 const FRONTEND_ORIGIN = String(process.env.FRONTEND_ORIGIN || 'http://localhost:3000').trim().replace(/\/$/, '');
 const FLW_WEBHOOK_SECRET_HASH = String(process.env.FLW_WEBHOOK_SECRET_HASH || '').trim();
-const FLW_ENCRYPTION_KEY = String(process.env.FLW_ENCRYPTION_KEY || '').trim();
 
 const allowedOrigins = [
   'http://localhost:3000',
@@ -108,6 +112,8 @@ app.get('/api/payments/config', (req, res) => res.json({
   provider: 'flutterwave',
   api: 'v4',
   card_encryption_enabled: Boolean(process.env.FLW_ENCRYPTION_KEY),
+  currencies: enabledCurrencies(),
+  payment_methods: ['card'],
 }));
 
 const readJSONFile = (filename) => {
@@ -131,16 +137,7 @@ const isValidEmail = (email) => typeof email === 'string' && email.length <= 254
 const isValidCurrency = (currency) => ['NGN', 'USD', 'GBP', 'EUR', 'GHS', 'ZAR', 'KES'].includes(currency);
 // Flutterwave V4 references must be 6-42 characters. Keep the reference short and unique.
 const makeTxRef = () => `crh-${Date.now().toString(36)}-${crypto.randomBytes(8).toString('hex')}`.slice(0, 42);
-const makeIdempotencyKey = () => crypto.randomBytes(24).toString('hex');
 
-function safePaymentMethod(paymentMethod) {
-  if (!paymentMethod || typeof paymentMethod !== 'object' || Array.isArray(paymentMethod)) return null;
-  const serialized = JSON.stringify(paymentMethod);
-  if (serialized.length > 50000) return null;
-  const forbidden = ['card_number', 'cvv', 'cvc', 'pin', 'expiry', 'expiry_month', 'expiry_year'];
-  if (forbidden.some((key) => Object.prototype.hasOwnProperty.call(paymentMethod, key))) return null;
-  return paymentMethod;
-}
 
 function buildFlutterwaveCustomerName(fullName) {
   const parts = String(fullName || 'Donor').trim().split(/\s+/).filter(Boolean);
@@ -214,14 +211,27 @@ app.post('/api/donations', async (req, res) => {
   const numAmount = typeof amount === 'number' ? amount : Number(amount);
   const currencyCode = String(currency).toUpperCase().trim();
   const donationCode = String(donationType || '').trim().slice(0, 80);
-  if (!Number.isFinite(numAmount) || numAmount <= 0 || numAmount > 100000000) return res.status(400).json({ error: 'Invalid amount' });
-  if (!isValidCurrency(currencyCode)) return res.status(400).json({ error: 'Currency not supported' });
+  if (!Number.isFinite(numAmount) || numAmount < 0.01 || numAmount > 100000000 || Math.abs(numAmount * 100 - Math.round(numAmount * 100)) > 0.00001) return res.status(400).json({ error: 'Invalid amount' });
+  if (!isValidCurrency(currencyCode) || !enabledCurrencies().includes(currencyCode)) return res.status(400).json({ error: 'Currency not supported' });
   if (!isValidEmail(email)) return res.status(400).json({ error: 'Valid email is required' });
+  if (typeof name !== 'string' || !name.trim() || name.trim().length > 120) return res.status(400).json({ error: 'Full name is required (maximum 120 characters)' });
   if (!donationCode) return res.status(400).json({ error: 'Donation type is required' });
+  const checkoutId = req.body?.checkout_id;
+  if (checkoutId && !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(checkoutId)) return res.status(400).json({ error: 'Invalid checkout identifier' });
+  const txRef = checkoutId ? `crh-${checkoutId.toLowerCase()}` : makeTxRef();
+  const replyExisting = (donation) => {
+    if (Number(donation.amount) !== numAmount || donation.currency !== currencyCode || donation.email !== email.trim().toLowerCase() || donation.donation_type !== donationCode) {
+      return res.status(409).json({ error: 'This checkout already belongs to another donation. Check its payment status before starting again.' });
+    }
+    return res.json({ success: true, tx_ref: donation.tx_ref, status: donation.status });
+  };
   try {
+    if (checkoutId) {
+      const existing = await getDonationByTxRef(txRef);
+      if (existing) return replyExisting(existing);
+    }
     const type = await getActiveDonationType(donationCode);
     if (!type) return res.status(400).json({ error: 'Invalid or inactive donation type' });
-    const txRef = makeTxRef();
     const donation = await createDonation({
       donor_name: String(name || 'Donor').trim().slice(0, 120),
       email: email.trim().toLowerCase(),
@@ -239,93 +249,95 @@ app.post('/api/donations', async (req, res) => {
     if (!donation) return res.status(502).json({ error: 'Unable to create donation record' });
     return res.status(201).json({ success: true, donation_id: donation.id, tx_ref: txRef, status: 'pending' });
   } catch (error) {
-    console.error('Donation creation failed:', error.message);
+    // A simultaneous request may have won the unique tx_ref insert.
+    if (checkoutId && error.response?.status === 409) {
+      try { const existing = await getDonationByTxRef(txRef); if (existing) return replyExisting(existing); } catch { /* Return a recoverable error below. */ }
+    }
+    console.error('Donation creation failed:', error.response?.status || error.code || 'unknown');
     return res.status(502).json({ error: 'Unable to create donation' });
   }
 });
 
+const initializationRequests = new Set();
+
 app.post('/api/payments/initialize', async (req, res) => {
-  const { tx_ref: txRef, paymentMethod, customerId, paymentMethodId } = req.body || {};
-  if (!txRef || typeof txRef !== 'string') return res.status(400).json({ error: 'tx_ref is required' });
+  const { tx_ref: txRef, paymentMethod } = req.body || {};
+  if (typeof txRef !== 'string' || !/^crh-[a-z0-9-]{6,38}$/i.test(txRef)) return res.status(400).json({ error: 'A valid payment reference is required' });
+  if (initializationRequests.has(txRef)) return res.status(409).json({ error: 'Payment is being prepared. Please wait before checking again.' });
+  initializationRequests.add(txRef);
+  let claimedDonationId;
   try {
-    const donation = await getDonationOr404(txRef.trim(), res);
+    const donation = await getDonationOr404(txRef, res);
     if (!donation) return;
-    if (donation.status === 'successful') return res.status(409).json({ error: 'Donation is already successful' });
-    const redirectUrl = `${FRONTEND_ORIGIN}/donate/return?tx_ref=${encodeURIComponent(donation.tx_ref)}`;
+    if (normalizeDonationStatus(donation.status) === 'successful') return res.json({ success: true, tx_ref: txRef, status: 'succeeded' });
+    if (donation.flutterwave_transaction_id) {
+      const response = await retrieveCharge(donation.flutterwave_transaction_id);
+      const charge = response.data?.data || response.data;
+      if (!matchesDonation(donation, charge)) return res.status(409).json({ error: 'Payment details could not be matched. Please contact the church with your reference.' });
+      return res.json(paymentResponse(donation, charge));
+    }
+    if (['failed', 'cancelled'].includes(donation.status)) return res.json({ tx_ref: txRef, status: donation.status });
+    if (donation.metadata?.initialization_state) return res.status(409).json({ error: 'A payment request has already been sent. Check its status or contact the church with your reference before paying again.' });
+    if (!enabledCurrencies().includes(donation.currency)) return res.status(400).json({ error: 'This currency is not enabled for checkout' });
+    if (paymentMethod?.type !== 'card') return res.status(400).json({ error: 'Only card checkout is currently enabled' });
+    let encryptedMethod;
+    try { encryptedMethod = encryptCardPaymentMethod(paymentMethod.card); }
+    catch { return res.status(400).json({ error: 'Check your card details. If they are correct, contact the church because card checkout may not be configured.' }); }
+    const key = initializationKey(txRef);
+    const claimed = await claimDonationInitialization(donation, key);
+    if (!claimed) return res.status(409).json({ error: 'Payment is already being prepared. Check its status before paying again.' });
+    claimedDonationId = donation.id;
     const customerPhone = buildFlutterwavePhone(donation.phone);
-    const customer = {
-      email: donation.email,
-      name: buildFlutterwaveCustomerName(donation.donor_name || 'Donor'),
-      ...(customerPhone ? { phone: customerPhone } : {}),
-    };
-    let chargeResponse;
-    if (customerId && paymentMethodId) {
-      chargeResponse = await createCharge({
-        amount: Number(donation.amount),
-        currency: String(donation.currency).toUpperCase(),
-        reference: donation.tx_ref,
-        customerId: String(customerId),
-        paymentMethodId: String(paymentMethodId),
-        redirectUrl,
-        meta: { donation_id: String(donation.id) },
-        idempotencyKey: makeIdempotencyKey(),
-      });
-    } else {
-      const sanitizedPaymentMethod = safePaymentMethod(paymentMethod);
-      if (!sanitizedPaymentMethod) return res.status(400).json({ error: 'A Flutterwave V4 payment method is required' });
-      chargeResponse = await createDirectCharge({
-        amount: Number(donation.amount),
-        currency: String(donation.currency).toUpperCase(),
-        reference: donation.tx_ref,
-        customer,
-        paymentMethod: sanitizedPaymentMethod,
-        redirectUrl,
-        idempotencyKey: makeIdempotencyKey(),
-      });
-    }
-    const charge = chargeResponse.data?.data || chargeResponse.data;
-    if (!charge?.id) {
-      await updateDonationById(donation.id, { status: 'failed', failure_reason: 'Flutterwave V4 charge was not created' });
-      return res.status(502).json({ error: 'Payment initialization failed' });
-    }
-    await updateDonationById(donation.id, {
-      flutterwave_transaction_id: String(charge.id),
-      status: 'pending',
-      metadata: { ...(donation.metadata || {}), flutterwave_charge_id: String(charge.id) },
+    const response = await createDirectCharge({
+      amount: Number(donation.amount), currency: donation.currency, reference: txRef,
+      customer: { email: donation.email, name: buildFlutterwaveCustomerName(donation.donor_name), ...(customerPhone ? { phone: customerPhone } : {}) },
+      paymentMethod: encryptedMethod,
+      redirectUrl: `${FRONTEND_ORIGIN}/donate/return?tx_ref=${encodeURIComponent(txRef)}`,
+      idempotencyKey: key,
     });
-    await createPaymentEvent({
-      donation_id: donation.id,
-      event_type: 'charge_created',
-      provider: 'flutterwave',
-      provider_transaction_id: String(charge.id),
-      status: String(charge.status || 'pending'),
-      payload: { id: charge.id, reference: charge.reference, status: charge.status, amount: charge.amount, currency: charge.currency },
-    });
-    return res.status(200).json({
-      success: true,
-      tx_ref: donation.tx_ref,
-      charge_id: String(charge.id),
-      status: String(charge.status || 'pending'),
-      next_action: charge.next_action || null,
-      redirect_url: charge.redirect_url || null,
-    });
+    const charge = response.data?.data || response.data;
+    if (!charge?.id || !matchesDonation(donation, charge)) throw new Error('Unexpected charge response');
+    await updateDonationById(donation.id, { flutterwave_transaction_id: String(charge.id), metadata: { ...claimed.metadata, flutterwave_charge_id: String(charge.id) } });
+    // Event recording must not hide a successfully created charge from the donor.
+    try { await createPaymentEvent({ donation_id: donation.id, event_type: 'charge_created', provider: 'flutterwave', provider_transaction_id: String(charge.id), status: charge.status || 'pending', payload: { id: charge.id, reference: charge.reference } }); }
+    catch { console.error('Payment event recording unavailable'); }
+    return res.json(paymentResponse(donation, charge));
   } catch (error) {
-    const providerStatus = error.response?.status || error.providerStatus || null;
-    const providerDetails = error.providerDetails || null;
-    console.error('Flutterwave V4 payment initialization failed:', {
-      provider_status: providerStatus,
-      provider_code: error.providerCode || null,
-      provider_error_type: providerDetails?.type || null,
-      provider_message: providerDetails?.message || null,
-      validation_errors: Array.isArray(providerDetails?.validation_errors) ? providerDetails.validation_errors : [],
-      endpoint: error.providerEndpoint || null,
-      internal_code: error.code || null,
-    });
-    return res.status(502).json({
-      error: 'Payment initiation failed',
-      provider_status: providerStatus,
-      provider_code: error.providerCode || null,
-    });
+    if (claimedDonationId && error.code === 'FLUTTERWAVE_API_ERROR' && [400, 422].includes(error.providerStatus)) {
+      try {
+        await updateDonationById(claimedDonationId, { status: 'failed', failure_reason: 'Payment provider rejected initialization' });
+        return res.json({ tx_ref: txRef, status: 'failed' });
+      } catch { /* Keep uncertain outcomes protected from a second charge. */ }
+    }
+    console.error('Payment initialization unavailable:', error.code || 'unknown', error.providerStatus || null);
+    return res.status(502).json({ error: 'We could not confirm that checkout started. Keep your reference and check payment status before paying again.' });
+  } finally { initializationRequests.delete(txRef); }
+});
+
+app.post('/api/payments/authorize', async (req, res) => {
+  const { tx_ref: txRef, authorization } = req.body || {};
+  if (typeof txRef !== 'string' || txRef.length > 42) return res.status(400).json({ error: 'Payment reference is required' });
+  try {
+    const donation = await getDonationOr404(txRef, res);
+    if (!donation) return;
+    if (!donation.flutterwave_transaction_id) return res.status(409).json({ error: 'Payment has not been initialized' });
+    const current = await retrieveCharge(donation.flutterwave_transaction_id);
+    const charge = current.data?.data || current.data;
+    if (!matchesDonation(donation, charge)) return res.status(409).json({ error: 'Payment details could not be matched' });
+    const expected = authorizationType(charge.next_action);
+    if (!expected) return res.json(paymentResponse(donation, charge));
+    if (authorization?.type !== expected) return res.status(409).json({ error: 'The bank requested a different authorization step. Resume checkout to continue.' });
+    let prepared;
+    try { prepared = prepareAuthorization(authorization); }
+    catch { return res.status(400).json({ error: 'Check the authorization details and try again' }); }
+    const response = await authorizeCharge(charge.id, prepared);
+    const updated = response.data?.data || response.data;
+    if (String(updated.id) !== String(charge.id) || !matchesDonation(donation, updated)) throw new Error('Unexpected authorization response');
+    return res.json(paymentResponse(donation, updated));
+  } catch (error) {
+    // Never log authorization values or provider payloads.
+    console.error('Payment authorization unavailable:', error.code || 'unknown');
+    return res.status(502).json({ error: 'Authorization could not be confirmed. Resume this payment or check its status before paying again.' });
   }
 });
 
@@ -349,6 +361,7 @@ app.get('/api/payments/verify/:tx_ref', async (req, res) => {
     }
 
     const chargeId = String(donation.flutterwave_transaction_id || '').trim();
+    if (!chargeId && ['failed', 'cancelled'].includes(donation.status)) return res.json({ verified: false, status: donation.status, tx_ref: txRef });
     if (!chargeId) {
       return res.status(409).json({
         verified: false,
@@ -479,7 +492,10 @@ app.use((err, req, res, next) => {
   return res.status(500).json({ error: 'Internal server error' });
 });
 
-app.listen(PORT, '0.0.0.0', () => {
+if (require.main === module) app.listen(PORT, '0.0.0.0', () => {
   console.log(`Backend server running on port ${PORT}`);
   console.log('API available at /api');
 });
+
+
+module.exports = app;

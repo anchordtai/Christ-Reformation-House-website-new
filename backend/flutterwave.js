@@ -42,7 +42,7 @@ function getEncryptionKeyBytes() {
   if (!value) { const e = new Error('FLW_ENCRYPTION_KEY is not configured'); e.code = 'MISSING_ENCRYPTION_KEY'; throw e; }
   try {
     const key = Buffer.from(value, 'base64');
-    if (![16, 24, 32].includes(key.length)) throw new Error('Invalid AES key length');
+    if (key.length !== 32) throw new Error('Invalid AES key length');
     return key;
   } catch (e) { const err = new Error('Invalid Flutterwave encryption key'); err.code = 'INVALID_ENCRYPTION_KEY'; throw err; }
 }
@@ -73,6 +73,12 @@ function encryptCardPaymentMethod(card) {
   const cvv = String(card.cvv ?? card.cvc ?? '');
   if (!/^\d{12,19}$/.test(number) || !/^\d{2}$/.test(expiryMonth) || !/^\d{2}$/.test(expiryYear) || !/^\d{3,4}$/.test(cvv)) {
     const e = new Error('Invalid card details'); e.code = 'INVALID_CARD_DATA'; throw e;
+  }
+  const month = Number(expiryMonth);
+  const year = 2000 + Number(expiryYear);
+  const now = new Date();
+  if (month < 1 || month > 12 || year < now.getFullYear() || (year === now.getFullYear() && month < now.getMonth() + 1)) {
+    const e = new Error('Invalid or expired card'); e.code = 'INVALID_CARD_DATA'; throw e;
   }
   const keyBytes = getEncryptionKeyBytes();
   const nonce = generateNonce();
@@ -175,9 +181,38 @@ async function createVirtualAccount({ reference, customerId, amount, currency, b
   return v4Request('POST', '/virtual-accounts', { reference, customer_id: customerId, amount, currency, account_type: 'dynamic', narration, ...(bankCode ? { bank_code: bankCode } : {}), ...(expiry ? { expiry } : {}) }, idempotencyKey);
 }
 
+function prepareAuthorization(input) {
+  if (!input || typeof input !== 'object') throw new Error('Authorization is required');
+  if (input.type === 'pin') {
+    if (!/^\d{4,6}$/.test(String(input.code || ''))) throw new Error('Enter a valid card PIN');
+    const nonce = generateNonce();
+    return { type: 'pin', pin: { nonce, encrypted_pin: encryptAESGCM(input.code, getEncryptionKeyBytes(), nonce) } };
+  }
+  if (input.type === 'otp') {
+    if (!/^\d{4,10}$/.test(String(input.code || ''))) throw new Error('Enter a valid one-time code');
+    return { type: 'otp', otp: { code: String(input.code) } };
+  }
+  if (input.type === 'avs') {
+    const address = {};
+    for (const field of ['line1', 'city', 'state', 'postal_code', 'country']) {
+      const value = String(input.address?.[field] || '').trim();
+      if (!value || value.length > 150) throw new Error('Complete your billing address');
+      address[field] = value;
+    }
+    if (!/^[A-Z]{2}$/.test(address.country)) throw new Error('Use a two-letter country code');
+    return { type: 'avs', avs: { address } };
+  }
+  throw new Error('Unsupported authorization type');
+}
+
+async function authorizeCharge(chargeId, authorization, idempotencyKey) {
+  return v4Request('PUT', `/charges/${encodeURIComponent(chargeId)}`, { authorization }, idempotencyKey);
+}
+
 async function retrieveCharge(chargeId) {
   if (!chargeId) throw new Error('Flutterwave charge ID is required');
   return v4Request('GET', `/charges/${encodeURIComponent(chargeId)}`, undefined);
 }
 
-module.exports = { PRODUCTION_BASE_URL, SANDBOX_BASE_URL, getAccessToken, getApiBaseUrl, encryptCardPaymentMethod, createDirectCharge, createCharge, createCustomer, createPaymentMethod, createVirtualAccount, retrieveCharge };
+module.exports = { PRODUCTION_BASE_URL, SANDBOX_BASE_URL, getAccessToken, getApiBaseUrl, encryptCardPaymentMethod, createDirectCharge, createCharge, createCustomer, createPaymentMethod, createVirtualAccount, retrieveCharge, prepareAuthorization, authorizeCharge };
+

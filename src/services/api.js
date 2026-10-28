@@ -4,7 +4,7 @@ import axios from 'axios'
 // VITE_API_URL in Netlify from sending production payment requests to an old host.
 const PRODUCTION_API_BASE_URL = 'https://christ-reformation-house-website-new-1.onrender.com/api'
 const configuredApiUrl = (import.meta.env.VITE_API_URL || '').trim()
-const API_BASE_URL = (import.meta.env.PROD ? PRODUCTION_API_BASE_URL : (configuredApiUrl || PRODUCTION_API_BASE_URL)).replace(/\/$/, '')
+const API_BASE_URL = (import.meta.env.PROD ? PRODUCTION_API_BASE_URL : (configuredApiUrl || '/api')).replace(/\/$/, '')
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -57,6 +57,7 @@ export const devotionalService = {
 export const donationService = {
   create: (data) => api.post('/donations', data),
   initialize: (txRef, paymentMethod) => api.post('/payments/initialize', { tx_ref: txRef, paymentMethod }),
+  authorize: (txRef, authorization) => api.post('/payments/authorize', { tx_ref: txRef, authorization }),
   verify: (txRef) => api.get(`/payments/verify/${encodeURIComponent(txRef)}`),
   getConfig: () => api.get('/payments/config'),
 }
@@ -95,3 +96,4 @@ export const meetingsService = {
 export const socialAutomationService = { postNow: (payload) => api.post('/social/post', payload), getScheduled: () => api.get('/social/scheduled') }
 
 export default api
+
