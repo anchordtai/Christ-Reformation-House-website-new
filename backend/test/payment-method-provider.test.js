@@ -7,9 +7,10 @@ const originalEnv = { url: process.env.FLW_API_BASE_URL, id: process.env.FLW_CLI
 process.env.FLW_API_BASE_URL = provider.SANDBOX_BASE_URL;
 process.env.FLW_CLIENT_ID = 'mock-client'; process.env.FLW_CLIENT_SECRET = 'mock-secret';
 const requests = [];
+const fixtures = new Map();
 axios.defaults.adapter = async config => {
   requests.push(config);
-  return { status: 200, statusText: 'OK', headers: {}, config, data: config.url.includes('/openid-connect/token') ? { access_token: 'mock-access-token', expires_in: 600 } : { data: [] } };
+  return { status: 200, statusText: 'OK', headers: {}, config, data: fixtures.has(config.url) ? fixtures.get(config.url) : config.url.includes('/openid-connect/token') ? { access_token: 'mock-access-token', expires_in: 600 } : { data: [] } };
 };
 after(() => {
   axios.defaults.adapter = originalAdapter;
@@ -34,5 +35,17 @@ test('sandbox scenarios are explicit and charge lookup is scoped to one virtual 
   assert.equal(requests.at(-1).headers.get('X-Scenario-Key'), 'issuer:approved');
   await provider.listVirtualAccountCharges('van_mock');
   assert.equal(requests.at(-1).url, provider.SANDBOX_BASE_URL + '/charges?virtual_account_id=van_mock');
+  assert.equal(requests.at(-1).method, 'get');
+});
+
+test('existing customer lookup uses exact normalized email and strips unrelated private fields', async () => {
+  fixtures.set(provider.SANDBOX_BASE_URL + '/customers?page=1&size=50', { data: [{ id: 'cus_unrelated', email: 'other@example.com' }, { id: 'cus_existing', email: 'Donor@Example.com', phone: { number: 'private' } }] });
+  assert.deepEqual(await provider.findCustomerByEmail(' donor@example.com '), { id: 'cus_existing', email: 'donor@example.com' });
+  assert.equal(await provider.findCustomerByEmail('missing@example.com'), null);
+  fixtures.clear();
+});
+test('account recovery queries only the supplied reference', async () => {
+  await provider.listVirtualAccountsByReference('crh-existing-reference');
+  assert.equal(requests.at(-1).url, provider.SANDBOX_BASE_URL + '/virtual-accounts?reference=crh-existing-reference&size=10');
   assert.equal(requests.at(-1).method, 'get');
 });

@@ -22,6 +22,9 @@ const {
   prepareAuthorization,
   authorizeCharge,
   createCustomer,
+  findCustomerByEmail,
+  retrieveCustomer,
+  listVirtualAccountsByReference,
   createVirtualAccount,
   listVirtualAccountCharges,
   listNigerianBanks,
@@ -319,8 +322,16 @@ app.post('/api/payments/initialize', async (req, res) => {
     if (!claimed) return res.status(409).json({ error: 'Payment is already being prepared. Check its status before paying again.' });
     claimedDonationId = donation.id;
     if (method === 'bank_transfer') {
-      const customerResult = await createCustomer({ ...buildFlutterwaveCustomerName(donation.donor_name), email: donation.email, idempotencyKey: operationKey(txRef, 'customer') });
-      const customer = customerResult.data?.data;
+      await updateDonationById(donation.id, { metadata: { ...claimed.metadata, payment_method: method } });
+      let customer;
+      try {
+        const customerResult = await createCustomer({ ...buildFlutterwaveCustomerName(donation.donor_name), email: donation.email, idempotencyKey: operationKey(txRef, 'customer') });
+        customer = customerResult.data?.data;
+      } catch (error) {
+        if (error.code !== 'FLUTTERWAVE_API_ERROR' || error.providerStatus !== 409) throw error;
+        customer = await findCustomerByEmail(donation.email);
+        if (!customer || customer.email !== donation.email.trim().toLowerCase()) throw error;
+      }
       if (!String(customer?.id || '').startsWith('cus_')) throw new Error('Unexpected customer response');
       const result = await createVirtualAccount({ reference: txRef, customerId: customer.id, amount: Number(donation.amount), currency: donation.currency, bankCode: '090567', expiry: 3600, narration: 'CRH Donation', idempotencyKey: operationKey(txRef, 'virtual-account') });
       const transfer = normalizeTransfer(result.data?.data, donation, customer.id);
@@ -349,7 +360,11 @@ app.post('/api/payments/initialize', async (req, res) => {
         return res.json({ tx_ref: txRef, status: 'failed' });
       } catch { /* Keep uncertain outcomes protected from a second charge. */ }
     }
-    console.error('Payment initialization unavailable:', error.code || 'unknown', error.providerStatus || null);
+    console.error('Payment initialization unavailable:', {
+      code: error.code || 'unknown', status: error.providerStatus || null,
+      endpoint: ['/customers', '/virtual-accounts', '/orchestration/direct-charges'].includes(error.providerEndpoint) ? error.providerEndpoint : null,
+      provider_code: /^[A-Za-z0-9_-]{1,20}$/.test(String(error.providerCode || '')) ? String(error.providerCode) : null,
+    });
     return res.status(502).json({ error: 'We could not confirm that checkout started. Keep your reference and check payment status before paying again.' });
   } finally { initializationRequests.delete(txRef); }
 });
@@ -383,7 +398,7 @@ app.post('/api/payments/authorize', async (req, res) => {
 
 app.get('/api/payments/verify/:tx_ref', async (req, res) => {
   const txRef = String(req.params.tx_ref || '').trim();
-  if (!txRef) return res.status(400).json({ error: 'tx_ref is required' });
+  if (!/^crh-[a-z0-9-]{6,38}$/i.test(txRef)) return res.status(400).json({ error: 'A valid payment reference is required' });
   try {
     let donation;
     try {
@@ -401,7 +416,22 @@ app.get('/api/payments/verify/:tx_ref', async (req, res) => {
     }
 
     let chargeId = String(donation.flutterwave_transaction_id || '').trim();
-    const transfer = donation.metadata?.bank_transfer;
+    let transfer = donation.metadata?.bank_transfer;
+    // Read-only provider recovery. Never clear the claim or create an account here.
+    // Legacy claims did not record the method, so look up an exact reference only.
+    if (!chargeId && !transfer && donation.currency === 'NGN' && donation.metadata?.initialization_state && (!donation.metadata.payment_method || donation.metadata.payment_method === 'bank_transfer')) {
+      const result = await listVirtualAccountsByReference(txRef);
+      if (!Array.isArray(result.data?.data)) throw new Error('Invalid account recovery response');
+      const accounts = result.data.data.filter(account => account.reference === txRef);
+      if (accounts.length > 1) return res.status(409).json({ verified: false, error: 'Multiple transfer accounts need reconciliation. Contact the ministry with your reference.' });
+      if (accounts.length === 1) {
+        const account = accounts[0];
+        const customer = (await retrieveCustomer(customerId(account))).data?.data;
+        if (String(customer?.email || '').trim().toLowerCase() !== donation.email.trim().toLowerCase() || String(customer?.id || '') !== customerId(account)) return res.status(409).json({ verified: false, error: 'Transfer account ownership could not be confirmed. Contact the ministry with your reference.' });
+        transfer = normalizeTransfer(account, donation, customer.id, true);
+        await updateDonationById(donation.id, { metadata: { ...donation.metadata, payment_method: 'bank_transfer', bank_transfer: transfer } });
+      }
+    }
     if (!chargeId && transfer) {
       const result = await listVirtualAccountCharges(transfer.virtual_account_id);
       const records = result.data?.data;
