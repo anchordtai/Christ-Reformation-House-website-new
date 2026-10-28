@@ -60,6 +60,7 @@ export const donationService = {
   authorize: (txRef, authorization) => api.post('/payments/authorize', { tx_ref: txRef, authorization }),
   verify: (txRef) => api.get(`/payments/verify/${encodeURIComponent(txRef)}`),
   getConfig: () => api.get('/payments/config'),
+  getBanks: () => api.get('/payments/banks'),
 }
 
 export const prayerService = { create: (data) => api.post('/prayer-requests', data), getAll: () => api.get('/prayer-requests') }
@@ -96,4 +97,3 @@ export const meetingsService = {
 export const socialAutomationService = { postNow: (payload) => api.post('/social/post', payload), getScheduled: () => api.get('/social/scheduled') }
 
 export default api
-

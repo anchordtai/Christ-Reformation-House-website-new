@@ -3,6 +3,26 @@ export function authorizationType(action) {
   return { requires_pin: 'pin', requires_otp: 'otp', requires_additional_fields: 'avs' }[action?.type];
 }
 
+export const paymentLabels = { card: 'Debit or credit card', bank_transfer: 'Bank transfer', ussd: 'USSD', opay: 'OPay wallet' };
+export function availableMethods(config, currency) {
+  const methods = config?.methods_by_currency?.[currency] || config?.payment_methods || [];
+  return methods.filter(type => paymentLabels[type] && (type === 'card' ? config.card_encryption_enabled : currency === 'NGN'));
+}
+export function paymentInstructions(payment) {
+  const action = payment?.next_action;
+  if (action?.type === 'bank_transfer') {
+    const bank = action.bank_transfer;
+    if (!/^\d{6,20}$/.test(String(bank?.account_number || '')) || !bank.bank_name || !Number.isFinite(Number(bank.amount)) || Number(bank.amount) <= 0 || !Number.isFinite(Date.parse(bank.expires_at))) throw new Error('Transfer details could not be confirmed. Keep your reference and contact the ministry.');
+    return { ...bank, type: 'bank_transfer' };
+  }
+  if (['payment_instruction', 'payment_instructions'].includes(action?.type)) {
+    const note = action[action.type]?.note;
+    if (typeof note !== 'string' || !note.trim()) throw new Error('Payment instructions are unavailable. Keep your reference and contact the ministry.');
+    return { type: 'note', note: note.slice(0, 1000) };
+  }
+  return null;
+}
+
 export function paymentState(data) {
   if (data?.verified === true) return 'success';
   const status = String(data?.charge_status || data?.status || '').toLowerCase();

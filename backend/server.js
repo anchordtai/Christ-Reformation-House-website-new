@@ -21,10 +21,15 @@ const {
   encryptCardPaymentMethod,
   prepareAuthorization,
   authorizeCharge,
+  createCustomer,
+  createVirtualAccount,
+  listVirtualAccountCharges,
+  listNigerianBanks,
 } = require('./flutterwave');
 
 const { enabledCurrencies, authorizationType, paymentResponse, matchesDonation, initializationKey } = require('./payment-state');
 const { paymentFailure } = require('./payment-failure');
+const { configuredMethods, methodsFor, methodCatalog, operationKey, customerId, normalizeTransfer, transferResponse } = require('./payment-methods');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -109,13 +114,30 @@ app.get('/health/flutterwave', async (req, res) => {
   }
 });
 
+app.use('/api/payments', (req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); });
 app.get('/api/payments/config', (req, res) => res.json({
   provider: 'flutterwave',
   api: 'v4',
   card_encryption_enabled: Boolean(process.env.FLW_ENCRYPTION_KEY),
   currencies: enabledCurrencies(),
-  payment_methods: ['card'],
+  payment_methods: configuredMethods(),
+  method_details: methodCatalog(),
+  methods_by_currency: Object.fromEntries(enabledCurrencies().map(currency => [currency, methodsFor(currency)])),
 }));
+
+let bankCache;
+async function paymentBanks() {
+  if (bankCache?.expires > Date.now()) return bankCache.banks;
+  const result = await listNigerianBanks();
+  if (!Array.isArray(result.data?.data)) throw new Error('Invalid bank list');
+  const banks = result.data.data.filter(bank => /^\d{3,6}$/.test(bank.code) && typeof bank.name === 'string').map(bank => ({ code: bank.code, name: bank.name.slice(0, 120) })).sort((a, b) => a.name.localeCompare(b.name));
+  bankCache = { banks, expires: Date.now() + 300000 }; return banks;
+}
+app.get('/api/payments/banks', async (req, res) => {
+  if (!methodsFor('NGN').includes('ussd')) return res.status(404).json({ error: 'USSD is not enabled' });
+  try { return res.json({ banks: await paymentBanks() }); }
+  catch { return res.status(503).json({ error: 'The bank list is unavailable. Please try again later.' }); }
+});
 
 const readJSONFile = (filename) => {
   const filePath = path.join(__dirname, filename);
@@ -278,21 +300,38 @@ app.post('/api/payments/initialize', async (req, res) => {
       return res.json(paymentResponse(donation, charge));
     }
     if (['failed', 'cancelled'].includes(donation.status)) return res.json({ tx_ref: txRef, status: donation.status });
+    if (donation.metadata?.bank_transfer) return res.json(transferResponse(donation, donation.metadata.bank_transfer));
     if (donation.metadata?.initialization_state) return res.status(409).json({ error: 'A payment request has already been sent. Check its status or contact the church with your reference before paying again.' });
     if (!enabledCurrencies().includes(donation.currency)) return res.status(400).json({ error: 'This currency is not enabled for checkout' });
-    if (paymentMethod?.type !== 'card') return res.status(400).json({ error: 'Only card checkout is currently enabled' });
-    let encryptedMethod;
-    try { encryptedMethod = encryptCardPaymentMethod(paymentMethod.card); }
-    catch { return res.status(400).json({ error: 'Check your card details. If they are correct, contact the church because card checkout may not be configured.' }); }
+    const method = paymentMethod?.type;
+    if (!methodsFor(donation.currency).includes(method)) return res.status(400).json({ error: 'This payment method is not enabled for the selected currency.' });
+    let preparedMethod;
+    if (method === 'card') {
+      try { preparedMethod = encryptCardPaymentMethod(paymentMethod.card); }
+      catch { return res.status(400).json({ error: 'Check your card details. If they are correct, contact the church because card checkout may not be configured.' }); }
+    } else if (method === 'ussd') {
+      const bank = (await paymentBanks()).find(bank => bank.code === paymentMethod.ussd?.account_bank);
+      if (!bank) return res.status(400).json({ error: 'Choose a valid bank from the USSD bank list.' });
+      preparedMethod = { type: 'ussd', ussd: { account_bank: bank.code } };
+    } else { preparedMethod = { type: method }; }
     const key = initializationKey(txRef);
     const claimed = await claimDonationInitialization(donation, key);
     if (!claimed) return res.status(409).json({ error: 'Payment is already being prepared. Check its status before paying again.' });
     claimedDonationId = donation.id;
+    if (method === 'bank_transfer') {
+      const customerResult = await createCustomer({ ...buildFlutterwaveCustomerName(donation.donor_name), email: donation.email, idempotencyKey: operationKey(txRef, 'customer') });
+      const customer = customerResult.data?.data;
+      if (!String(customer?.id || '').startsWith('cus_')) throw new Error('Unexpected customer response');
+      const result = await createVirtualAccount({ reference: txRef, customerId: customer.id, amount: Number(donation.amount), currency: donation.currency, bankCode: '090567', expiry: 3600, narration: 'CRH Donation', idempotencyKey: operationKey(txRef, 'virtual-account') });
+      const transfer = normalizeTransfer(result.data?.data, donation, customer.id);
+      await updateDonationById(donation.id, { metadata: { ...claimed.metadata, payment_method: method, bank_transfer: transfer } });
+      return res.json(transferResponse(donation, transfer));
+    }
     const customerPhone = buildFlutterwavePhone(donation.phone);
     const response = await createDirectCharge({
       amount: Number(donation.amount), currency: donation.currency, reference: txRef,
       customer: { email: donation.email, name: buildFlutterwaveCustomerName(donation.donor_name), ...(customerPhone ? { phone: customerPhone } : {}) },
-      paymentMethod: encryptedMethod,
+      paymentMethod: preparedMethod,
       redirectUrl: `${FRONTEND_ORIGIN}/donate/return?tx_ref=${encodeURIComponent(txRef)}`,
       idempotencyKey: key,
     });
@@ -361,7 +400,19 @@ app.get('/api/payments/verify/:tx_ref', async (req, res) => {
       return res.json({ verified: true, success: true, status: 'successful', tx_ref: donation.tx_ref });
     }
 
-    const chargeId = String(donation.flutterwave_transaction_id || '').trim();
+    let chargeId = String(donation.flutterwave_transaction_id || '').trim();
+    const transfer = donation.metadata?.bank_transfer;
+    if (!chargeId && transfer) {
+      const result = await listVirtualAccountCharges(transfer.virtual_account_id);
+      const records = result.data?.data;
+      if (!Array.isArray(records)) throw new Error('Invalid transfer status response');
+      const matches = records.filter(charge => matchesDonation(donation, charge) && customerId(charge) === transfer.customer_id);
+      if (!matches.length) return res.json({ verified: false, status: 'pending', tx_ref: txRef, transfer_expired: Date.parse(transfer.expires_at) <= Date.now(), error: 'No matching transfer has been confirmed yet. Do not transfer again while the ministry checks an existing payment.' });
+      if (matches.length !== 1) return res.status(409).json({ verified: false, error: 'Multiple transfers need reconciliation. Contact the ministry with your reference.' });
+      chargeId = String(matches[0].id || '');
+      if (!chargeId) throw new Error('Missing transfer charge ID');
+      await updateDonationById(donation.id, { flutterwave_transaction_id: chargeId });
+    }
     if (!chargeId && ['failed', 'cancelled'].includes(donation.status)) return res.json({ verified: false, status: donation.status, tx_ref: txRef });
     if (!chargeId) {
       return res.status(409).json({
@@ -373,6 +424,7 @@ app.get('/api/payments/verify/:tx_ref', async (req, res) => {
 
     const response = await retrieveCharge(chargeId);
     const charge = response.data?.data || response.data;
+    if (transfer && customerId(charge) !== transfer.customer_id) return res.status(409).json({ verified: false, error: 'Transfer details need reconciliation. Contact the ministry with your reference.' });
     const successful = await verifyChargeAgainstDonation(donation, charge);
     const chargeStatus = String(charge?.status || 'pending');
     // A failed charge is not an amount/reference mismatch. Only expose diagnostics
@@ -460,6 +512,7 @@ app.post('/api/payments/webhook', async (req, res) => {
     if (!donation) return res.status(200).json({ received: true });
     const response = await retrieveCharge(chargeId);
     const charge = response.data?.data || response.data;
+    if (!matchesDonation(donation, charge) || (donation.metadata?.bank_transfer && customerId(charge) !== donation.metadata.bank_transfer.customer_id)) return res.status(200).json({ received: true });
     const valid = await verifyChargeAgainstDonation(donation, charge);
     await createPaymentEvent({
       donation_id: donation.id,

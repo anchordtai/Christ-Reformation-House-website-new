@@ -7,7 +7,7 @@ const { prepareAuthorization, encryptCardPaymentMethod } = provider;
 const { initializationKey } = require('../payment-state');
 process.env.FLW_ENCRYPTION_KEY = Buffer.alloc(32, 7).toString('base64');
 process.env.DONATION_CURRENCIES = 'NGN';
-let donation, charge, creates, claims, authorizations, dbError, providerError, updateError, eventError;
+let donation, charge, creates, claims, authorizations, dbError, providerError, updateError, eventError, virtualCreates, customers, transferCharges, lastMethod;
 const fixture = () => ({ id: 'donation-1', tx_ref: 'crh-123e4567-e89b-42d3-a456-426614174000', amount: 5000, currency: 'NGN', donor_name: 'Test Donor', email: 'test@example.com', donation_type: 'general', status: 'pending', metadata: {} });
 Object.assign(db, {
   getDonationByTxRef: async reference => { if (dbError) throw new Error('Database unavailable'); return donation?.tx_ref === reference ? donation : null; },
@@ -18,7 +18,15 @@ Object.assign(db, {
   createPaymentEvent: async () => { if (eventError) throw new Error('Audit unavailable'); },
 });
 Object.assign(provider, {
-  createDirectCharge: async args => { creates++; assert.equal(args.idempotencyKey, initializationKey(donation.tx_ref)); assert.ok(args.paymentMethod.card.encrypted_card_number); assert.equal(args.paymentMethod.card.number, undefined); if (providerError === 'rejected') { const error = new Error('Rejected'); error.code = 'FLUTTERWAVE_API_ERROR'; error.providerStatus = 400; throw error; } if (providerError) throw new Error('Timeout'); return { data: { data: charge } }; },
+  createDirectCharge: async args => { creates++; assert.equal(args.idempotencyKey, initializationKey(donation.tx_ref)); lastMethod = args.paymentMethod; if (args.paymentMethod.type === 'card') { assert.ok(args.paymentMethod.card.encrypted_card_number); assert.equal(args.paymentMethod.card.number, undefined); } if (providerError === 'rejected') { const error = new Error('Rejected'); error.code = 'FLUTTERWAVE_API_ERROR'; error.providerStatus = 400; throw error; } if (providerError) throw new Error('Timeout'); return { data: { data: charge } }; },
+  createCustomer: async () => { customers++; return { data: { data: { id: 'cus_test' } } }; },
+  createVirtualAccount: async args => {
+    virtualCreates++; assert.equal(args.bankCode, '090567'); assert.equal(args.expiry, 3600); assert.equal(args.currency, 'NGN'); assert.equal(args.customerId, 'cus_test');
+    if (providerError) throw new Error('Timeout');
+    return { data: { data: { id: 'van_test', account_type: 'dynamic', status: 'active', reference: args.reference, customer_id: args.customerId, amount: args.amount + 10, currency: args.currency, account_number: '1234567890', account_bank_name: 'Mock Bank', narration: 'CRH Donation', account_expiration_datetime: new Date(Date.now() + 3600000).toISOString() } } };
+  },
+  listVirtualAccountCharges: async id => { assert.equal(id, 'van_test'); return { data: { data: transferCharges } }; },
+  listNigerianBanks: async () => ({ data: { data: [{ code: '044', name: 'Mock Bank' }] } }),
   retrieveCharge: async () => ({ data: { data: charge } }),
   authorizeCharge: async (id, authorization) => { authorizations++; assert.equal(id, charge.id); assert.equal(authorization.type, 'otp'); assert.equal(authorization.otp.code, '123456'); return { data: { data: { ...charge, status: 'succeeded', next_action: null } } }; },
 });
@@ -28,11 +36,81 @@ before(async () => { server = app.listen(0, '127.0.0.1'); await new Promise(reso
 after(async () => { await new Promise(resolve => server.close(resolve)); });
 beforeEach(() => {
   donation = fixture(); charge = { id: 'chg_test', reference: donation.tx_ref, amount: 5000, currency: 'NGN', status: 'pending', next_action: { type: 'requires_otp' } };
+  process.env.DONATION_PAYMENT_METHODS = 'card'; virtualCreates = 0; customers = 0; transferCharges = []; lastMethod = null;
   creates = 0; claims = 0; authorizations = 0; dbError = false; providerError = false; updateError = false; eventError = false;
 });
 const card = { type: 'card', card: { number: '1234567890123456', expiry_month: '12', expiry_year: '2099', cvv: '123' } };
 async function post(path, body) { const response = await fetch(base + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); return { status: response.status, data: await response.json() }; }
 const initialize = () => post('/payments/initialize', { tx_ref: donation.tx_ref, paymentMethod: card });
+
+test('bank transfer creates one dynamic account, shows provider amount including fees, and resumes without card data', async () => {
+  process.env.DONATION_PAYMENT_METHODS = 'card,bank_transfer';
+  const result = await post('/payments/initialize', { tx_ref: donation.tx_ref, paymentMethod: { type: 'bank_transfer' } });
+  assert.equal(result.status, 200); assert.equal(result.data.status, 'pending');
+  assert.equal(result.data.next_action.bank_transfer.amount, 5010);
+  assert.equal(donation.status, 'pending'); assert.equal(creates, 0);
+  const resumed = await post('/payments/initialize', { tx_ref: donation.tx_ref });
+  assert.deepEqual(resumed.data, result.data); assert.equal(virtualCreates, 1); assert.equal(customers, 1);
+});
+test('concurrent bank transfer requests create only one virtual account', async () => {
+  process.env.DONATION_PAYMENT_METHODS = 'bank_transfer';
+  await Promise.all([1,2,3].map(() => post('/payments/initialize', { tx_ref: donation.tx_ref, paymentMethod: { type: 'bank_transfer' } })));
+  assert.equal(virtualCreates, 1);
+});
+test('uncertain virtual account creation cannot generate a second account on retry', async () => {
+  process.env.DONATION_PAYMENT_METHODS = 'bank_transfer'; providerError = true;
+  assert.equal((await post('/payments/initialize', { tx_ref: donation.tx_ref, paymentMethod: { type: 'bank_transfer' } })).status, 502);
+  providerError = false;
+  assert.equal((await post('/payments/initialize', { tx_ref: donation.tx_ref, paymentMethod: { type: 'bank_transfer' } })).status, 409);
+  assert.equal(virtualCreates, 1);
+});
+test('a paid button cannot confirm a pending or expired bank transfer', async () => {
+  process.env.DONATION_PAYMENT_METHODS = 'bank_transfer';
+  await post('/payments/initialize', { tx_ref: donation.tx_ref, paymentMethod: { type: 'bank_transfer' } });
+  donation.metadata.bank_transfer.expires_at = new Date(Date.now() - 1000).toISOString();
+  const result = await (await fetch(base + '/payments/verify/' + donation.tx_ref)).json();
+  assert.equal(result.verified, false); assert.equal(result.status, 'pending'); assert.equal(result.transfer_expired, true);
+  assert.equal(donation.status, 'pending'); assert.equal(virtualCreates, 1);
+  assert.equal((await post('/payments/initialize', { tx_ref: donation.tx_ref })).data.next_action.bank_transfer.expired, true);
+});
+test('transfer verification requires matching reference, amount, currency and customer from the account charge list', async () => {
+  process.env.DONATION_PAYMENT_METHODS = 'bank_transfer';
+  await post('/payments/initialize', { tx_ref: donation.tx_ref, paymentMethod: { type: 'bank_transfer' } });
+  charge = { ...charge, status: 'succeeded', customer_id: 'cus_wrong' }; transferCharges = [charge];
+  let result = await (await fetch(base + '/payments/verify/' + donation.tx_ref)).json();
+  assert.equal(result.verified, false); assert.equal(donation.status, 'pending');
+  charge.customer_id = 'cus_test'; charge.amount = 1;
+  result = await (await fetch(base + '/payments/verify/' + donation.tx_ref)).json(); assert.equal(result.verified, false);
+  charge.amount = 5000;
+  result = await (await fetch(base + '/payments/verify/' + donation.tx_ref)).json();
+  assert.equal(result.verified, true); assert.equal(donation.status, 'successful'); assert.equal(creates, 0);
+});
+test('disabled methods and non-NGN alternatives fail before any provider request', async () => {
+  assert.equal((await post('/payments/initialize', { tx_ref: donation.tx_ref, paymentMethod: { type: 'bank_transfer' } })).status, 400);
+  process.env.DONATION_PAYMENT_METHODS = 'card,bank_transfer,ussd,opay';
+  const previous = process.env.DONATION_CURRENCIES; process.env.DONATION_CURRENCIES = 'NGN,USD'; donation.currency = 'USD';
+  try { for (const type of ['bank_transfer', 'ussd', 'opay']) assert.equal((await post('/payments/initialize', { tx_ref: donation.tx_ref, paymentMethod: { type } })).status, 400); }
+  finally { process.env.DONATION_CURRENCIES = previous; }
+  assert.equal(virtualCreates, 0); assert.equal(creates, 0); assert.equal(claims, 0);
+});
+test('USSD requires a provider-listed bank and submits no card information', async () => {
+  process.env.DONATION_PAYMENT_METHODS = 'ussd';
+  assert.equal((await post('/payments/initialize', { tx_ref: donation.tx_ref, paymentMethod: { type: 'ussd', ussd: { account_bank: 'invalid' } } })).status, 400);
+  charge.next_action = { type: 'payment_instruction', payment_instruction: { note: 'Dial the mock USSD code' } };
+  const result = await post('/payments/initialize', { tx_ref: donation.tx_ref, paymentMethod: { type: 'ussd', ussd: { account_bank: '044' }, card: { number: 'ignored' } } });
+  assert.equal(result.status, 200); assert.deepEqual(lastMethod, { type: 'ussd', ussd: { account_bank: '044' } });
+});
+test('OPay submits a wallet payment and returns provider authorization', async () => {
+  process.env.DONATION_PAYMENT_METHODS = 'opay';
+  charge.next_action = { type: 'redirect_url', redirect_url: { url: 'https://wallet.example/authorize' } };
+  const result = await post('/payments/initialize', { tx_ref: donation.tx_ref, paymentMethod: { type: 'opay' } });
+  assert.equal(result.status, 200); assert.deepEqual(lastMethod, { type: 'opay' }); assert.equal(result.data.next_action.type, 'redirect_url');
+});
+test('bank-only configuration remains available when card encryption is absent', async () => {
+  process.env.DONATION_PAYMENT_METHODS = 'card,bank_transfer,opay'; const key = process.env.FLW_ENCRYPTION_KEY; delete process.env.FLW_ENCRYPTION_KEY;
+  try { const data = await (await fetch(base + '/payments/config')).json(); assert.deepEqual(data.methods_by_currency.NGN, ['bank_transfer', 'opay']); assert.equal(data.card_encryption_enabled, false); }
+  finally { process.env.FLW_ENCRYPTION_KEY = key; }
+});
 
 test('initialization encrypts card details and saves the charge before returning its authorization step', async () => {
   const result = await initialize(); assert.equal(result.status, 200); assert.equal(result.data.next_action.type, 'requires_otp'); assert.equal(donation.flutterwave_transaction_id, 'chg_test'); assert.equal(creates, 1);

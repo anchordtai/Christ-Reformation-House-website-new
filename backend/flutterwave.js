@@ -134,14 +134,17 @@ function makeProviderError(response, endpoint) {
   return error;
 }
 
-async function v4Request(method, endpoint, data, idempotencyKey = newId()) {
+async function v4Request(method, endpoint, data, idempotencyKey = newId(), sandboxScenario) {
+  const baseUrl = getApiBaseUrl();
+  if (sandboxScenario && (baseUrl !== SANDBOX_BASE_URL || !['issuer:approved', 'issuer:failed'].includes(sandboxScenario))) throw new Error('Test scenarios are permitted only in the Flutterwave sandbox');
   const token = await getAccessToken();
   const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', Accept: 'application/json', 'X-Trace-Id': newId() };
+  if (sandboxScenario) headers['X-Scenario-Key'] = sandboxScenario;
   if (['POST', 'PUT', 'PATCH'].includes(method.toUpperCase())) headers['X-Idempotency-Key'] = idempotencyKey;
 
   const response = await axios({
     method,
-    url: `${getApiBaseUrl()}${endpoint}`,
+    url: `${baseUrl}${endpoint}`,
     data,
     headers,
     timeout: 20000,
@@ -177,8 +180,8 @@ async function createPaymentMethod({ type, customerId, card, mobileMoney, bankAc
   return v4Request('POST', '/payment-methods', body, idempotencyKey);
 }
 
-async function createVirtualAccount({ reference, customerId, amount, currency, bankCode, expiry, narration, idempotencyKey }) {
-  return v4Request('POST', '/virtual-accounts', { reference, customer_id: customerId, amount, currency, account_type: 'dynamic', narration, ...(bankCode ? { bank_code: bankCode } : {}), ...(expiry ? { expiry } : {}) }, idempotencyKey);
+async function createVirtualAccount({ reference, customerId, amount, currency, bankCode, expiry, narration, idempotencyKey, sandboxScenario }) {
+  return v4Request('POST', '/virtual-accounts', { reference, customer_id: customerId, amount, currency, account_type: 'dynamic', narration, ...(bankCode ? { bank_code: bankCode } : {}), ...(expiry ? { expiry } : {}) }, idempotencyKey, sandboxScenario);
 }
 
 function prepareAuthorization(input) {
@@ -214,5 +217,12 @@ async function retrieveCharge(chargeId) {
   return v4Request('GET', `/charges/${encodeURIComponent(chargeId)}`, undefined);
 }
 
-module.exports = { PRODUCTION_BASE_URL, SANDBOX_BASE_URL, getAccessToken, getApiBaseUrl, encryptCardPaymentMethod, createDirectCharge, createCharge, createCustomer, createPaymentMethod, createVirtualAccount, retrieveCharge, prepareAuthorization, authorizeCharge };
+async function listVirtualAccountCharges(id) {
+  return v4Request('GET', `/charges?virtual_account_id=${encodeURIComponent(id)}`);
+}
+async function listNigerianBanks() {
+  return v4Request('GET', '/banks?country=NG');
+}
+
+module.exports = { PRODUCTION_BASE_URL, SANDBOX_BASE_URL, getAccessToken, getApiBaseUrl, encryptCardPaymentMethod, createDirectCharge, createCharge, createCustomer, createPaymentMethod, createVirtualAccount, listVirtualAccountCharges, listNigerianBanks, retrieveCharge, prepareAuthorization, authorizeCharge };
 
