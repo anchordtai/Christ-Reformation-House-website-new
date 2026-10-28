@@ -27,7 +27,7 @@ const Header = () => {
 
   return (
     <header className="bg-white/95 backdrop-blur-md shadow-lg sticky top-0 z-50 border-b border-gray-100">
-      <div className="container-custom">
+      <div className="container-custom px-4">
         <div className="flex items-center justify-between h-20">
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-3 group">
@@ -40,9 +40,9 @@ const Header = () => {
               <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-500/0 to-purple-500/0 group-hover:from-blue-500/20 group-hover:to-purple-500/20 transition-all duration-300"></div>
             </div>
             <div className="hidden sm:block">
-              <h1 className="text-xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors duration-300">
+              <p className="text-xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors duration-300">
                 Christ's Reformation House
-              </h1>
+              </p>
               <p className="text-xs text-gray-600 group-hover:text-blue-500 transition-colors duration-300">
                 International
               </p>
@@ -50,12 +50,12 @@ const Header = () => {
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center space-x-2">
+          <nav className="hidden xl:flex items-center space-x-2">
             {navLinks.map((link) => (
               <Link
                 key={link.path}
                 to={link.path}
-                className={`group relative px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
+                className={`group relative px-3 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
                   isActive(link.path)
                     ? 'text-white'
                     : 'text-gray-700 hover:text-blue-600'
@@ -91,8 +91,9 @@ const Header = () => {
           {/* Mobile Menu Button */}
           <button
             onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="lg:hidden p-2 text-gray-700 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 rounded-lg transition-all duration-300 transform hover:scale-110"
+            className="xl:hidden p-2 text-gray-700 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 rounded-lg transition-all duration-300 transform hover:scale-110"
             aria-label="Toggle menu"
+            aria-expanded={isMenuOpen}
           >
             {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
@@ -100,7 +101,7 @@ const Header = () => {
 
         {/* Mobile Navigation */}
         {isMenuOpen && (
-          <nav className="lg:hidden py-4 border-t animate-slide-down">
+          <nav className="xl:hidden py-4 border-t animate-slide-down">
             <div className="flex flex-col space-y-2">
               {navLinks.map((link) => (
                 <Link
@@ -128,3 +129,4 @@ const Header = () => {
 }
 
 export default Header
+
