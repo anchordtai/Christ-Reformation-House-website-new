@@ -72,7 +72,7 @@ export default function Donate() {
     catch (err) {
       setError(err.response?.data?.error || err.message || 'Checkout could not be confirmed. Check payment status before paying again.')
       setCode('')
-      if (err.response?.status === 404) {
+      if (err.donationCreationFailed || err.response?.status === 404) {
         // No donation record exists, so no charge can be initialized for it.
         setCheckout(null)
         try { sessionStorage.removeItem(STORAGE_KEY) } catch { /* Storage is optional. */ }
@@ -88,7 +88,10 @@ export default function Donate() {
       const attempt = checkout || { checkout_id: crypto.randomUUID() }
       if (!checkout) saveCheckout(attempt)
       const reference = `crh-${attempt.checkout_id}`
-      if (!checkout) await donationService.create({ ...form, name: form.name.trim(), email: form.email.trim(), amount: Math.round(amount * 100) / 100, checkout_id: attempt.checkout_id })
+      if (!checkout) {
+        try { await donationService.create({ ...form, name: form.name.trim(), email: form.email.trim(), amount: Math.round(amount * 100) / 100, checkout_id: attempt.checkout_id }) }
+        catch (err) { err.donationCreationFailed = true; throw err }
+      }
       const response = await donationService.initialize(reference, method)
       handlePayment(response.data, reference)
     })

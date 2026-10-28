@@ -6,6 +6,7 @@ const crypto = require('crypto');
 require('dotenv').config();
 const {
   checkSupabaseConnection,
+  databaseFailure,
   getSupabaseConfigStatus,
   getActiveDonationType,
   createDonation,
@@ -26,6 +27,9 @@ const {
 const { enabledCurrencies, authorizationType, paymentResponse, matchesDonation, initializationKey } = require('./payment-state');
 
 const app = express();
+app.disable('x-powered-by');
+app.use(require('./security').responseHeaders);
+app.use('/api', require('./security').requestLimits());
 const PORT = process.env.PORT || 5000;
 const FRONTEND_ORIGIN = String(process.env.FRONTEND_ORIGIN || 'http://localhost:3000').trim().replace(/\/$/, '');
 const FLW_WEBHOOK_SECRET_HASH = String(process.env.FLW_WEBHOOK_SECRET_HASH || '').trim();
@@ -33,6 +37,9 @@ const FLW_WEBHOOK_SECRET_HASH = String(process.env.FLW_WEBHOOK_SECRET_HASH || ''
 const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:3001',
+  'https://christ-reformation-house-website-new.vercel.app',
+  'https://christ-reformation-house.netlify.app',
+  ...String(process.env.ALLOWED_ORIGINS || '').split(',').map(value => value.trim()).filter(Boolean),
   FRONTEND_ORIGIN,
   'https://christreformationhouse.org.ng',
   'https://www.christreformationhouse.org.ng',
@@ -43,7 +50,7 @@ app.use(cors({
     if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
     return callback(new Error('Origin not allowed by CORS'));
   },
-  methods: ['GET', 'POST', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
@@ -76,6 +83,7 @@ app.get('/health/db', async (req, res) => {
     return res.status(503).json({
       status: 'error',
       database: 'disconnected',
+      diagnostic_code: databaseFailure(error),
       stage: error.code === 'MISSING_CREDENTIALS' ? 'configuration' : (error.code === 'MISSING_TABLE' ? 'schema' : (error.code === 'AUTH_FAILED' ? 'authentication' : 'query')),
       credentials_configured: credentials.url_configured && credentials.service_role_configured,
       url_configured: credentials.url_configured,
@@ -101,6 +109,7 @@ app.get('/health/flutterwave', async (req, res) => {
       status: 'error',
       provider: 'flutterwave',
       api: 'v4',
+      diagnostic_code: databaseFailure(error),
       stage: error.code === 'MISSING_CREDENTIALS' ? 'configuration' : 'oauth',
       credentials_configured: configured,
       provider_status: providerStatus,
@@ -121,17 +130,6 @@ const readJSONFile = (filename) => {
   if (fs.existsSync(filePath)) return JSON.parse(fs.readFileSync(filePath, 'utf8'));
   return [];
 };
-
-app.get('/api/sermons', (req, res) => res.json(readJSONFile('sermons.json')));
-app.get('/api/sermons/:id', (req, res) => {
-  const item = readJSONFile('sermons.json').find((s) => s.id === Number.parseInt(req.params.id, 10));
-  if (!item) return res.status(404).json({ error: 'Sermon not found' });
-  return res.json(item);
-});
-app.get('/api/events', (req, res) => res.json(readJSONFile('events.json')));
-app.get('/api/blog', (req, res) => res.json(readJSONFile('blog.json')));
-app.get('/api/devotionals', (req, res) => res.json(readJSONFile('devotionals.json')));
-app.get('/api/store/products', (req, res) => res.json(readJSONFile('store-products.json')));
 
 const isValidEmail = (email) => typeof email === 'string' && email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 const isValidCurrency = (currency) => ['NGN', 'USD', 'GBP', 'EUR', 'GHS', 'ZAR', 'KES'].includes(currency);
@@ -254,7 +252,7 @@ app.post('/api/donations', async (req, res) => {
       try { const existing = await getDonationByTxRef(txRef); if (existing) return replyExisting(existing); } catch { /* Return a recoverable error below. */ }
     }
     console.error('Donation creation failed:', error.response?.status || error.code || 'unknown');
-    return res.status(502).json({ error: 'Unable to create donation' });
+    return res.status(503).json({ error: 'Online giving cannot connect to the donation database right now. Please try later or contact the ministry. No payment has been started.', code: databaseFailure(error) });
   }
 });
 
@@ -486,7 +484,11 @@ app.post('/api/payments/create', (req, res) => res.status(410).json({ error: 'Us
 app.post('/api/payments/verify', (req, res) => res.status(410).json({ error: 'Use GET /api/payments/verify/:tx_ref' }));
 app.get('/api/payments/verify', (req, res) => res.status(410).json({ error: 'Use GET /api/payments/verify/:tx_ref' }));
 
+app.use('/api', require('./platform'));
+
 app.use((err, req, res, next) => {
+  if (err?.type === 'entity.parse.failed') return res.status(400).json({ error: 'The request body must contain valid JSON.' });
+  if (err?.type === 'entity.too.large') return res.status(413).json({ error: 'This request is too large.' });
   if (err?.message === 'Origin not allowed by CORS') return res.status(403).json({ error: 'Origin not allowed' });
   console.error('Unhandled server error:', err?.message || err);
   return res.status(500).json({ error: 'Internal server error' });

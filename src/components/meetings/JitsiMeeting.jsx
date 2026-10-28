@@ -1,112 +1,58 @@
-import { useEffect, useRef } from 'react'
-import { MEETING_CONFIG, APP_CONFIG } from '../../utils/constants'
+import { useEffect, useRef, useState } from 'react'
+import { Loader2, RefreshCw, ExternalLink } from 'lucide-react'
+import { MEETING_CONFIG } from '../../utils/constants'
 
-/**
- * Embeds Jitsi Meet with config for video, audio, chat, screen share.
- * Jitsi provides: mute/unmute, camera on/off, speaker view, screen sharing, chat, participant list.
- * Optional: load Jitsi external API for more control (recording, breakout rooms).
- */
-export default function JitsiMeeting({
-  roomName,
-  displayName = 'Guest',
-  password = '',
-  subject = '',
-  onReady,
-  onParticipantJoined,
-  onParticipantLeft,
-  className = '',
-}) {
-  const containerRef = useRef(null)
-  const apiRef = useRef(null)
-  const domain = MEETING_CONFIG.JITSI_DOMAIN
-
+export default function JitsiMeeting({ roomName, displayName = 'Guest', subject = '', domain = MEETING_CONFIG.JITSI_DOMAIN, onReady, onParticipantJoined, onParticipantLeft, className = '' }) {
+  const container = useRef(null)
+  const callbacks = useRef({ onReady, onParticipantJoined, onParticipantLeft })
+  callbacks.current = { onReady, onParticipantJoined, onParticipantLeft }
+  const [state, setState] = useState('loading')
+  const [attempt, setAttempt] = useState(0)
+  const valid = /^(?:[a-z0-9-]+\.)+[a-z]{2,}$/i.test(domain) && /^[a-z0-9-]{6,100}$/i.test(roomName || '')
+  const joinUrl = valid ? `https://${domain}/${encodeURIComponent(roomName)}` : null
   useEffect(() => {
-    if (!roomName || !containerRef.current) return
-
-    let script = document.createElement('script')
+    if (!valid || !container.current) { setState('error'); return }
+    let disposed = false
+    let api
+    const script = document.createElement('script')
+    const host = container.current
+    setState('loading')
+    const timer = setTimeout(() => { if (!disposed) setState('error') }, 20000)
     script.src = `https://${domain}/external_api.js`
     script.async = true
+    script.onerror = () => { if (!disposed) { clearTimeout(timer); setState('error') } }
     script.onload = () => {
-      const JitsiMeetExternalAPI = window.JitsiMeetExternalAPI
-      if (!JitsiMeetExternalAPI) return
-
-      const options = {
-        roomName: roomName.replace(/\s+/g, '-'),
-        width: '100%',
-        height: '100%',
-        parent: containerRef.current,
-        configOverwrite: {
-          startWithAudioMuted: false,
-          startWithVideoMuted: false,
-          enableWelcomePage: false,
-          prejoinPageEnabled: true,
-          disableDeepLinking: true,
-          subject: subject || undefined,
-          defaultLanguage: 'en',
-        },
-        interfaceConfigOverwrite: {
-          SHOW_JITSI_WATERMARK: false,
-          SHOW_WATERMARK_FOR_GUESTS: false,
-          DEFAULT_LOGO_URL: MEETING_CONFIG.DEFAULT_AVATAR,
-          DEFAULT_WELCOME_PAGE_LOGO_URL: MEETING_CONFIG.DEFAULT_AVATAR,
-          APP_NAME: MEETING_CONFIG.APP_NAME || APP_CONFIG.CHURCH_NAME,
-          NATIVE_APP_NAME: MEETING_CONFIG.APP_NAME,
-          DISPLAY_WELCOME_PAGE_CONTENT: true,
-          TOOLBAR_BUTTONS: [
-            'microphone',
-            'camera',
-            'closedcaptions',
-            'desktop',
-            'embedmeeting',
-            'fullscreen',
-            'fodeviceselection',
-            'hangup',
-            'profile',
-            'chat',
-            'recording',
-            'livestreaming',
-            'etherpad',
-            'sharedvideo',
-            'settings',
-            'raisehand',
-            'videoquality',
-            'filmstrip',
-            'invite',
-            'feedback',
-            'stats',
-            'shortcuts',
-            'tileview',
-            'videobackgroundblur',
-            'download',
-            'help',
-            'mute-everyone',
-            'security',
-          ],
-        },
-        userInfo: {
-          displayName,
-        },
-      }
-      if (password) options.password = password
-
-      const api = new JitsiMeetExternalAPI(domain, options)
-      apiRef.current = api
-      if (onReady) api.addEventListener('videoConferenceJoined', onReady)
-      if (onParticipantJoined) api.addEventListener('participantJoined', onParticipantJoined)
-      if (onParticipantLeft) api.addEventListener('participantLeft', onParticipantLeft)
+      if (disposed) return
+      try {
+        if (!window.JitsiMeetExternalAPI) throw new Error('Meeting library unavailable')
+        api = new window.JitsiMeetExternalAPI(domain, {
+          roomName, parentNode: host, width: '100%', height: '100%', userInfo: { displayName },
+          configOverwrite: {
+            startWithAudioMuted: true, startWithVideoMuted: true, prejoinPageEnabled: true,
+            disableDeepLinking: true, subject,
+            toolbarButtons: ['microphone', 'camera', 'desktop', 'chat', 'participants-pane', 'raisehand', 'tileview', 'settings', 'fullscreen', 'invite', 'security', 'hangup'],
+          },
+          onload: () => { if (!disposed) { clearTimeout(timer); setState('ready') } },
+        })
+        api.addEventListener('videoConferenceJoined', event => callbacks.current.onReady?.(event))
+        api.addEventListener('participantJoined', event => callbacks.current.onParticipantJoined?.(event))
+        api.addEventListener('participantLeft', event => callbacks.current.onParticipantLeft?.(event))
+        api.addEventListener('readyToClose', () => { if (!disposed) setState('ended') })
+      } catch { clearTimeout(timer); setState('error') }
     }
     document.body.appendChild(script)
-
     return () => {
-      if (apiRef.current) {
-        apiRef.current.dispose()
-        apiRef.current = null
-      }
-      if (script.parentNode) script.parentNode.removeChild(script)
+      disposed = true; clearTimeout(timer); script.onload = null; script.onerror = null
+      api?.dispose(); script.remove(); host.replaceChildren()
     }
-  }, [roomName, domain, displayName, password, subject, onReady, onParticipantJoined, onParticipantLeft])
-
-  return (
-    <div ref={containerRef} className={`jitsi-meet-embed ${className}`} style={{ height: '100%', minHeight: 480 }} />
-  )
+  }, [roomName, displayName, subject, domain, attempt, valid])
+  return <div className={className}>
+    <div className="bg-slate-800 p-3 text-xs text-slate-300">Allow camera and microphone when prompted. On the public Jitsi service, the host may need to sign in to start the meeting. <a href={joinUrl || '#'} target="_blank" rel="noopener noreferrer" className="underline ml-2">Open meeting separately</a></div>
+    <div className="relative bg-slate-950" style={{ height: '72dvh', minHeight: 480 }}>
+      <div ref={container} className="h-full w-full" />
+      {state !== 'ready' && <div role="status" className="absolute inset-0 flex flex-col items-center justify-center gap-5 bg-slate-950 p-8 text-center text-slate-200">
+        {state === 'loading' ? <><Loader2 className="animate-spin" /><p>Preparing your meeting…</p></> : <><p>{state === 'ended' ? 'You have left the meeting.' : 'The meeting could not load here. Retry or open it in a separate tab.'}</p><button className="btn-primary inline-flex gap-2" onClick={() => setAttempt(n => n + 1)}><RefreshCw size={18} />{state === 'ended' ? 'Rejoin' : 'Retry'}</button>{joinUrl && <a href={joinUrl} target="_blank" rel="noopener noreferrer" className="inline-flex gap-2 underline"><ExternalLink size={18} />Open meeting</a>}</>}
+      </div>}
+    </div>
+  </div>
 }

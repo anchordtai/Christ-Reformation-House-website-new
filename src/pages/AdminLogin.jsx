@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { Link, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { Mail, Lock, Shield, ArrowRight } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { authService } from '../services/api'
@@ -15,12 +15,11 @@ export default function AdminLogin() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const from = location.state?.from?.pathname || '/live'
+  const from = location.state?.from?.pathname || '/admin'
 
   // Already admin: redirect to intended page
   if (isAuthenticated && isAdmin) {
-    navigate(from, { replace: true })
-    return null
+    return <Navigate to={from} replace />
   }
 
   const handleSubmit = async (e) => {
@@ -43,7 +42,7 @@ export default function AdminLogin() {
       login(token, user)
       navigate(from, { replace: true })
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Sign in failed. Please try again.')
+      setError(err.response?.data?.error || err.response?.data?.message || err.message || 'Sign in failed. Please try again.')
     } finally {
       setIsLoading(false)
     }
@@ -148,3 +147,4 @@ export default function AdminLogin() {
     </div>
   )
 }
+

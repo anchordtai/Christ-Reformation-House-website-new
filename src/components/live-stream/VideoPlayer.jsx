@@ -1,35 +1,17 @@
 import { LIVE_STREAM_CONFIG } from '../../utils/constants'
-
-/**
- * Facebook Live embed via iframe.
- * Set VITE_FACEBOOK_VIDEO_ID or VITE_FACEBOOK_PAGE_ID in .env.
- * Alternative: backend can provide RTMP/HLS URL for a custom player (e.g. video.js).
- */
-export default function VideoPlayer({ videoId, className = '' }) {
-  const id = videoId || LIVE_STREAM_CONFIG.FACEBOOK_VIDEO_ID || LIVE_STREAM_CONFIG.FACEBOOK_PAGE_ID
-
-  if (!id) {
-    return (
-      <div className={`aspect-video bg-slate-900 rounded-2xl flex items-center justify-center ${className}`}>
-        <div className="text-center text-slate-400 p-8">
-          <p className="font-medium">No live stream configured</p>
-          <p className="text-sm mt-2">Set VITE_FACEBOOK_VIDEO_ID or VITE_FACEBOOK_PAGE_ID in .env</p>
-        </div>
-      </div>
-    )
-  }
-
-  const embedUrl = `https://www.facebook.com/plugins/video.php?href=https%3A%2F%2Fwww.facebook.com%2F${id}%2Fvideos&width=500&height=280&show_text=false&appId=${LIVE_STREAM_CONFIG.FACEBOOK_APP_ID || ''}&responsive=true`
-
-  return (
-    <div className={`relative aspect-video bg-black rounded-2xl overflow-hidden shadow-2xl ${className}`}>
-      <iframe
-        src={embedUrl}
-        title="Facebook Live"
-        className="absolute inset-0 w-full h-full"
-        allowFullScreen
-        allow="autoplay; clipboard-write; encrypted-media; picture-in-picture"
-      />
-    </div>
-  )
+export default function VideoPlayer({ url, videoId, className = '' }) {
+  let source = url
+  if (!source && (videoId || LIVE_STREAM_CONFIG.FACEBOOK_VIDEO_ID)) source = `https://www.facebook.com/watch/?v=${encodeURIComponent(videoId || LIVE_STREAM_CONFIG.FACEBOOK_VIDEO_ID)}`
+  if (!source) return <div className={`aspect-video rounded-2xl bg-slate-900 p-8 flex items-center justify-center text-center text-slate-300 ${className}`}>No online service is scheduled here yet. Please check back or contact the ministry.</div>
+  let embed
+  try {
+    const parsed = new URL(source)
+    if (parsed.protocol !== 'https:') throw new Error('Invalid stream')
+    if (['www.youtube.com','youtube.com','youtu.be'].includes(parsed.hostname)) {
+      const id = parsed.hostname === 'youtu.be' ? parsed.pathname.slice(1) : parsed.searchParams.get('v') || parsed.pathname.split('/').at(-1)
+      if (/^[a-zA-Z0-9_-]{11}$/.test(id)) embed = `https://www.youtube-nocookie.com/embed/${id}`
+    }
+    if (['www.facebook.com','facebook.com','web.facebook.com'].includes(parsed.hostname)) embed = `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(source)}&show_text=false`
+  } catch { return <p className="rounded-xl bg-slate-100 p-8">This stream link is unavailable. Please contact the ministry.</p> }
+  return embed ? <div className={`relative aspect-video rounded-2xl bg-black overflow-hidden ${className}`}><iframe src={embed} title="Ministry online service" className="absolute inset-0 h-full w-full" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen /></div> : <a href={source} target="_blank" rel="noopener noreferrer" className="btn-primary inline-block">Open the online service</a>
 }

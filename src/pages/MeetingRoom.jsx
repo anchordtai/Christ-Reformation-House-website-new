@@ -88,6 +88,7 @@ export default function MeetingRoom() {
             roomName={jitsiRoomName}
             displayName={displayName}
             subject={joinPayload?.subject}
+            domain={joinPayload?.domain}
             onParticipantJoined={handleParticipantJoined}
             onParticipantLeft={handleParticipantLeft}
             className="flex-1 min-h-0"
@@ -117,11 +118,12 @@ export default function MeetingRoom() {
           </>
         ) : (
           <div className="flex-1 flex items-center justify-center text-slate-400 p-8 text-center">
-            <p>No join URL configured. Backend should return meeting URL from GET /meetings/:id/join</p>
-            <p className="text-sm mt-2">Include ?token= for secure links.</p>
+            <p>This meeting is not available. Please return to the meeting list and try again.</p>
+            <p className="text-sm mt-2">Contact the ministry if you need help joining.</p>
           </div>
         )}
       </div>
     </div>
   )
 }
+

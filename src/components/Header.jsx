@@ -14,7 +14,7 @@ const Header = () => {
     { path: '/', label: 'Home' },
     { path: '/about', label: 'About' },
     { path: '/sermons', label: 'Sermons' },
-    { path: '/live', label: 'Live', adminOnly: true },
+    { path: '/live', label: 'Live' },
     { path: '/events', label: 'Events' },
     { path: '/devotional', label: 'Devotional' },
     { path: '/blog', label: 'Blog' },
@@ -22,6 +22,7 @@ const Header = () => {
     { path: '/meetings', label: 'Meetings' },
     { path: '/donate', label: 'Give' },
     { path: '/contact', label: 'Contact' },
+    { path: '/admin', label: 'Workspace', adminOnly: true },
   ]
   const navLinks = allNavLinks.filter((link) => !link.adminOnly || isAdmin)
 

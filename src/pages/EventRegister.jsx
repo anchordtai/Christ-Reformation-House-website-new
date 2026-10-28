@@ -2,6 +2,10 @@ import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Calendar, MapPin, Clock, ArrowLeft } from 'lucide-react'
 import { format } from 'date-fns'
+import { useApi } from '../hooks/useApi'
+import { eventService } from '../services/api'
+import Error from '../components/Error'
+import Loading from '../components/Loading'
 
 const EventRegister = () => {
   const { id } = useParams()
@@ -16,29 +20,17 @@ const EventRegister = () => {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
 
-  // In production, fetch from API based on id
-  const event = {
-    id: parseInt(id),
-    title: 'Sunday Worship Service',
-    date: new Date('2024-02-04'),
-    time: '10:00 AM',
-    location: 'Main Sanctuary',
-    description: 'Join us for our weekly Sunday worship service with inspiring music and message.',
-    image: '/assets/img/convention-image.jpg',
-  }
-
+  const { data: event, loading, error } = useApi(() => eventService.getById(id), [id])
+  const [submitError, setSubmitError] = useState('')
   const handleSubmit = async (e) => {
     e.preventDefault()
-    setIsSubmitting(true)
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500))
-    
-    setIsSubmitting(false)
-    setIsSubmitted(true)
-    
-    // In production, send to backend API
-    console.log('Registration data:', { eventId: id, ...formData })
+    if (isSubmitting) return
+    setIsSubmitting(true); setSubmitError('')
+    try {
+      await eventService.register(id, formData)
+      setIsSubmitted(true)
+    } catch (err) { setSubmitError(err.response?.data?.error || 'Registration could not be saved. Please try again.') }
+    finally { setIsSubmitting(false) }
   }
 
   const handleChange = (e) => {
@@ -48,6 +40,8 @@ const EventRegister = () => {
     })
   }
 
+  if (loading) return <Loading message="Loading event…" />
+  if (error || !event) return <Error message={error || "Event not found"} />
   if (isSubmitted) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 section-padding">
@@ -59,7 +53,7 @@ const EventRegister = () => {
           </div>
           <h2 className="text-2xl font-bold mb-2">Registration Successful!</h2>
           <p className="text-gray-600 mb-6">
-            Thank you for registering for {event.title}. We've sent a confirmation email to {formData.email}.
+            Thank you for registering for {event.title}. Your registration has been saved. No confirmation email has been sent.
           </p>
           <button onClick={() => navigate('/events')} className="btn-primary">
             View Other Events
@@ -108,6 +102,7 @@ const EventRegister = () => {
           <div className="max-w-2xl mx-auto">
             <div className="card">
               <h2 className="text-2xl font-bold mb-6">Registration Information</h2>
+              {submitError && <Error message={submitError} />}
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div>
                   <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
@@ -203,6 +198,7 @@ const EventRegister = () => {
 }
 
 export default EventRegister
+
 
 
 

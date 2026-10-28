@@ -29,6 +29,7 @@ import MeetingDetail from './pages/MeetingDetail'
 import MeetingEdit from './pages/MeetingEdit'
 import SocialAutomation from './pages/SocialAutomation'
 import AdminLogin from './pages/AdminLogin'
+import AdminDashboard from './pages/AdminDashboard'
 
 function App() {
   return (
@@ -42,7 +43,7 @@ function App() {
             <Route path="/about" element={<About />} />
             <Route path="/sermons" element={<Sermons />} />
             <Route path="/sermons/:id" element={<SermonDetail />} />
-            <Route path="/live" element={<AdminRoute><LiveStream /></AdminRoute>} />
+            <Route path="/live" element={<LiveStream />} />
             <Route path="/events" element={<Events />} />
             <Route path="/events/register/:id" element={<EventRegister />} />
             <Route path="/blog" element={<Blog />} />
@@ -59,10 +60,12 @@ function App() {
             <Route path="/meetings/room/:id" element={<MeetingRoom />} />
             <Route path="/meetings/:id" element={<MeetingDetail />} />
             <Route path="/meetings/:id/edit" element={<AdminRoute><MeetingEdit /></AdminRoute>} />
-            <Route path="/social" element={<ProtectedRoute><SocialAutomation /></ProtectedRoute>} />
+            <Route path="/social" element={<AdminRoute><SocialAutomation /></AdminRoute>} />
+            <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
             <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
+            <Route path="*" element={<div className="section-padding text-center"><h1 className="text-3xl font-bold">Page not found</h1><a className="btn-primary inline-block mt-6" href="/">Return home</a></div>} />
           </Routes>
         </main>
         <Footer />

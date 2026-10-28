@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Mail, Lock, User, Phone, ArrowRight } from 'lucide-react'
+import { authService } from '../services/api'
 
 const Signup = () => {
   const navigate = useNavigate()
@@ -26,18 +27,12 @@ const Signup = () => {
       return
     }
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500))
-
-    // In production, register with backend
-    if (formData.email && formData.password) {
-      // Success - redirect to login or home
-      navigate('/login')
-    } else {
-      setError('Please fill in all required fields')
-    }
-
-    setIsLoading(false)
+    try {
+      const response = await authService.signup({ name: formData.name, email: formData.email, password: formData.password })
+      navigate('/login', { state: { message: response.data.message } })
+    } catch (err) {
+      setError(err.response?.data?.error || err.response?.data?.message || 'Registration could not be completed. Please try again.')
+    } finally { setIsLoading(false) }
   }
 
   const handleChange = (e) => {
@@ -193,6 +188,7 @@ const Signup = () => {
 }
 
 export default Signup
+
 
 
 
