@@ -175,6 +175,29 @@ async function createCustomer({ first, middle, last, email, phone, address, meta
   return v4Request('POST', '/customers', { name, email: String(email || '').trim().toLowerCase(), ...(phone ? { phone } : {}), ...(address ? { address } : {}), ...(meta ? { meta } : {}) }, idempotencyKey);
 }
 
+async function findCustomerByEmail(email) {
+  const expected = String(email || '').trim().toLowerCase();
+  // The documented list API has pagination, not an email filter.
+  // Bound the scan and never expose the provider's customer list to clients.
+  for (let page = 1; page <= 10; page++) {
+    const result = await v4Request('GET', `/customers?page=${page}&size=50`);
+    const records = result.data?.data;
+    if (!Array.isArray(records)) throw new Error('Invalid customer lookup response');
+    const matches = records.filter(customer => String(customer.email || '').trim().toLowerCase() === expected);
+    if (matches.length > 1) throw new Error('Ambiguous customer lookup');
+    if (matches.length === 1 && String(matches[0].id || '').startsWith('cus_')) return { id: matches[0].id, email: expected };
+    const pages = Number(result.data?.meta?.page_info?.total_pages);
+    if ((Number.isFinite(pages) && pages > 0 && page >= pages) || records.length < 50) return null;
+  }
+  throw new Error('Customer lookup requires reconciliation');
+}
+async function retrieveCustomer(id) {
+  return v4Request('GET', `/customers/${encodeURIComponent(id)}`);
+}
+async function listVirtualAccountsByReference(reference) {
+  return v4Request('GET', `/virtual-accounts?reference=${encodeURIComponent(reference)}&size=10`);
+}
+
 async function createPaymentMethod({ type, customerId, card, mobileMoney, bankAccount, ussd, opay, meta, idempotencyKey }) {
   const body = { type, ...(customerId ? { customer_id: customerId } : {}), ...(card ? { card } : {}), ...(mobileMoney ? { mobile_money: mobileMoney } : {}), ...(bankAccount ? { bank_account: bankAccount } : {}), ...(ussd ? { ussd } : {}), ...(opay ? { opay } : {}), ...(meta ? { meta } : {}) };
   return v4Request('POST', '/payment-methods', body, idempotencyKey);
@@ -224,5 +247,5 @@ async function listNigerianBanks() {
   return v4Request('GET', '/banks?country=NG');
 }
 
-module.exports = { PRODUCTION_BASE_URL, SANDBOX_BASE_URL, getAccessToken, getApiBaseUrl, encryptCardPaymentMethod, createDirectCharge, createCharge, createCustomer, createPaymentMethod, createVirtualAccount, listVirtualAccountCharges, listNigerianBanks, retrieveCharge, prepareAuthorization, authorizeCharge };
+module.exports = { PRODUCTION_BASE_URL, SANDBOX_BASE_URL, getAccessToken, getApiBaseUrl, encryptCardPaymentMethod, createDirectCharge, createCharge, createCustomer, findCustomerByEmail, retrieveCustomer, listVirtualAccountsByReference, createPaymentMethod, createVirtualAccount, listVirtualAccountCharges, listNigerianBanks, retrieveCharge, prepareAuthorization, authorizeCharge };
 

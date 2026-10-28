@@ -12,7 +12,7 @@ USSD fetches bank codes from Flutterwave, displays the returned instructions as 
 
 ## Verification and recovery
 
-The existing database metadata claim prevents duplicate initialization across workers/restarts. A timeout or lost persistence after account creation remains unresolved, rather than generating another account. Bank transfers resume from saved provider account details. If persistence failed before these details were saved, a maintainer must reconcile the reference in Flutterwave before doing anything else.
+The existing database metadata claim prevents duplicate initialization across workers/restarts. A timeout or lost persistence after account creation remains unresolved, rather than generating another account. Bank transfers resume from saved provider account details. If persistence failed before these details were saved, verification performs a read-only lookup for an existing virtual account with the exact reference and validates its customer email, currency and amount before restoring its details. Missing or ambiguous records stay unresolved; this lookup never creates another account or clears an initialization claim. A maintainer must reconcile cases that cannot be recovered safely.
 
 The paid button only calls verification. Successful transfers require a provider charge matching reference, amount, currency and customer. The API queries charges scoped to the virtual account, then retrieves the matching charge before crediting the donation. If a provider response uses a different reference or a mismatched amount, leave it unresolved for reconciliation. Duplicate matching transfers require manual review. Signed webhooks are also checked against the donation; production webhooks must be configured.
 
@@ -31,3 +31,7 @@ Official references:
 - https://developer.flutterwave.com/v4/reference/virtual_accounts_post
 - https://developer.flutterwave.com/v4.0.0/docs/ussd
 - https://developer.flutterwave.com/v4.0.0/docs/opay
+
+## Returning donors and provider conflicts
+
+If customer creation returns HTTP 409, the backend searches the documented paginated customer list for an exact normalized email match (bounded to ten pages). It reuses only that customer ID and does not expose customer records to the browser. A missing or ambiguous match leaves the initialization claim protected. A conflict at another endpoint is not assumed to be a duplicate customer. Initialization logs include only allowlisted endpoint and bounded error-code fields, never customer data, card details or raw provider bodies.

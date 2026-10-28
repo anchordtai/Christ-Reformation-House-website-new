@@ -7,7 +7,7 @@ const { prepareAuthorization, encryptCardPaymentMethod } = provider;
 const { initializationKey } = require('../payment-state');
 process.env.FLW_ENCRYPTION_KEY = Buffer.alloc(32, 7).toString('base64');
 process.env.DONATION_CURRENCIES = 'NGN';
-let donation, charge, creates, claims, authorizations, dbError, providerError, updateError, eventError, virtualCreates, customers, transferCharges, lastMethod;
+let donation, charge, creates, claims, authorizations, dbError, providerError, updateError, eventError, virtualCreates, customers, transferCharges, lastMethod, customerConflict, existingCustomer, recoveredAccounts;
 const fixture = () => ({ id: 'donation-1', tx_ref: 'crh-123e4567-e89b-42d3-a456-426614174000', amount: 5000, currency: 'NGN', donor_name: 'Test Donor', email: 'test@example.com', donation_type: 'general', status: 'pending', metadata: {} });
 Object.assign(db, {
   getDonationByTxRef: async reference => { if (dbError) throw new Error('Database unavailable'); return donation?.tx_ref === reference ? donation : null; },
@@ -19,7 +19,10 @@ Object.assign(db, {
 });
 Object.assign(provider, {
   createDirectCharge: async args => { creates++; assert.equal(args.idempotencyKey, initializationKey(donation.tx_ref)); lastMethod = args.paymentMethod; if (args.paymentMethod.type === 'card') { assert.ok(args.paymentMethod.card.encrypted_card_number); assert.equal(args.paymentMethod.card.number, undefined); } if (providerError === 'rejected') { const error = new Error('Rejected'); error.code = 'FLUTTERWAVE_API_ERROR'; error.providerStatus = 400; throw error; } if (providerError) throw new Error('Timeout'); return { data: { data: charge } }; },
-  createCustomer: async () => { customers++; return { data: { data: { id: 'cus_test' } } }; },
+  createCustomer: async () => { customers++; if (customerConflict) { const error = new Error('Conflict'); error.code = 'FLUTTERWAVE_API_ERROR'; error.providerStatus = 409; throw error; } return { data: { data: { id: 'cus_test' } } }; },
+  findCustomerByEmail: async () => existingCustomer,
+  listVirtualAccountsByReference: async reference => { assert.equal(reference, donation.tx_ref); return { data: { data: recoveredAccounts } }; },
+  retrieveCustomer: async () => ({ data: { data: existingCustomer } }),
   createVirtualAccount: async args => {
     virtualCreates++; assert.equal(args.bankCode, '090567'); assert.equal(args.expiry, 3600); assert.equal(args.currency, 'NGN'); assert.equal(args.customerId, 'cus_test');
     if (providerError) throw new Error('Timeout');
@@ -36,12 +39,47 @@ before(async () => { server = app.listen(0, '127.0.0.1'); await new Promise(reso
 after(async () => { await new Promise(resolve => server.close(resolve)); });
 beforeEach(() => {
   donation = fixture(); charge = { id: 'chg_test', reference: donation.tx_ref, amount: 5000, currency: 'NGN', status: 'pending', next_action: { type: 'requires_otp' } };
-  process.env.DONATION_PAYMENT_METHODS = 'card'; virtualCreates = 0; customers = 0; transferCharges = []; lastMethod = null;
+  process.env.DONATION_PAYMENT_METHODS = 'card'; virtualCreates = 0; customers = 0; transferCharges = []; lastMethod = null; customerConflict = false; existingCustomer = { id: 'cus_test', email: donation.email }; recoveredAccounts = [];
   creates = 0; claims = 0; authorizations = 0; dbError = false; providerError = false; updateError = false; eventError = false;
 });
 const card = { type: 'card', card: { number: '1234567890123456', expiry_month: '12', expiry_year: '2099', cvv: '123' } };
 async function post(path, body) { const response = await fetch(base + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); return { status: response.status, data: await response.json() }; }
 const initialize = () => post('/payments/initialize', { tx_ref: donation.tx_ref, paymentMethod: card });
+
+test('bank transfer reuses an exact existing customer after a provider conflict', async () => {
+  process.env.DONATION_PAYMENT_METHODS = 'bank_transfer'; customerConflict = true;
+  const result = await post('/payments/initialize', { tx_ref: donation.tx_ref, paymentMethod: { type: 'bank_transfer' } });
+  assert.equal(result.status, 200); assert.equal(result.data.next_action.type, 'bank_transfer');
+  assert.equal(virtualCreates, 1); assert.equal(creates, 0);
+});
+test('an unmatched customer conflict remains protected from duplicate initialization', async () => {
+  process.env.DONATION_PAYMENT_METHODS = 'bank_transfer'; customerConflict = true; existingCustomer = { id: 'cus_other', email: 'other@example.com' };
+  const result = await post('/payments/initialize', { tx_ref: donation.tx_ref, paymentMethod: { type: 'bank_transfer' } });
+  assert.equal(result.status, 502); assert.equal(virtualCreates, 0);
+  assert.equal((await post('/payments/initialize', { tx_ref: donation.tx_ref })).status, 409);
+});
+test('verification recovers an already-created transfer account without creating another', async () => {
+  donation.metadata = { initialization_state: 'started' };
+  recoveredAccounts = [{ id: 'van_test', account_type: 'dynamic', status: 'active', reference: donation.tx_ref, customer_id: 'cus_test', amount: 5010, currency: 'NGN', account_number: '1234567890', account_bank_name: 'Mock Bank', account_expiration_datetime: new Date(Date.now() + 3600000).toISOString() }];
+  const result = await (await fetch(base + '/payments/verify/' + donation.tx_ref)).json();
+  assert.equal(result.verified, false); assert.equal(result.status, 'pending');
+  assert.equal(donation.metadata.bank_transfer.virtual_account_id, 'van_test');
+  const resume = await post('/payments/initialize', { tx_ref: donation.tx_ref });
+  assert.equal(resume.data.next_action.bank_transfer.account_number, '1234567890');
+  assert.equal(virtualCreates, 0); assert.equal(customers, 0); assert.equal(creates, 0);
+});
+test('missing provider account cannot clear a legacy claim or trigger another payment', async () => {
+  donation.metadata = { initialization_state: 'started' };
+  const result = await fetch(base + '/payments/verify/' + donation.tx_ref);
+  assert.equal(result.status, 409); assert.equal(donation.metadata.initialization_state, 'started');
+  assert.equal(donation.metadata.bank_transfer, undefined); assert.equal(virtualCreates, 0); assert.equal(creates, 0);
+});
+test('recovered transfer account must belong to the original donor email', async () => {
+  donation.metadata = { initialization_state: 'started' }; existingCustomer.email = 'other@example.com';
+  recoveredAccounts = [{ id: 'van_test', reference: donation.tx_ref, customer_id: 'cus_test' }];
+  assert.equal((await fetch(base + '/payments/verify/' + donation.tx_ref)).status, 409);
+  assert.equal(donation.metadata.bank_transfer, undefined); assert.equal(virtualCreates, 0);
+});
 
 test('bank transfer creates one dynamic account, shows provider amount including fees, and resumes without card data', async () => {
   process.env.DONATION_PAYMENT_METHODS = 'card,bank_transfer';
