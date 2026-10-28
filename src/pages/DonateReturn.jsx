@@ -21,10 +21,12 @@ export default function DonateReturn() {
   const [message, setMessage] = useState('Checking your payment with the server…')
   const [attempt, setAttempt] = useState(0)
   const [retry, setRetry] = useState(0)
+  const [failure, setFailure] = useState(null)
   useEffect(() => {
     let cancelled = false
     let timer
     setAttempt(0)
+    setFailure(null)
     if (!/^crh-[a-z0-9-]{6,38}$/i.test(txRef)) {
       setStatus('unconfirmed'); setMessage('A valid payment reference is missing. Contact the ministry if you were charged.'); return
     }
@@ -39,6 +41,7 @@ export default function DonateReturn() {
           timer = setTimeout(() => verify(n + 1), RETRY_DELAY_MS); return
         }
         setStatus(next); setMessage(data.warning || descriptions[next].text)
+        setFailure(next === 'failed' ? data.failure || null : null)
         if (next === 'success') clearThisCheckout()
       } catch (err) {
         if (cancelled) return
@@ -70,6 +73,7 @@ export default function DonateReturn() {
   return <section className="flex min-h-screen items-center justify-center bg-slate-50 px-5 py-16">
     <div className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-7 text-center shadow-sm sm:p-10" aria-live="polite" aria-atomic="true">
       {status === 'loading' ? <><Loader2 className="mx-auto mb-6 h-14 w-14 animate-spin text-slate-700" /><h1 className="mb-4 text-3xl font-bold">Verifying your gift</h1><p className="text-slate-600">{message}</p>{attempt > 0 && <p className="mt-3 text-sm text-slate-500">Recheck {attempt} of {MAX_RETRIES}</p>}</> : <><state.Icon className={`mx-auto mb-6 h-14 w-14 ${state.color}`} /><h1 className="mb-4 text-3xl font-bold text-slate-900">{state.title}</h1><p className="leading-relaxed text-slate-600">{message}</p></>}
+      {failure && <div className="mt-5 rounded-xl border border-red-100 bg-red-50 p-4 text-left text-sm text-red-900"><p>{failure.message}</p>{failure.support_code && <p className="mt-2 font-mono text-xs">Provider support code: {failure.support_code}</p>}</div>}
       {txRef && <div className="my-6 rounded-xl bg-slate-50 p-4"><p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">Payment reference</p><p className="break-all font-mono text-xs text-slate-700">{txRef}</p></div>}
       {status !== 'loading' && <div className="mt-6 space-y-4">
         {status !== 'success' && <button onClick={() => setRetry(n => n + 1)} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-3 font-semibold text-white"><RefreshCw className="h-4 w-4" />Check again</button>}

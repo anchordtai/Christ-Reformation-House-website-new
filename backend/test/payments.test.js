@@ -127,3 +127,32 @@ test('USD donation creation preserves the selected currency and amount', async (
     assert.equal(result.status, 201); assert.equal(donation.currency, 'USD'); assert.equal(donation.amount, 25.50);
   } finally { process.env.DONATION_CURRENCIES = 'NGN'; }
 });
+
+test('failed charge exposes only a safe explanation and code without creating a charge', async () => {
+  donation.flutterwave_transaction_id = charge.id;
+  charge.status = 'failed';
+  charge.processor_response = { code: '51', message: 'Insufficient funds. Customer private@example.com card 1234567890123456' };
+  const result = await fetch(base + '/payments/verify/' + donation.tx_ref);
+  const data = await result.json();
+  assert.equal(data.verified, false);
+  assert.deepEqual(data.failure, { category: 'insufficient_funds', message: 'The payment processor reported insufficient funds.', support_code: '51' });
+  assert.equal(donation.failure_reason, 'insufficient_funds: 51');
+  assert.equal(JSON.stringify(data).includes('private@example.com'), false);
+  assert.equal(JSON.stringify(data).includes('1234567890123456'), false);
+  assert.equal(creates, 0);
+});
+
+test('unmatched failed charges cannot disclose processor details', async () => {
+  donation.flutterwave_transaction_id = charge.id; charge.status = 'failed'; charge.amount = 1;
+  charge.processor_response = { code: '51', message: 'Insufficient funds' };
+  const data = await (await fetch(base + '/payments/verify/' + donation.tx_ref)).json();
+  assert.equal(data.failure, undefined);
+});
+
+test('unknown processor responses stay generic and sensitive support codes are omitted', () => {
+  const { paymentFailure } = require('../payment-failure');
+  const result = paymentFailure({ status: 'failed', processor_response: { code: '1234567890123456', message: 'private@example.com 1234567890123456' } });
+  assert.equal(result.category, 'provider_failure'); assert.equal(result.support_code, undefined);
+  assert.equal(JSON.stringify(result).includes('private@example.com'), false);
+  assert.equal(paymentFailure({ status: 'pending', processor_response: { message: 'declined' } }), null);
+});
