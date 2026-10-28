@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom'
 import { ArrowRight, ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react'
 
 const slides = [
-  { image: '/assets/portraits/ministering-pink.webp', alt: 'AI-created portrait of Apostle (Dr) Anchord Taiwo ministering with a microphone in a pink suit', label: 'Grow in the Word', text: 'Discover teaching that encourages faith and points you to Christ.', link: '/sermons', action: 'Explore messages' },
-  { image: '/assets/portraits/ministering-orange.webp', alt: 'AI-created portrait of Apostle (Dr) Anchord Taiwo holding a microphone and laying a hand on an adult’s head in prayer', label: 'A community of prayer', text: 'Take your next step in faith, prayer, and fellowship with our ministry.', link: '/prayer-request', action: 'Share a prayer request' },
+  { image: '/assets/portraits/ministering-pink.webp', alt: 'Portrait of Apostle (Dr) Anchord Taiwo ministering with a microphone in a pink suit', label: 'Grow in the Word', text: 'Discover teaching that encourages faith and points you to Christ.', link: '/sermons', action: 'Explore messages' },
+  { image: '/assets/portraits/ministering-orange.webp', alt: 'Portrait of Apostle (Dr) Anchord Taiwo holding a microphone and laying a hand on an adult’s head in prayer', label: 'A community of prayer', text: 'Take your next step in faith, prayer, and fellowship with our ministry.', link: '/prayer-request', action: 'Share a prayer request' },
 ]
 export default function HeroCarousel() {
   const [current, setCurrent] = useState(0)
@@ -34,9 +34,10 @@ export default function HeroCarousel() {
     <div className="ministry-hero-inner">
       <div className="ministry-hero-copy">
         <p className="ministry-eyebrow">Christ’s Reformation House International</p>
-        <h1>Rooted in Christ.<br /><span>Connected across nations.</span></h1>
+        <h1><span className="hero-title-line">Rooted in Christ.</span><span className="hero-title-line hero-title-accent">Connected across nations.</span></h1>
+        <div className="hero-values" aria-label="Our invitation"><span>Worship</span><span>Grow</span><span>Belong</span></div>
         <p className="ministry-hero-intro">A place to grow in faith, find fellowship, and take part in God’s work—wherever you call home.</p>
-        <div className="ministry-slide-copy" aria-live={paused || reducedMotion ? 'polite' : 'off'} aria-atomic="true"><p className="font-semibold text-amber-300">{slides[current].label}</p><p className="mt-2 text-slate-300">{slides[current].text}</p></div>
+        <div key={current} className="ministry-slide-copy" aria-live={paused || reducedMotion ? 'polite' : 'off'} aria-atomic="true"><p className="font-semibold text-amber-300">{slides[current].label}</p><p className="mt-2 text-slate-300">{slides[current].text}</p></div>
         <div className="ministry-actions"><Link to={slides[current].link} className="ministry-button">{slides[current].action}<ArrowRight size={18} /></Link><Link to="/about" className="ministry-button-outline">Meet the ministry</Link></div>
         <div className="ministry-controls">
           <button type="button" onClick={() => select(current - 1)} aria-label="Previous ministry slide"><ChevronLeft size={20} /></button>
@@ -48,7 +49,7 @@ export default function HeroCarousel() {
       </div>
       <figure className="ministry-hero-visual">
         {slides.map((slide, index) => <div key={slide.image} className={`ministry-hero-slide ${index === current ? 'is-active' : ''}`} aria-hidden={index !== current} role="group" aria-roledescription="slide" aria-label={`${index + 1} of ${slides.length}`}><img src={slide.image} alt={slide.alt} width="933" height="1400" fetchpriority={index === 0 ? 'high' : 'low'} decoding="async" /></div>)}
-        <figcaption>Apostle (Dr) Anchord Taiwo<span>AI-created ministry portraits</span></figcaption>
+        <figcaption>Apostle (Dr) Anchord Taiwo<span>Senior Pastor · Christ’s Reformation House International</span></figcaption>
       </figure>
     </div>
   </section>

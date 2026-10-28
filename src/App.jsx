@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import Header from './components/Header'
+import PageEnhancements from './components/PageEnhancements'
 import Footer from './components/Footer'
 import ProtectedRoute from './components/ProtectedRoute'
 import AdminRoute from './components/AdminRoute'
@@ -32,9 +33,10 @@ import AdminLogin from './pages/AdminLogin'
 function App() {
   return (
     <Router>
+      <PageEnhancements />
       <div className="min-h-screen flex flex-col">
         <Header />
-        <main className="flex-grow">
+        <main id="main-content" tabIndex={-1} className="flex-grow">
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/about" element={<About />} />
@@ -70,6 +72,7 @@ function App() {
 }
 
 export default App
+
 
 
 

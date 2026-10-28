@@ -90,7 +90,7 @@ const About = () => {
         <div className="container-custom grid gap-10 items-center lg:grid-cols-2">
           <figure>
             <img src="/assets/portraits/anchord-cream.webp" alt="Apostle (Dr) Anchord Taiwo in a cream suit" width="1200" height="800" loading="lazy" decoding="async" className="w-full rounded-2xl" />
-            <figcaption className="mt-2 text-xs text-slate-400">Leadership portrait · AI-created</figcaption>
+            <figcaption className="mt-2 text-xs text-slate-400">Apostle (Dr) Anchord Taiwo</figcaption>
           </figure>
           <div><p className="text-xs uppercase tracking-widest text-amber-300 mb-4">Our leadership</p><h2 id="leadership-title" className="text-3xl md:text-4xl font-bold mb-4">Apostle (Dr) Anchord Taiwo</h2><p className="text-amber-300 mb-6">Senior Pastor</p><p className="text-slate-300 text-lg leading-relaxed">Serving Christ’s Reformation House International with a heart for teaching, prayer, fellowship, and the sharing of the Gospel.</p><p className="text-slate-300 mt-4 leading-relaxed">Our vision is a community rooted in Christ and connected beyond borders, helping people grow in faith and find their place in ministry.</p><a href="/contact" className="inline-flex mt-7 rounded-lg bg-amber-200 text-slate-900 px-6 py-3 font-semibold">Connect with the ministry</a></div>
         </div>

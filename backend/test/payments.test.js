@@ -106,3 +106,24 @@ test('definitive initialization rejection is recoverable as a failed payment', a
   const verification = await fetch(base + '/payments/verify/' + donation.tx_ref); assert.equal((await verification.json()).status, 'failed');
   assert.equal((await initialize()).data.status, 'failed'); assert.equal(creates, 1);
 });
+
+test('global currency defaults and explicit account restrictions are respected', () => {
+  const { enabledCurrencies } = require('../payment-state');
+  const previous = process.env.DONATION_CURRENCIES;
+  try {
+    delete process.env.DONATION_CURRENCIES;
+    assert.deepEqual(enabledCurrencies(), ['NGN', 'USD', 'GBP', 'EUR', 'GHS', 'ZAR', 'KES']);
+    process.env.DONATION_CURRENCIES = ' usd,eur,USD,INVALID ';
+    assert.deepEqual(enabledCurrencies(), ['USD', 'EUR']);
+    process.env.DONATION_CURRENCIES = '';
+    assert.deepEqual(enabledCurrencies(), []);
+  } finally { process.env.DONATION_CURRENCIES = previous; }
+});
+
+test('USD donation creation preserves the selected currency and amount', async () => {
+  process.env.DONATION_CURRENCIES = 'NGN,USD,GBP,EUR,GHS,ZAR,KES';
+  try {
+    const result = await post('/donations', { checkout_id: '123e4567-e89b-42d3-a456-426614174001', amount: 25.50, currency: 'USD', donationType: 'general', email: 'global@example.com', name: 'Global Donor' });
+    assert.equal(result.status, 201); assert.equal(donation.currency, 'USD'); assert.equal(donation.amount, 25.50);
+  } finally { process.env.DONATION_CURRENCIES = 'NGN'; }
+});

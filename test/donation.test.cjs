@@ -119,3 +119,13 @@ test('billing authorization submits the entered address for the same checkout', 
   for (const [field, value] of Object.entries({ line1: '1 Test Street', city: 'Abuja', state: 'FCT', postal_code: '900001', country: 'ng' })) await fill('billing-' + field, value);
   await submit(); assert.ok(node.textContent.includes('one-time code'));
 });
+
+test('global currency menu follows API configuration and clears amounts when switching', async () => {
+  api.getConfig = async () => ({ data: { ...config, currencies: ['NGN', 'USD', 'GBP', 'EUR', 'GHS', 'ZAR', 'KES'] } });
+  await render(Donate);
+  assert.equal(node.querySelector('#currency').options.length, 7);
+  await fill('amount', '5000'); await fill('currency', 'USD');
+  assert.equal(node.querySelector('#amount').value, '');
+  assert.ok(node.textContent.includes('Amount (USD)')); assert.ok(node.textContent.includes('$25'));
+  assert.ok(node.textContent.includes('Continue to payment (USD)'));
+});

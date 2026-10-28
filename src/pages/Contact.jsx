@@ -57,7 +57,7 @@ const Contact = () => {
       <section className="bg-slate-950 text-white px-5 py-12 md:py-16">
         <div className="container-custom grid items-center gap-10 lg:grid-cols-2">
           <div><p className="text-xs font-semibold uppercase tracking-widest text-amber-300 mb-5">You are welcome here</p><h1 className="text-4xl md:text-5xl font-bold mb-5">Let’s connect.</h1><p className="text-slate-300 text-lg leading-relaxed">Have a question, planning a visit, or looking for a place to grow in faith? Connect with Christ’s Reformation House International.</p></div>
-          <figure><img src="/assets/portraits/anchord-black.webp" alt="Apostle (Dr) Anchord Taiwo in a black suit" width="1200" height="800" className="w-full rounded-2xl" decoding="async" /><figcaption className="mt-2 text-xs text-slate-400">Apostle (Dr) Anchord Taiwo · AI-created portrait</figcaption></figure>
+          <figure><img src="/assets/portraits/anchord-black.webp" alt="Apostle (Dr) Anchord Taiwo in a black suit" width="1200" height="800" className="w-full rounded-2xl" decoding="async" /><figcaption className="mt-2 text-xs text-slate-400">Apostle (Dr) Anchord Taiwo</figcaption></figure>
         </div>
       </section>
 
