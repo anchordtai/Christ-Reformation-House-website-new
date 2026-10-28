@@ -24,6 +24,7 @@ const {
 } = require('./flutterwave');
 
 const { enabledCurrencies, authorizationType, paymentResponse, matchesDonation, initializationKey } = require('./payment-state');
+const { paymentFailure } = require('./payment-failure');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -374,6 +375,9 @@ app.get('/api/payments/verify/:tx_ref', async (req, res) => {
     const charge = response.data?.data || response.data;
     const successful = await verifyChargeAgainstDonation(donation, charge);
     const chargeStatus = String(charge?.status || 'pending');
+    // A failed charge is not an amount/reference mismatch. Only expose diagnostics
+    // once the charge has been matched to this donation.
+    const failure = matchesDonation(donation, charge) ? paymentFailure(charge) : null;
     const attempts = Number(donation.verification_attempts || 0) + 1;
 
     try {
@@ -381,7 +385,7 @@ app.get('/api/payments/verify/:tx_ref', async (req, res) => {
         verification_attempts: attempts,
         status: successful ? 'successful' : (['failed', 'cancelled'].includes(chargeStatus) ? chargeStatus : 'pending'),
         verified_at: successful ? new Date().toISOString() : null,
-        failure_reason: successful ? null : 'Flutterwave verification did not match the expected transaction',
+        failure_reason: successful ? null : (failure ? `${failure.category}${failure.support_code ? ': ' + failure.support_code : ''}` : (isSuccessfulChargeStatus(chargeStatus) ? 'Flutterwave verification did not match the expected transaction' : null)),
       });
       if (successful && currentStatus !== 'successful') {
         await createPaymentEvent({
@@ -424,6 +428,7 @@ app.get('/api/payments/verify/:tx_ref', async (req, res) => {
       status: successful ? 'successful' : chargeStatus,
       tx_ref: donation.tx_ref,
       charge_status: chargeStatus,
+      ...(failure ? { failure } : {}),
       ...(successful ? {} : { error: chargeStatus === 'pending' ? 'Payment is still processing. Please wait and try again.' : 'Payment verification did not succeed.' }),
     });
   } catch (error) {

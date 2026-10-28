@@ -129,3 +129,12 @@ test('global currency menu follows API configuration and clears amounts when swi
   assert.ok(node.textContent.includes('Amount (USD)')); assert.ok(node.textContent.includes('$25'));
   assert.ok(node.textContent.includes('Continue to payment (USD)'));
 });
+
+test('failed return displays the safe processor reason without initiating another charge', async () => {
+  api.verify = async () => ({ data: { verified: false, status: 'failed', failure: { message: 'The payment processor reported insufficient funds.', support_code: '51' } } });
+  await render(Return, '/donate/return?tx_ref=' + reference);
+  assert.ok(node.textContent.includes('insufficient funds'));
+  assert.ok(node.textContent.includes('Provider support code: 51'));
+  assert.ok(node.textContent.includes('If you see a debit'));
+  assert.equal(initializeCalls, 0); assert.equal(createCalls, 0);
+});
