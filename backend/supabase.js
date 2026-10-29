@@ -92,11 +92,50 @@ async function getDonationByTxRef(txRef) {
   return response.data?.[0] || null;
 }
 
+const OPTIONAL_DONATION_COLUMNS = new Set(['failure_reason', 'verification_attempts', 'verified_at', 'webhook_received_at', 'webhook_payload']);
+
+function databaseDiagnostic(error) {
+  const data = error?.response?.data;
+  const code = typeof data?.code === 'string' && /^[A-Z0-9]{2,12}$/.test(data.code) ? data.code : null;
+  const message = typeof data?.message === 'string' ? data.message : '';
+  const missing = code === 'PGRST204' ? message.match(/Could not find the '([a-z_]+)' column of 'donations'/) : null;
+  return {
+    status: Number(error?.response?.status) || null,
+    code,
+    missing_column: OPTIONAL_DONATION_COLUMNS.has(missing?.[1]) ? missing[1] : null,
+    legacy_status_constraint: code === '23514' && message.includes('"donations_status_check"'),
+  };
+}
+
 async function updateDonationById(id, updates) {
-  const response = await axios.patch(`${getSupabaseRestUrl('donations')}?id=eq.${encodeURIComponent(id)}`, updates, {
-    headers: { ...getSupabaseHeaders(), Prefer: 'return=representation' }, timeout: 10000,
-  });
-  return response.data?.[0] || null;
+  const values = { ...updates };
+  // Retry only explicit, rejected schema operations. Never remove financial
+  // identity/status fields or retry a timeout as though it were a schema error.
+  for (let attempt = 0; attempt <= OPTIONAL_DONATION_COLUMNS.size + 1; attempt++) {
+    try {
+      const response = await axios.patch(`${getSupabaseRestUrl('donations')}?id=eq.${encodeURIComponent(id)}`, values, {
+        headers: { ...getSupabaseHeaders(), Prefer: 'return=representation' }, timeout: 10000,
+      });
+      if (!response.data?.[0]) throw new Error('Donation update returned no saved record');
+      return response.data[0];
+    } catch (error) {
+      const diagnostic = databaseDiagnostic(error);
+      if (diagnostic.legacy_status_constraint && values.status === 'successful') {
+        // Both checked-in schemas accept verified; the API already normalizes it.
+        values.status = 'verified';
+        console.warn('Donation schema compatibility:', { legacy_status: true });
+        continue;
+      }
+      if (diagnostic.missing_column && Object.hasOwn(values, diagnostic.missing_column)) {
+        delete values[diagnostic.missing_column];
+        if (!Object.keys(values).length) throw error;
+        console.warn('Donation schema compatibility:', { omitted_optional_column: diagnostic.missing_column });
+        continue;
+      }
+      throw error;
+    }
+  }
+  throw new Error('Donation schema reconciliation is required');
 }
 
 async function createPaymentEvent(event) {
@@ -116,6 +155,7 @@ module.exports = {
   getDonationByTxRef,
   updateDonationById,
   createPaymentEvent,
+  databaseDiagnostic,
 };
 
 
