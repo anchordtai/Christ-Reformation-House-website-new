@@ -18,7 +18,19 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+      - name: Check optional Firebase configuration
+        id: firebase
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_CHRISTS_REFORMATION_HOUSE }}
+        run: |
+          if [ -n "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Firebase publishing skipped: service-account secret is not configured. Build validation still runs; production uses Vercel."
+          fi
       - uses: FirebaseExtended/action-hosting-deploy@v0
+        if: steps.firebase.outputs.configured == 'true'
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_CHRISTS_REFORMATION_HOUSE }}
