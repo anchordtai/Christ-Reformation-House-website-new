@@ -9,7 +9,9 @@ const Footer = () => {
 
   const allQuickLinks = [
     { path: '/about', label: 'About Us' },
-    { path: '/sermons', label: 'Sermons' },
+    { path: '/watch', label: 'Watch & Grow' },
+    { path: '/salvation', label: 'New to Faith?' },
+    { path: '/testimonies', label: 'Testimonies' },
     { path: '/live', label: 'Live', adminOnly: true },
     { path: '/events', label: 'Events' },
     { path: '/ministries', label: 'Ministries' },
@@ -21,7 +23,7 @@ const Footer = () => {
 
   const resources = [
     { path: '/donate', label: 'Give Online' },
-    { path: '/prayer-request', label: 'Prayer Request' },
+    { path: '/prayer-support', label: 'Prayer & Support' },
     { path: '/contact', label: 'Contact Us' },
     { path: '/store', label: 'Church Store' },
   ]
@@ -55,9 +57,9 @@ const Footer = () => {
                   <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88 6.24V19.4a7.37 7.37 0 0 0 4.07 1.13 7.33 7.33 0 0 0 6.83-7.25v-7a4.85 4.85 0 0 0 3.77 4.26V2h3.45v4.69h.01ZM12.92 19.4a2.92 2.92 0 0 1-2.92-2.92v-6.9a2.92 2.92 0 1 1 2.92 2.9v6.92Z"/>
                 </svg>
               </a>
-              <a href={APP_CONFIG.CHURCH_YOUTUBE || '#'} target="_blank" rel="noopener noreferrer" className="hover:text-red-400 transition-colors" aria-label="YouTube">
+              {APP_CONFIG.CHURCH_YOUTUBE && <a href={APP_CONFIG.CHURCH_YOUTUBE} target="_blank" rel="noopener noreferrer" className="hover:text-red-400 transition-colors" aria-label="YouTube">
                 <Youtube size={20} />
-              </a>
+              </a>}
               <a href={APP_CONFIG.CHURCH_WHATSAPP_LINK} target="_blank" rel="noopener noreferrer" className="hover:text-green-400 transition-colors" aria-label="WhatsApp">
                 <MessageCircle size={20} />
               </a>
