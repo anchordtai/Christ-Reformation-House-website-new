@@ -1,0 +1,168 @@
+.platform-page { background:#fbfaf7; color:#172438; }
+.platform-page-hero { padding:74px 24px 78px; background:radial-gradient(ellipse at 90% 0,#314663,#101b2d 67%); color:#fff; }
+.platform-page-hero .ministry-eyebrow { color:#edc783; margin-bottom:22px; }
+.platform-page-hero h1 { max-width:1050px; font-size:clamp(2.5rem,5.8vw,4.7rem); font-weight:750; line-height:1.08; letter-spacing:-.045em; overflow-wrap:anywhere; }
+.platform-page-hero h1 span { color:#efc477; }
+.platform-page-hero p:not(.ministry-eyebrow) { max-width:720px; margin-top:24px; color:#ccd5df; font-size:17px; line-height:1.8; }
+.platform-page-hero .ministry-button { margin-top:30px; }
+.platform-page .ministry-section h2,.ministry-home .home-watch h2 { letter-spacing:-.035em; }
+.platform-lead { font-size:20px; line-height:1.8; color:#536176; margin:22px 0; }
+.ministry-button.dark { background:#172438; color:#fff; }
+.ministry-button.dark:hover { background:#2d4465; }
+.platform-actions { display:flex; flex-wrap:wrap; align-items:center; gap:14px; margin-top:24px; }
+.text-link { display:inline-flex; gap:8px; align-items:center; color:#8b5b19; text-decoration:underline; text-underline-offset:4px; font-size:14px; font-weight:600; }
+.preaching-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:24px; }
+.preaching-card { background:#fff; border:1px solid #e6e3dc; border-radius:19px; overflow:hidden; box-shadow:0 8px 30px #101b2d05; transition:transform .24s,box-shadow .24s; min-width:0; }
+.preaching-card:hover { transform:translateY(-5px); box-shadow:0 16px 40px #101b2d10; }
+.preaching-visual { display:block; aspect-ratio:1.5; position:relative; overflow:hidden; background:#192338; }
+.preaching-visual img { width:100%; height:100%; object-fit:cover; object-position:center top; transition:transform .4s; opacity:.83; }
+.preaching-card:nth-child(2) .preaching-visual img { object-position:center 38%; }
+.preaching-card:hover img { transform:scale(1.035); }
+.preaching-visual:after { content:''; position:absolute; inset:0; background:linear-gradient(0deg,#101b2dc9,transparent 75%); }
+.preaching-tag { position:absolute; top:16px; left:16px; z-index:1; color:#fff; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.12em; background:#101b2dcc; border:1px solid #ffffff30; border-radius:20px; padding:8px 12px; }
+.preaching-play { display:flex; align-items:center; gap:10px; position:absolute; bottom:20px; left:22px; z-index:1; color:#fff; font-size:13px; font-weight:600; }
+.preaching-play svg { color:#efc477; }
+.preaching-copy { padding:25px; }
+.scripture-ref { color:#99703a; text-transform:uppercase; font-size:10px; font-weight:700; letter-spacing:.12em; }
+.preaching-copy h3 { font-size:23px; font-weight:700; line-height:1.25; letter-spacing:-.025em; margin:10px 0 13px; }
+.preaching-copy p { color:#637084; font-size:14px; line-height:1.8; }
+.preaching-copy>a { display:inline-flex; align-items:center; gap:7px; color:#86602a; font-size:13px; font-weight:650; margin-top:22px; }
+.home-salvation { background:#15243a; color:white; position:relative; overflow:hidden; }
+.home-salvation:before { content:''; position:absolute; width:500px; height:500px; border:1px solid #e3bf7d20; border-radius:50%; right:-130px; top:-220px; pointer-events:none; }
+.home-salvation-inner { display:grid; grid-template-columns:1.3fr 1fr; gap:72px; align-items:center; position:relative; }
+.home-salvation .ministry-eyebrow { color:#edc783; }
+.home-salvation h2 { font-size:clamp(32px,3.8vw,48px); font-weight:700; line-height:1.16; letter-spacing:-.03em; }
+.home-salvation h2 em { color:#efc477; font-family:Georgia,serif; font-weight:400; }
+.home-salvation p:not(.ministry-eyebrow) { margin:24px 0; color:#becbda; line-height:1.9; max-width:570px; }
+.salvation-verse { border-left:1px solid #efc47740; padding:35px 0 35px 45px; }
+.salvation-verse>span { font-size:11px; letter-spacing:.2em; color:#d5b477; }
+.salvation-verse p { font-family:Georgia,serif; font-size:27px; line-height:1.6!important; color:#f5ead7!important; }
+.salvation-verse a { color:#e6c790; display:inline-flex; align-items:center; gap:12px; font-size:14px; }
+.testimony-invitation { display:flex; align-items:center; justify-content:space-between; gap:35px; background:#f1ede5; border:1px solid #e5ddce; border-radius:22px; padding:35px 42px; }
+.story-mark { font-family:Georgia,serif; font-size:70px; line-height:.8; color:#c29956; display:block; margin-bottom:10px; }
+.testimony-invitation h3 { font-size:25px; font-weight:650; letter-spacing:-.02em; }
+.testimony-invitation p { color:#677080; max-width:580px; line-height:1.8; font-size:14px; margin-top:12px; }
+.testimony-invitation .ministry-button { white-space:nowrap; }
+.salvation-layout,.testimony-layout { display:grid; grid-template-columns:1.1fr 1fr; gap:65px; align-items:start; }
+.salvation-layout h2,.testimony-layout h2 { font-size:clamp(30px,4vw,45px); font-weight:700; line-height:1.18; }
+.salvation-layout>div>p:not(.platform-lead):not(.ministry-eyebrow) { color:#647084; line-height:1.85; }
+.scripture-chips { display:flex; gap:8px; flex-wrap:wrap; margin-top:25px; }
+.scripture-chips span { padding:8px 12px; border:1px solid #e1d8c7; border-radius:20px; font-size:11px; color:#87622f; }
+.prayer-panel { padding:35px; border-radius:22px; background:#f0ebe1; border:1px solid #e0d5c0; }
+.prayer-panel>svg { color:#a57937; margin-bottom:22px; }
+.prayer-panel h3 { font-size:24px; font-weight:650; margin-bottom:16px; }
+.prayer-panel p { font-size:18px; font-family:Georgia,serif; line-height:1.9; color:#3f4b5d; }
+.prayer-panel small { display:block; margin-top:20px; color:#777263; line-height:1.7; font-size:12px; }
+.platform-next { padding-top:0; }
+.platform-next>div { border:1px solid #e3dfd6; border-radius:22px; padding:40px; background:#fff; }
+.platform-next h2 { font-size:32px; font-weight:700; margin:16px 0; }
+.platform-next p { color:#667181; line-height:1.9; max-width:800px; }
+.support-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:22px; }
+.support-card { border:1px solid #e5e0d7; border-radius:19px; background:#fff; padding:30px; min-width:0; }
+.support-card>svg { color:#b18c51; margin-bottom:25px; }
+.support-card h3 { font-size:21px; font-weight:650; line-height:1.35; margin-bottom:14px; }
+.support-card p { color:#647084; font-size:14px; line-height:1.9; }
+.testimony-note { display:flex; gap:13px; padding:22px; border:1px solid #e7decd; border-radius:15px; background:#f1ede4; margin:28px 0; color:#72634b; font-size:13px; line-height:1.8; }
+.testimony-note svg { flex-shrink:0; }
+.testimony-form,.meeting-action-card { background:#fff; border:1px solid #e5e0d7; padding:32px; border-radius:22px; min-width:0; }
+.testimony-form h3 { font-size:24px; font-weight:650; margin-bottom:15px; }
+.testimony-form p { color:#657084; line-height:1.8; }
+.testimony-form label,.meeting-action-card label,.invitation-panel label { font-size:13px; font-weight:600; color:#435067; display:block; margin:0 0 20px; }
+.testimony-form input:not([type=checkbox]),.testimony-form textarea,.meeting-action-card input,.meeting-action-card select,.invitation-panel input { display:block; width:100%; min-width:0; padding:13px 15px; margin-top:9px; border:1px solid #d8dce1; border-radius:10px; background:#fff; color:#172438; font-size:16px; font-weight:400; }
+.testimony-form .check-label { display:flex; align-items:flex-start; gap:10px; line-height:1.7; font-weight:400; }
+.check-label input { margin-top:5px; width:17px; height:17px; flex-shrink:0; accent-color:#172438; }
+.testimony-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:20px; }
+.testimony-grid blockquote { padding:30px; background:white; border:1px solid #e7e0d5; border-radius:18px; }
+.testimony-grid blockquote p { font-family:Georgia,serif; font-size:20px; line-height:1.8; margin-bottom:20px; }
+.meeting-features { display:flex; flex-wrap:wrap; gap:10px; margin-top:30px; }
+.meeting-features span { display:flex; align-items:center; gap:8px; color:#dce4ef; border:1px solid #ffffff24; background:#ffffff06; border-radius:25px; padding:9px 14px; font-size:12px; }
+.meeting-notice { display:flex; align-items:flex-start; gap:14px; padding:22px 25px; border:1px solid #e4d7bd; background:#f5f0e5; border-radius:16px; color:#685534; margin-bottom:25px; font-size:14px; line-height:1.8; }
+.meeting-notice>svg { flex-shrink:0; margin-top:3px; }
+.meeting-form-grid,.meeting-room-layout { display:grid; grid-template-columns:1fr 1fr; gap:26px; align-items:start; }
+.meeting-action-card.light { background:#f0f2f3; }
+.meeting-action-card>svg { color:#a88143; margin-bottom:24px; }
+.meeting-action-card h2 { font-size:28px; font-weight:700; letter-spacing:-.025em; margin-bottom:14px; }
+.meeting-action-card p { color:#647084; line-height:1.8; font-size:14px; margin-bottom:24px; }
+.meeting-action-card .text-link { margin-top:24px; }
+.invitation-panel { margin-top:25px; border:1px solid #cfc1a4; border-radius:20px; padding:30px; background:#fffdf8; min-width:0; }
+.meeting-room-layout>.invitation-panel { margin-top:0; }
+.invitation-panel h3 { font-size:25px; font-weight:700; letter-spacing:-.025em; overflow-wrap:anywhere; margin:12px 0; }
+.invitation-panel>p:not(.ministry-eyebrow) { color:#647084; font-size:13px; line-height:1.9; margin-bottom:20px; }
+.invitation-panel .ministry-eyebrow { font-size:10px; }
+.invitation-panel input { font-family:ui-monospace,monospace; font-size:12px; }
+.invitation-share { display:flex; flex-wrap:wrap; align-items:center; gap:18px; font-size:12px; margin:22px 0; color:#87602b; }
+.invitation-share a { display:inline-flex; align-items:center; gap:6px; text-decoration:underline; text-underline-offset:4px; }
+.secondary-button { display:inline-flex; justify-content:center; align-items:center; gap:9px; padding:12px 18px; border:1px solid #cfd4dc; border-radius:10px; color:#263850; background:#fff; font-size:13px; font-weight:600; }
+.meeting-back { display:inline-flex; gap:8px; align-items:center; color:#c5d0df; font-size:13px; margin-bottom:35px; }
+.platform-page-hero .meeting-open-note { font-size:12px!important; max-width:720px; line-height:1.8!important; margin-top:16px!important; }
+.device-check { background:#fff; border:1px solid #dce1e8; padding:23px; border-radius:17px; margin-top:26px; }
+.device-check summary { cursor:pointer; font-weight:650; font-size:15px; color:#233650; }
+.device-check>p { color:#657084; font-size:13px; line-height:1.9; margin:16px 0; }
+.device-check .platform-actions button { display:inline-flex; align-items:center; gap:8px; border:1px solid #d5dbe3; border-radius:9px; background:#f4f6f8; padding:10px 14px; font-size:12px; }
+.device-check button:disabled { opacity:.5; }
+.device-check .camera-preview { width:100%; max-height:300px; background:#101b2d; object-fit:contain; border-radius:12px; margin-top:22px; transform:scaleX(-1); }
+.device-check .device-error,.platform-error { color:#8f2836; background:#fff1f2; border:1px solid #f1ccd1; padding:16px; border-radius:12px; font-size:14px; line-height:1.8; margin:18px 0; }
+.floating-give { position:fixed; bottom:23px; left:24px; z-index:60; display:flex; align-items:center; gap:9px; border-radius:30px; background:#edc17a; color:#172438; padding:13px 21px; box-shadow:0 8px 25px #17243824; font-size:14px; font-weight:700; border:1px solid #fff8; }
+.floating-give:hover { background:#f5d59e; }
+.ministry-chat-toggle { position:fixed; bottom:81px; right:24px; z-index:75; display:flex; align-items:center; gap:9px; background:#172438; color:#fff; border-radius:30px; padding:14px 20px; box-shadow:0 8px 30px #17243835; border:1px solid #ffffff40; font-size:13px; font-weight:600; }
+.ministry-chat { position:fixed; right:24px; bottom:144px; z-index:76; width:370px; max-width:calc(100vw - 28px); height:min(550px,calc(100dvh - 170px)); display:grid; grid-template-rows:auto minmax(0,1fr) auto auto auto; border:1px solid #dedbd4; border-radius:22px; background:#fff; box-shadow:0 20px 70px #101b2d36; overflow:hidden; }
+.ministry-chat>header { display:flex; align-items:center; gap:11px; padding:18px; background:#172438; color:#fff; }
+.guide-avatar { width:38px; height:38px; background:#ffffff12; border:1px solid #ffffff20; border-radius:50%; display:grid; place-items:center; color:#efc477; flex-shrink:0; }
+.ministry-chat h2 { font-size:15px; font-weight:650; line-height:1.3; }
+.ministry-chat header p { font-size:9px; color:#c4ceda; margin-top:5px; }
+.ministry-chat header button { margin-left:auto; padding:6px; }
+.guide-messages { overflow-y:auto; padding:17px; display:flex; flex-direction:column; gap:13px; overscroll-behavior:contain; }
+.guide-message { border:1px solid #e5e2dc; background:#f4f2ed; border-radius:14px 14px 14px 3px; padding:12px 14px; max-width:95%; color:#47546a; font-size:12px; line-height:1.85; }
+.guide-message.visitor { align-self:flex-end; background:#172438; color:#fff; border-color:#172438; border-radius:14px 14px 3px 14px; }
+.guide-links { display:flex; flex-direction:column; gap:5px; margin-top:10px; }
+.guide-links a { display:flex; gap:7px; align-items:center; font-weight:650; color:#87602b; text-decoration:underline; text-underline-offset:3px; }
+.guide-suggestions { padding:10px 15px; display:flex; flex-wrap:wrap; gap:6px; border-top:1px solid #ebe7e0; }
+.guide-suggestions button { border:1px solid #e2d8c6; padding:5px 9px; border-radius:20px; font-size:10px; color:#77562a; background:#fdfbf6; }
+.ministry-chat form { display:flex; gap:9px; align-items:center; padding:8px 15px; }
+.ministry-chat form input { width:100%; min-width:0; border:1px solid #d9dee5; border-radius:11px; padding:11px; font-size:16px; }
+.ministry-chat form button { padding:10px; border-radius:10px; background:#172438; color:#fff; }
+.ministry-chat form button:disabled { opacity:.4; }
+.guide-privacy { padding:5px 16px 13px; font-size:9px; line-height:1.6; color:#778191; }
+.platform-page button:focus-visible,.platform-page a:focus-visible,.floating-give:focus-visible,.ministry-chat-toggle:focus-visible,.ministry-chat button:focus-visible,.ministry-chat a:focus-visible { outline:3px solid #c28b32; outline-offset:4px; }
+@media(max-width:900px) {
+ .preaching-grid { gap:16px; }
+ .preaching-copy { padding:20px; }
+ .preaching-copy h3 { font-size:21px; }
+ .home-salvation-inner { gap:30px; }
+ .salvation-layout,.testimony-layout { gap:30px; }
+ .support-grid { grid-template-columns:1fr; }
+ .testimony-invitation { padding:30px; }
+ .testimony-invitation .ministry-button { white-space:normal; }
+}
+@media(max-width:700px) {
+ .platform-page-hero { padding:50px 20px; }
+ .platform-page-hero p:not(.ministry-eyebrow) { font-size:15px; }
+ .preaching-grid,.home-salvation-inner,.salvation-layout,.testimony-layout,.meeting-form-grid,.meeting-room-layout,.testimony-grid { grid-template-columns:1fr; }
+ .preaching-visual { aspect-ratio:1.7; }
+ .salvation-verse { border-left:0; border-top:1px solid #efc47740; padding:30px 0 0; }
+ .testimony-invitation { display:block; padding:28px; }
+ .testimony-invitation .ministry-button { margin-top:25px; }
+ .testimony-form,.meeting-action-card,.prayer-panel,.invitation-panel { padding:24px; }
+ .platform-next>div { padding:28px; }
+ .ministry-chat-toggle { right:14px; bottom:80px; padding:12px 16px; }
+ .ministry-chat { right:14px; bottom:139px; }
+ .floating-give { left:14px; bottom:23px; padding:12px 18px; }
+ .meeting-notice { padding:18px; font-size:13px; }
+ .platform-actions .ministry-button { justify-content:center; }
+}
+@media(prefers-reduced-motion:reduce) { .preaching-card,.preaching-visual img { transition:none; } .preaching-card:hover,.preaching-card:hover img { transform:none; } }
+.platform-header { background:#fff; border-bottom:1px solid #e8e4dd; box-shadow:0 4px 20px #101b2d06; }
+.platform-brand { display:flex; align-items:center; gap:12px; min-width:0; }
+.platform-brand img { width:48px; height:48px; object-fit:cover; border-radius:50%; flex-shrink:0; }
+.platform-brand strong { display:block; font-size:20px; letter-spacing:-.025em; color:#172438; line-height:1.3; }
+.platform-brand small { display:block; color:#718096; font-size:11px; margin-top:2px; }
+.platform-nav { gap:4px; align-items:center; }
+.platform-nav a { padding:10px 13px; border-radius:9px; font-size:13px; font-weight:550; color:#455367; transition:background .2s,color .2s; }
+.platform-nav a:hover { background:#f2eee6; color:#172438; }
+.platform-nav a[aria-current=page] { color:#fff; background:#172438; }
+.platform-nav a[href='/donate']:not([aria-current=page]) { background:#efc477; color:#172438; }
+.platform-mobile-nav { display:flex; flex-direction:column; align-items:stretch; padding:10px 0 18px; border-top:1px solid #eee9e0; max-height:calc(100dvh - 80px); overflow:auto; }
+.platform-header a:focus-visible,.platform-header button:focus-visible { outline:3px solid #c28b32; outline-offset:3px; }
+@media(min-width:1280px) { .platform-mobile-nav { display:none; } }
+@media(max-width:600px) { .platform-brand strong { font-size:15px; } .platform-brand img { width:42px; height:42px; } .platform-brand { gap:9px; } }
+@media(prefers-reduced-motion:reduce) { .platform-nav a { transition:none; } }

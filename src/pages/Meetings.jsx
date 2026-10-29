@@ -1,154 +1,36 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Calendar, Plus, LayoutList, CalendarDays } from 'lucide-react'
-import { useApi } from '../hooks/useApi'
-import { useAuth } from '../context/AuthContext'
-import { meetingsService } from '../services/api'
-import MeetingCard from '../components/meetings/MeetingCard'
-import MeetingCalendar from '../components/meetings/MeetingCalendar'
-import Loading from '../components/Loading'
-import Error from '../components/Error'
+import { Link, useNavigate } from 'react-router-dom'
+import { Video, Mic, Monitor, MessageCircle, Calendar, ArrowRight, Users, ShieldCheck } from 'lucide-react'
 import MetaTags from '../components/MetaTags'
+import DeviceCheck from '../components/meetings/DeviceCheck'
+import InvitationPanel from '../components/meetings/InvitationPanel'
+import { newMeetingRoom, meetingLink, parseMeetingInput } from '../utils/meeting-links.mjs'
 
 export default function Meetings() {
-  const { isAdmin } = useAuth()
-  const [viewMode, setViewMode] = useState('list')
-  const [calendarMonth, setCalendarMonth] = useState(new Date())
-  const { data, loading, error, refetch } = useApi(() => meetingsService.getAll(), [])
-  const meetings = Array.isArray(data) ? data : []
-
-  const upcoming = meetings.filter((m) => {
-    if (m.status === 'cancelled') return false
-    const end = m.endTime ? new Date(m.endTime) : null
-    return !end || end >= new Date()
-  })
-  const past = meetings.filter((m) => {
-    const end = m.endTime ? new Date(m.endTime) : null
-    return end && end < new Date()
-  })
-
-  const handleCancel = async (meetingId) => {
-    if (!window.confirm('Cancel this meeting?')) return
-    try {
-      await meetingsService.cancel(meetingId)
-      refetch?.()
-    } catch (err) {
-      console.error(err)
-    }
+  const navigate = useNavigate()
+  const [title, setTitle] = useState('')
+  const [join, setJoin] = useState('')
+  const [error, setError] = useState('')
+  const [invitation, setInvitation] = useState(null)
+  function create(event) {
+    event.preventDefault(); setError('')
+    try { const room = newMeetingRoom(); setInvitation({ room, title: title.trim().slice(0, 100) || 'CRH Online Fellowship', url: meetingLink(room, window.location.origin, title) }) }
+    catch (cause) { setError(cause.message) }
   }
-
-  return (
-    <div className="min-h-screen bg-slate-50">
-      <MetaTags title="Meetings & Prayer" description="Schedule and join meetings and prayer services." />
-
-      <section className="bg-gradient-to-br from-slate-900 via-indigo-900 to-slate-900 text-white py-12">
-        <div className="container-custom">
-          <h1 className="text-3xl sm:text-4xl font-bold">Meetings & Prayer</h1>
-          <p className="text-slate-300 mt-2">
-            {isAdmin
-              ? 'Schedule a meeting or join a prayer service online.'
-              : 'Join upcoming meetings and prayer services online.'}
-          </p>
-          {isAdmin && (
-            <Link
-              to="/meetings/schedule"
-              className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 bg-white text-indigo-600 font-semibold rounded-xl hover:bg-slate-100 transition-colors"
-            >
-              <Plus className="w-5 h-5" />
-              Schedule meeting
-            </Link>
-          )}
-        </div>
-      </section>
-
-      <section className="section-padding">
-        <div className="container-custom">
-          {loading && <Loading message="Loading meetings..." />}
-          {error && <Error message={error} />}
-
-          {!loading && !error && (
-            <>
-              <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-                <div className="flex rounded-xl border border-slate-200 bg-white p-1">
-                  <button
-                    type="button"
-                    onClick={() => setViewMode('list')}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      viewMode === 'list' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    <LayoutList className="w-4 h-4" />
-                    List
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setViewMode('calendar')}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      viewMode === 'calendar' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    <CalendarDays className="w-4 h-4" />
-                    Calendar
-                  </button>
-                </div>
-              </div>
-
-              {meetings.length === 0 && (
-                <div className="text-center py-16 bg-white rounded-2xl border border-slate-200">
-                  <Calendar className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-                  <p className="text-slate-600">No upcoming meetings.</p>
-                  {isAdmin && (
-                    <Link
-                      to="/meetings/schedule"
-                      className="mt-4 inline-block text-indigo-600 font-medium hover:underline"
-                    >
-                      Schedule one
-                    </Link>
-                  )}
-                </div>
-              )}
-
-              {viewMode === 'calendar' && meetings.length > 0 && (
-                <MeetingCalendar
-                  meetings={meetings}
-                  currentMonth={calendarMonth}
-                  onMonthChange={setCalendarMonth}
-                />
-              )}
-
-              {viewMode === 'list' && meetings.length > 0 && (
-                <div className="space-y-6">
-                  {upcoming.length > 0 && (
-                    <div>
-                      <h2 className="text-lg font-semibold text-slate-900 mb-4">Upcoming</h2>
-                      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                        {upcoming.map((m) => (
-                          <MeetingCard
-                            key={m.id}
-                            meeting={m}
-                            onCancel={isAdmin ? handleCancel : undefined}
-                            onRefetch={refetch}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {past.length > 0 && (
-                    <div>
-                      <h2 className="text-lg font-semibold text-slate-900 mb-4">Past meetings</h2>
-                      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                        {past.map((m) => (
-                          <MeetingCard key={m.id} meeting={m} />
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      </section>
-    </div>
-  )
+  function joinRoom(event) {
+    event.preventDefault(); setError('')
+    try { const parsed = parseMeetingInput(join, window.location.origin); const url = new URL(meetingLink(parsed.room, window.location.origin, parsed.title)); navigate(url.pathname + url.search) }
+    catch (cause) { setError(cause.message) }
+  }
+  return <div className="platform-page meeting-center"><MetaTags title="Online meeting center" description="Create or join an online ministry meeting with audio, video, screen sharing and chat." />
+    <section className="platform-page-hero"><div className="container-custom"><p className="ministry-eyebrow">Fellowship beyond distance</p><h1>One invitation.<br /><span>Room for connection.</span></h1><p>Gather for prayer, teaching and conversation. Prepare your invitation here, then open your call in Jitsi for audio, video, screen sharing and chat.</p><div className="meeting-features"><span><Mic size={17} />Audio</span><span><Video size={17} />Video</span><span><Monitor size={17} />Screen sharing</span><span><MessageCircle size={17} />Chat</span></div></div></section>
+    <section className="ministry-section"><div className="meeting-notice"><ShieldCheck size={22} /><p><strong>Before you host:</strong> sign in on Jitsi and start the room before inviting guests. Public Jitsi meetings have a 95-minute limit. Calls open in a separate meeting window; the ministry website stays available.</p></div>
+      {error && <p role="alert" className="platform-error">{error}</p>}
+      <div className="meeting-form-grid"><article className="meeting-action-card"><Video size={30} /><h2>Host a meeting</h2><p>Create a unique invitation for your gathering. No ministry-site account is required to prepare a link.</p><form onSubmit={create}><label htmlFor="meeting-title">Meeting title (optional)<input id="meeting-title" maxLength={100} value={title} onChange={event => setTitle(event.target.value)} placeholder="Prayer, Bible study, fellowship…" /></label><button className="ministry-button dark" type="submit">Create an invitation<ArrowRight size={18} /></button></form><Link className="text-link" to="/meetings/schedule"><Calendar size={16} />Plan a time and download a calendar invitation</Link></article>
+        <article className="meeting-action-card light"><Users size={30} /><h2>Join your gathering</h2><p>Have an invitation from your host? Paste the full church or Jitsi meeting link, or enter the meeting code.</p><form onSubmit={joinRoom}><label htmlFor="meeting-join">Invitation link or meeting code<input id="meeting-join" value={join} onChange={event => setJoin(event.target.value)} maxLength={1000} required placeholder="Paste your host’s invitation" autoComplete="off" /></label><button className="ministry-button dark" type="submit">Continue to meeting<ArrowRight size={18} /></button></form><p className="text-xs text-slate-600">Guests may need to wait for the host or enter a room password.</p></article></div>
+      {invitation && <InvitationPanel key={invitation.room} invitation={invitation} />}
+      <DeviceCheck />
+    </section>
+    <section className="ministry-section meeting-help"><div className="ministry-section-heading"><div><p className="ministry-eyebrow">A smoother gathering</p><h2>A few steps.<br />A better conversation.</h2></div><p>Check your devices before Sunday, and rehearse with one guest before inviting the congregation.</p></div><div className="support-grid">{[{ title: 'Host first, then invite', text: 'Open the room, complete the provider’s host sign-in, and use its security controls to enable a lobby or password.' }, { title: 'Choose the right device', text: 'Use a current desktop browser for presenting your screen. Headphones help avoid echo. Camera and microphone permissions are controlled by your browser.' }, { title: 'Keep the invitation safe', text: 'Share private prayer-room links only with intended guests. Moderation and screen sharing use the provider’s controls. Recording availability depends on the provider.' }].map(item => <article className="support-card" key={item.title}><h3>{item.title}</h3><p>{item.text}</p></article>)}</div></section>
+  </div>
 }
