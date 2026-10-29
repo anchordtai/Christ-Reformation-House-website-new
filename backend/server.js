@@ -13,6 +13,7 @@ const {
   updateDonationById,
   createPaymentEvent,
   claimDonationInitialization,
+  databaseDiagnostic,
 } = require('./supabase');
 const {
   getAccessToken,
@@ -469,18 +470,8 @@ app.get('/api/payments/verify/:tx_ref', async (req, res) => {
         verified_at: successful ? new Date().toISOString() : null,
         failure_reason: successful ? null : (failure ? `${failure.category}${failure.support_code ? ': ' + failure.support_code : ''}` : (isSuccessfulChargeStatus(chargeStatus) ? 'Flutterwave verification did not match the expected transaction' : null)),
       });
-      if (successful && currentStatus !== 'successful') {
-        await createPaymentEvent({
-          donation_id: donation.id,
-          event_type: 'charge_verified',
-          provider: 'flutterwave',
-          provider_transaction_id: String(charge.id),
-          status: chargeStatus,
-          payload: { id: charge.id, reference: charge.reference, amount: charge.amount, currency: charge.currency, status: charge.status },
-        });
-      }
     } catch (dbError) {
-      console.error('Donation update failed during verification:', dbError.message);
+      console.error('Donation update failed during verification:', databaseDiagnostic(dbError));
       if (successful) {
         return res.json({
           verified: true,
@@ -490,6 +481,20 @@ app.get('/api/payments/verify/:tx_ref', async (req, res) => {
           charge_status: chargeStatus,
           warning: 'Payment confirmed with Flutterwave, but the database could not be updated.',
         });
+      }
+    }
+
+    let auditWarning;
+    if (successful && currentStatus !== 'successful') {
+      try {
+        await createPaymentEvent({
+          donation_id: donation.id, event_type: 'charge_verified', provider: 'flutterwave',
+          provider_transaction_id: String(charge.id), status: chargeStatus,
+          payload: { id: charge.id, reference: charge.reference, amount: charge.amount, currency: charge.currency, status: charge.status },
+        });
+      } catch (error) {
+        console.error('Verified donation audit record unavailable:', databaseDiagnostic(error));
+        auditWarning = 'Your payment is confirmed and saved. A ministry audit record still needs reconciliation.';
       }
     }
 
@@ -510,6 +515,7 @@ app.get('/api/payments/verify/:tx_ref', async (req, res) => {
       status: successful ? 'successful' : chargeStatus,
       tx_ref: donation.tx_ref,
       charge_status: chargeStatus,
+      ...(auditWarning ? { warning: auditWarning } : {}),
       ...(failure ? { failure } : {}),
       ...(successful ? {} : { error: chargeStatus === 'pending' ? 'Payment is still processing. Please wait and try again.' : 'Payment verification did not succeed.' }),
     });
@@ -544,14 +550,6 @@ app.post('/api/payments/webhook', async (req, res) => {
     const charge = response.data?.data || response.data;
     if (!matchesDonation(donation, charge) || (donation.metadata?.bank_transfer && customerId(charge) !== donation.metadata.bank_transfer.customer_id)) return res.status(200).json({ received: true });
     const valid = await verifyChargeAgainstDonation(donation, charge);
-    await createPaymentEvent({
-      donation_id: donation.id,
-      event_type: String(event.type || 'charge.completed').slice(0, 100),
-      provider: 'flutterwave',
-      provider_transaction_id: chargeId,
-      status: String(charge?.status || 'received').slice(0, 50),
-      payload: { id: data.id, reference: data.reference, status: data.status, amount: data.amount, currency: data.currency },
-    });
     const updates = {
       webhook_received_at: new Date().toISOString(),
       webhook_payload: { id: event.id || null, type: event.type || null, data: { id: data.id, reference: data.reference, status: data.status, amount: data.amount, currency: data.currency } },
@@ -563,9 +561,18 @@ app.post('/api/payments/webhook', async (req, res) => {
       updates.failure_reason = null;
     }
     await updateDonationById(donation.id, updates);
+    // An unavailable audit table must not prevent saving a verified donation.
+    // A later failure still returns 500 so Flutterwave can retry event delivery.
+    await createPaymentEvent({
+      donation_id: donation.id,
+      event_type: String(event.type || 'charge.completed').slice(0, 100),
+      provider: 'flutterwave', provider_transaction_id: chargeId,
+      status: String(charge?.status || 'received').slice(0, 50),
+      payload: { id: data.id, reference: data.reference, status: data.status, amount: data.amount, currency: data.currency },
+    });
     return res.status(200).json({ received: true });
   } catch (error) {
-    console.error('Flutterwave webhook processing failed:', error.response?.status || error.message);
+    console.error('Flutterwave webhook processing failed:', databaseDiagnostic(error));
     return res.status(500).json({ error: 'Webhook processing failed' });
   }
 });

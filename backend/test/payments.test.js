@@ -7,6 +7,7 @@ const { prepareAuthorization, encryptCardPaymentMethod } = provider;
 const { initializationKey } = require('../payment-state');
 process.env.FLW_ENCRYPTION_KEY = Buffer.alloc(32, 7).toString('base64');
 process.env.DONATION_CURRENCIES = 'NGN';
+process.env.FLW_WEBHOOK_SECRET_HASH = 'mock-webhook-secret';
 let donation, charge, creates, claims, authorizations, dbError, providerError, updateError, eventError, virtualCreates, customers, transferCharges, lastMethod, customerConflict, existingCustomer, recoveredAccounts;
 const fixture = () => ({ id: 'donation-1', tx_ref: 'crh-123e4567-e89b-42d3-a456-426614174000', amount: 5000, currency: 'NGN', donor_name: 'Test Donor', email: 'test@example.com', donation_type: 'general', status: 'pending', metadata: {} });
 Object.assign(db, {
@@ -198,6 +199,25 @@ test('verification rejects successful provider payments with mismatched amounts'
 test('verification confirms matching successful payments', async () => {
   donation.flutterwave_transaction_id = charge.id; charge.status = 'succeeded';
   const result = await fetch(base + '/payments/verify/' + donation.tx_ref); assert.equal((await result.json()).verified, true); assert.equal(donation.status, 'successful');
+});
+
+test('a verified donation remains saved when the audit event fails', async () => {
+  donation.flutterwave_transaction_id = charge.id; charge.status = 'succeeded'; eventError = true;
+  const data = await (await fetch(base + '/payments/verify/' + donation.tx_ref)).json();
+  assert.equal(data.verified, true); assert.equal(donation.status, 'successful');
+  assert.ok(data.warning.includes('confirmed and saved')); assert.equal(data.warning.includes('database could not be updated'), false);
+});
+test('legacy verified records normalize to a confirmed API result', async () => {
+  donation.status = 'verified';
+  const data = await (await fetch(base + '/payments/verify/' + donation.tx_ref)).json();
+  assert.equal(data.verified, true); assert.equal(data.status, 'successful');
+});
+test('webhook saves a verified donation before a failed audit write requests redelivery', async () => {
+  charge.status = 'succeeded'; eventError = true;
+  const body = JSON.stringify({ type: 'charge.completed', data: charge });
+  const signature = crypto.createHmac('sha256', 'mock-webhook-secret').update(body).digest('base64');
+  const result = await fetch(base + '/payments/webhook', { method: 'POST', headers: { 'Content-Type': 'application/json', 'flutterwave-signature': signature }, body });
+  assert.equal(result.status, 500); assert.equal(donation.status, 'successful'); assert.equal(donation.flutterwave_transaction_id, charge.id);
 });
 test('PIN is encrypted and invalid authorization values are rejected', () => {
   const value = prepareAuthorization({ type: 'pin', code: '1234' }); const encrypted = Buffer.from(value.pin.encrypted_pin, 'base64');
