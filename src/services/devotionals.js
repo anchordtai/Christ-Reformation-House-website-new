@@ -14,3 +14,12 @@ export const saveEntry = (date,body) => client.post(`/devotional-editor/entries/
 export const readDevotionals = params => client.get('/devotionals',{ params })
 export const devotionalError = e => e.response?.data?.error || 'Unable to connect. Please try again.'
 export function nigeriaToday() { return new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Lagos',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()) }
+
+export async function requestEditorPassword(email) {
+  const { data } = await client.post('/devotional-editor/password-reset', { email })
+  return data.message
+}
+export async function setEditorPassword(token, password) {
+  const { data } = await client.post('/devotional-editor/password', { password }, { headers:{ Authorization:`Bearer ${token}` } })
+  return data.message
+}

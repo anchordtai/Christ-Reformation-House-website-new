@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import DevotionalReading from '../components/DevotionalReading'
-import { editorToken, editorLogin, signOutEditor, listDrafts, saveEntry, devotionalError } from '../services/devotionals'
+import { editorToken, editorLogin, signOutEditor, listDrafts, saveEntry, devotionalError, requestEditorPassword, setEditorPassword } from '../services/devotionals'
 import './Devotional.css'
 const textFields = ['title','monthlyTheme','dailyTheme','messageTitle','mainReference','mainPassage','translation','centralTruth','message','declaration','dailyAction','closingPrayer','memoryReference','memoryVerse','reflectionQuestion','socialSummary','author']
 const listFields = ['supportingReferences','keyLessons','individualPrayers','familyPrayers','churchPrayers','nationsPrayers','ministryPrayers']
@@ -9,7 +9,21 @@ const applicationFields = ['personal','family','work','relationships','service',
 const label = s => s.replace(/([A-Z])/g,' $1').replace(/^./,x=>x.toUpperCase())
 const fresh = () => ({...Object.fromEntries(textFields.map(k=>[k,k==='translation'?'KJV':''])), ...Object.fromEntries(listFields.map(k=>[k,[]])), applications:Object.fromEntries(applicationFields.map(k=>[k,'']))})
 export default function DevotionalEditor() {
-  const [signed,setSigned] = useState(!!editorToken())
+  const [recoveryToken,setRecoveryToken] = useState(() => {
+    const params = new URLSearchParams(window.location.hash.slice(1))
+    const token = params.get('access_token')
+    return params.get('type') === 'recovery' && token && token.length <= 8192 ? token : ''
+  })
+  const [resetMode,setResetMode] = useState(false)
+  const [confirmPassword,setConfirmPassword] = useState('')
+  const [signed,setSigned] = useState(() => !window.location.hash.includes('type=recovery') && !!editorToken())
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.hash.slice(1))
+    if (params.has('access_token') || params.has('refresh_token') || params.has('error')) {
+      window.history.replaceState(null, '', window.location.pathname + window.location.search)
+      if (params.has('error')) setError('This email link has expired or is invalid. Request a new password email.')
+    }
+  },[])
   const [rows,setRows] = useState([])
   const [row,setRow] = useState(null)
   const [content,setContent] = useState(null)
@@ -28,6 +42,19 @@ export default function DevotionalEditor() {
   useEffect(()=>{ if(signed) load().catch(handleError) },[signed])
   useEffect(()=>{ const f=e=>{if(dirty){e.preventDefault();e.returnValue=''}}; window.addEventListener('beforeunload',f); return()=>window.removeEventListener('beforeunload',f) },[dirty])
   async function login(e) { e.preventDefault();setBusy(true);setError('');try{await editorLogin(email,password);setPassword('');setSigned(true)}catch(e){handleError(e)}finally{setBusy(false)} }
+  async function requestPassword(e) {
+    e.preventDefault();setBusy(true);setError('');setNotice('')
+    try { setNotice(await requestEditorPassword(email)) } catch(e) { setError(devotionalError(e)) } finally { setBusy(false) }
+  }
+  async function choosePassword(e) {
+    e.preventDefault();setError('');setNotice('')
+    if(password !== confirmPassword) { setError('The passwords do not match.'); return }
+    if(password.length < 12 || password.length > 128) { setError('Choose a password between 12 and 128 characters.'); return }
+    setBusy(true)
+    try { const message = await setEditorPassword(recoveryToken,password);signOutEditor();setRecoveryToken('');setPassword('');setConfirmPassword('');setResetMode(false);setSigned(false);setNotice(message) }
+    catch(e) { setError(devotionalError(e)); if(e.response?.status===401) {setRecoveryToken('');setResetMode(true);setPassword('');setConfirmPassword('')} }
+    finally { setBusy(false) }
+  }
   function open(r) { if(dirty && !window.confirm('Discard unsaved edits?')) return; setRow(r);setContent(structuredClone(r.content));setDirty(false);setReview(false);setStatus('draft');setRelease('');setPreview(false);setError('');setNotice('') }
   function edit(next) { setContent(next);setDirty(true);setReview(false) }
   async function save(e) {
@@ -57,7 +84,7 @@ export default function DevotionalEditor() {
   }
   return <div className="dev-page"><div className="dev-wrap dev-editor"><Link to="/devotional">← Devotional reader</Link><h1>Devotional editorial desk</h1><p>Programme: 1 November 2026 – 31 October 2027. Manuscripts remain private until reviewed and released.</p>
     {error&&<p role="alert" className="dev-error">{error}</p>}<p role="status">{notice}</p>
-    {!signed?<form className="dev-card" onSubmit={login}><h2>Editor sign in</h2><label>Email<input type="email" required value={email} onChange={e=>setEmail(e.target.value)} autoComplete="username"/></label><label>Password<input type="password" required value={password} onChange={e=>setPassword(e.target.value)} autoComplete="current-password"/></label><button disabled={busy}>Sign in</button></form>:<>
+    {recoveryToken?<form className="dev-card" onSubmit={choosePassword}><h2>Choose your editorial password</h2><p>Use a unique password with at least 12 characters. Your password is sent securely to the ministry’s authentication service.</p><label>New password<input type="password" required minLength={12} maxLength={128} value={password} onChange={e=>setPassword(e.target.value)} autoComplete="new-password"/></label><label>Confirm new password<input type="password" required minLength={12} maxLength={128} value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} autoComplete="new-password"/></label><button disabled={busy}>Save password</button></form>:!signed?<form className="dev-card" onSubmit={resetMode?requestPassword:login}><h2>{resetMode?'Set or reset your password':'Editor sign in'}</h2>{resetMode&&<p>Enter the email address of your editor account. Open the link in your email to choose a password.</p>}<label>Email<input type="email" required value={email} onChange={e=>setEmail(e.target.value)} autoComplete="username"/></label>{!resetMode&&<label>Password<input type="password" required value={password} onChange={e=>setPassword(e.target.value)} autoComplete="current-password"/></label>}<div className="dev-toolbar"><button disabled={busy}>{resetMode?'Email password setup link':'Sign in'}</button><button type="button" disabled={busy} onClick={()=>{setResetMode(!resetMode);setPassword('');setError('');setNotice('')}}>{resetMode?'Back to sign in':'Set or reset password'}</button></div></form>:<>
       <div className="dev-toolbar"><label className="dev-import">Import private draft JSON<input type="file" accept=".json,application/json" disabled={busy} onChange={importDrafts}/></label><button disabled={busy} onClick={()=>{if(dirty&&!window.confirm('Discard unsaved edits and sign out?'))return;signOutEditor();setSigned(false);setContent(null);setRow(null);setRows([]);setDirty(false)}}>Sign out</button><button disabled={busy} onClick={()=>load().catch(handleError)}>Reload list</button></div>
       <div className="dev-layout"><aside className="dev-card"><h2>Readings</h2><label>New reading date<input type="date" min="2026-11-01" max="2027-10-31" disabled={busy} onChange={e=>{if(e.target.value)open(rows.find(r=>r.publication_date===e.target.value)||{publication_date:e.target.value,revision:0,content:fresh()})}}/></label><nav>{rows.map(r=><button className="dev-entry-button" disabled={busy} key={r.publication_date} onClick={()=>open(r)}>{r.publication_date} · {r.status}<strong>{r.content.title}</strong></button>)}</nav></aside>
       {content&&<form className="dev-card" onSubmit={save}><h2>{row.publication_date} · Revision {row.revision}{dirty?' · Unsaved':''}</h2><p>Stored status: {row.status||'new draft'}. Saving as draft withdraws any previously released reading.</p><button type="button" onClick={()=>setPreview(!preview)}>{preview?'Continue editing':'Preview devotional'}</button>

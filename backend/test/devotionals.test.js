@@ -78,3 +78,18 @@ test('concurrent changes fail without unconditional overwrite',async()=>{
 test('provider outages fail closed without leaking raw error details',async()=>{
  unavailable=true;const r=await fetch(base+'/devotionals');assert.equal(r.status,503);assert.equal((await r.text()).includes('provider detail'),false);
 });
+test('password email uses a fixed callback and a generic response',async()=>{
+ const r=await post('/devotional-editor/password-reset',{email:'editor@example.com',redirectTo:'https://evil.example'});
+ assert.equal(r.status,200);assert.match((await r.json()).message,/If this email has an account/);
+ const request=requests.at(-1);assert.match(request.url,/\/auth\/v1\/recover$/);assert.equal(request.params.redirect_to,'https://www.christreformationhouse.org.ng/admin/devotionals');assert.deepEqual(JSON.parse(request.data),{email:'editor@example.com'});
+});
+test('password setup requires a verified editor and a strong password',async()=>{
+ let r=await post('/devotional-editor/password',{password:'not-a-real-password'},'');assert.equal(r.status,401);
+ r=await post('/devotional-editor/password',{password:'short'});assert.equal(r.status,400);
+ user.app_metadata={};r=await post('/devotional-editor/password',{password:'not-a-real-password'});assert.equal(r.status,403);
+ assert.equal(requests.some(c=>c.method==='put'),false);
+});
+test('password setup updates only the token owner and does not return credentials',async()=>{
+ const r=await post('/devotional-editor/password',{password:'not-a-real-password',user_id:'another-user'});
+ assert.equal(r.status,200);const request=requests.at(-1);assert.equal(request.method,'put');assert.match(request.url,/\/auth\/v1\/user$/);assert.equal(request.headers.Authorization,'Bearer test-token');assert.deepEqual(JSON.parse(request.data),{password:'not-a-real-password'});assert.equal((await r.text()).includes('not-a-real-password'),false);
+});

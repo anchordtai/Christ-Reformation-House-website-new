@@ -90,6 +90,43 @@ router.post('/devotional-editor/login', wrap(async (req,res) => {
   const user = await verifiedUser(result.data.access_token);
   res.json({ token:result.data.access_token, email:user.email });
 }));
+// Fixed, ministry-owned callback: never accept a redirect destination from a request.
+const PASSWORD_CALLBACK = 'https://www.christreformationhouse.org.ng/admin/devotionals';
+const recoveryAttempts = new Map();
+function limitRecovery(req) {
+  const now = Date.now();
+  for (const [key,value] of recoveryAttempts) if (value.until < now) recoveryAttempts.delete(key);
+  const keys = [`ip:${req.ip}`, `email:${require('crypto').createHash('sha256').update(String(req.body.email || '').trim().toLowerCase()).digest('hex')}`];
+  if (recoveryAttempts.size >= 10000 || keys.some(key => (recoveryAttempts.get(key)?.count || 0) >= 3)) throw fail(429, 'Please wait before requesting another password email.');
+  for (const key of keys) { const value = recoveryAttempts.get(key) || { count:0, until:now+3600000 }; value.count++; recoveryAttempts.set(key,value); }
+}
+router.post('/devotional-editor/password-reset', wrap(async (req,res) => {
+  if (typeof req.body.email !== 'string' || req.body.email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(req.body.email)) throw fail(400, 'Enter a valid email address.');
+  limitRecovery(req);
+  const url = String(process.env.SUPABASE_URL || '').replace(/\/$/, '');
+  if (!url || !process.env.SUPABASE_SERVICE_ROLE_KEY) throw fail(503, 'Password setup is temporarily unavailable.');
+  try {
+    await axios.post(`${url}/auth/v1/recover`, { email:req.body.email.trim().toLowerCase() }, { headers:getSupabaseHeaders(), params:{ redirect_to:PASSWORD_CALLBACK }, timeout:10000 });
+  } catch(e) {
+    if (e.response?.status === 429) throw fail(429, 'Please wait before requesting another password email.');
+    throw fail(503, 'Unable to request the password email. Please try again later.');
+  }
+  res.json({ message:'If this email has an account, a password setup link has been requested. Check your inbox and spam folder.' });
+}));
+router.post('/devotional-editor/password', wrap(async (req,res) => {
+  const token = /^Bearer (.+)$/.exec(req.headers.authorization || '')?.[1];
+  await verifiedUser(token);
+  if (typeof req.body.password !== 'string' || req.body.password.length < 12 || req.body.password.length > 128) throw fail(400, 'Choose a password between 12 and 128 characters.');
+  const url = String(process.env.SUPABASE_URL || '').replace(/\/$/, '');
+  try {
+    await axios.put(`${url}/auth/v1/user`, { password:req.body.password }, { headers:{ ...getSupabaseHeaders(), Authorization:`Bearer ${token}` }, timeout:10000 });
+  } catch(e) {
+    if ([401,403].includes(e.response?.status)) throw fail(401, 'This link has expired. Request a new password email.');
+    if ([400,422].includes(e.response?.status)) throw fail(400, 'Choose a different, stronger password.');
+    throw fail(503, 'Password setup is temporarily unavailable. Please try again.');
+  }
+  res.json({ message:'Your password is saved. Sign in with your email and new password.' });
+}));
 router.use('/devotional-editor/entries', async (req,res,next) => {
   try { req.editor = await verifiedUser(/^Bearer (.+)$/.exec(req.headers.authorization || '')?.[1]); next(); }
   catch (e) { res.status(e.status || 503).json({ error:e.status ? e.message : 'Unable to verify access. Please try again.' }); }

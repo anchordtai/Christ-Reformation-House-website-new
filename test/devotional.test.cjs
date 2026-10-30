@@ -28,3 +28,22 @@ test('outages show a retry action without a sample reading',async()=>{mode='offl
 test('archive search filters titles and scripture',async()=>{await renderReader();await act(async()=>Simulate.change(node.querySelector('input[type="search"]'),{target:{value:'not present'}}));assert.equal(node.querySelector('nav[aria-label="Devotional archive"] a'),null);await act(async()=>Simulate.change(node.querySelector('input[type="search"]'),{target:{value:'Psalm'}}));assert.ok(node.querySelector('nav[aria-label="Devotional archive"] a'))});
 test('late reading response after unmount is ignored',async()=>{mode='delayed';await renderReader();assert.match(node.textContent,/Loading/);await act(async()=>root.render(null));await act(async()=>resolveReading());assert.equal(node.textContent,'')});
 test('editor sign-in does not request private entries before authentication',async()=>{await act(async()=>root.render(React.createElement(MemoryRouter,{future:{v7_startTransition:true,v7_relativeSplatPath:true}},React.createElement(Editor))));assert.ok(node.querySelector('input[type="password"]'));assert.equal(calls.length,0);assert.equal(window.localStorage.length,0)});
+test('editor offers email-based password setup without requiring the old password',async()=>{
+ await act(async()=>root.render(React.createElement(MemoryRouter,{future:{v7_startTransition:true,v7_relativeSplatPath:true}},React.createElement(Editor))));
+ await act(async()=>Simulate.click([...node.querySelectorAll('button')].find(b=>b.textContent==='Set or reset password')));
+ assert.equal(node.querySelector('input[type="password"]'),null);assert.match(node.textContent,/Email password setup link/);
+ await act(async()=>Simulate.change(node.querySelector('input[type="email"]'),{target:{value:'editor@example.com'}}));
+ await act(async()=>Simulate.submit(node.querySelector('form')));
+ assert.equal(calls.at(-1).url,'/devotional-editor/password-reset');assert.deepEqual(JSON.parse(calls.at(-1).data),{email:'editor@example.com'});
+});
+test('recovery tokens leave the address bar and matching password confirmation is required',async()=>{
+ window.history.replaceState(null,'','/admin/devotionals#access_token=test-recovery-token&refresh_token=never-store&type=recovery');
+ await act(async()=>root.render(React.createElement(MemoryRouter,{future:{v7_startTransition:true,v7_relativeSplatPath:true}},React.createElement(Editor))));
+ assert.equal(window.location.hash,'');assert.equal(sessionStorage.length,0);assert.equal(window.localStorage.length,0);assert.match(node.textContent,/Choose your editorial password/);
+ const inputs=node.querySelectorAll('input[type="password"]');
+ await act(async()=>Simulate.change(inputs[0],{target:{value:'not-a-real-password'}}));
+ await act(async()=>Simulate.change(inputs[1],{target:{value:'a-different-password'}}));
+ await act(async()=>Simulate.submit(node.querySelector('form')));assert.match(node.textContent,/do not match/);assert.equal(calls.length,0);
+ await act(async()=>Simulate.change(inputs[1],{target:{value:'not-a-real-password'}}));
+ await act(async()=>Simulate.submit(node.querySelector('form')));assert.equal(calls.at(-1).url,'/devotional-editor/password');assert.equal(calls.at(-1).headers.Authorization,'Bearer test-recovery-token');assert.equal(sessionStorage.length,0);
+});
