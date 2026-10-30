@@ -6,6 +6,7 @@ const { fail, ministryUser, bearer, isMeetingHost, limiter, wrap } = require('./
 const router = express.Router();
 const validRoom = value => /^[a-z0-9][a-z0-9_-]{5,99}$/i.test(value || '');
 const { settings, configurationChecks } = require('./jaas-settings');
+console.info('JaaS configuration check:', JSON.stringify(configurationChecks()));
 function signMeeting({ room, displayName, user, host = false }, config, now = Date.now()) {
   if (!validRoom(room)) throw fail(400,'Invalid meeting code.');
   if (host && (!user || !isMeetingHost(user))) throw fail(403,'This account is not an authorized meeting host.');
@@ -45,4 +46,3 @@ router.post('/meeting-provider/join', wrap(async (req,res) => {
   res.json({domain:'8x8.vc',appId:config.appId,roomName:`${config.appId}/${room}`,jwt});
 }));
 module.exports = { router, settings, signMeeting };
-
