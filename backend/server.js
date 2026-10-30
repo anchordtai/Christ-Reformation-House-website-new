@@ -155,7 +155,8 @@ app.get('/api/sermons/:id', (req, res) => {
   if (!item) return res.status(404).json({ error: 'Sermon not found' });
   return res.json(item);
 });
-app.get('/api/events', (req, res) => res.json(readJSONFile('events.json')));
+app.use('/api', require('./events').router);
+app.use('/api', require('./meeting-provider').router);
 app.get('/api/blog', (req, res) => res.json(readJSONFile('blog.json')));
 app.use('/api', require('./devotionals').router);
 app.use('/api', require('./devotional-community').router);

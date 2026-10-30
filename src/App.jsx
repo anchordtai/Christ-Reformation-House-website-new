@@ -15,6 +15,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 import Home from './pages/Home'
 import About from './pages/About'
 import Events from './pages/Events'
+import EventEditor from './pages/EventEditor'
 import Blog from './pages/Blog'
 import Devotional from './pages/Devotional'
 import Donate from './pages/Donate'
@@ -49,6 +50,7 @@ function App() {
             <Route path="/prayer-support" element={<PrayerSupport />} />
             <Route path="/testimonies" element={<Testimonies />} />
             <Route path="/events" element={<Events />} />
+            <Route path="/admin/events" element={<EventEditor />} />
             <Route path="/events/register/:id" element={<EventRegister />} />
             <Route path="/blog" element={<Blog />} />
             <Route path="/blog/:id" element={<BlogPost />} />

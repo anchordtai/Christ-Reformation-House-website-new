@@ -27,7 +27,9 @@ export function parseMeetingInput(input, origin) {
   if (url.origin === own.origin) room = url.pathname.match(/^\/meetings\/room\/([^/]+)\/?$/)?.[1]
   else if (url.origin === MEETING_PROVIDER) room = url.pathname.match(/^\/([^/]+)\/?$/)?.[1]
   if (!validRoom(room)) throw new Error('This invitation is not a supported church meeting link. Ask your host for the complete invitation.')
-  return { room, title: url.origin === own.origin ? (url.searchParams.get('title') || '').slice(0, 100) : '' }
+  const parsed = { room, title: url.origin === own.origin ? (url.searchParams.get('title') || '').slice(0, 100) : '' }
+  if(url.origin === MEETING_PROVIDER || (ownLink && url.searchParams.get('provider') === 'public')) parsed.publicProvider = true
+  return parsed
 }
 export function providerMeetingLink(room) {
   if (!validRoom(room)) throw new Error('The meeting code is invalid.')

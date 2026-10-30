@@ -1,209 +1,22 @@
-import { useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
-import { Calendar, MapPin, Clock, ArrowLeft } from 'lucide-react'
-import { format } from 'date-fns'
+import { useEffect, useState } from 'react'
+import { Link, useParams } from 'react-router-dom'
+import { ArrowLeft, Calendar, Video, CheckCircle } from 'lucide-react'
+import MetaTags from '../components/MetaTags'
+import { getEvent, registerEvent, ministryError } from '../services/ministry'
+import { eventDate,eventTime,downloadEventCalendar } from '../utils/events.mjs'
+import { meetingLink } from '../utils/meeting-links.mjs'
+import '../styles/events.css'
 
-const EventRegister = () => {
-  const { id } = useParams()
-  const navigate = useNavigate()
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    numberOfAttendees: 1,
-    specialRequests: '',
-  })
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isSubmitted, setIsSubmitted] = useState(false)
-
-  // In production, fetch from API based on id
-  const event = {
-    id: parseInt(id),
-    title: 'Sunday Worship Service',
-    date: new Date('2024-02-04'),
-    time: '10:00 AM',
-    location: 'Main Sanctuary',
-    description: 'Join us for our weekly Sunday worship service with inspiring music and message.',
-    image: '/assets/img/convention-image.jpg',
-  }
-
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    setIsSubmitting(true)
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500))
-    
-    setIsSubmitting(false)
-    setIsSubmitted(true)
-    
-    // In production, send to backend API
-    console.log('Registration data:', { eventId: id, ...formData })
-  }
-
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    })
-  }
-
-  if (isSubmitted) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 section-padding">
-        <div className="max-w-md w-full card text-center">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          <h2 className="text-2xl font-bold mb-2">Registration Successful!</h2>
-          <p className="text-gray-600 mb-6">
-            Thank you for registering for {event.title}. We've sent a confirmation email to {formData.email}.
-          </p>
-          <button onClick={() => navigate('/events')} className="btn-primary">
-            View Other Events
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div>
-      {/* Hero Section */}
-      <section className="bg-gradient-to-r from-blue-600 to-purple-600 text-white section-padding">
-        <div className="container-custom">
-          <button
-            onClick={() => navigate('/events')}
-            className="inline-flex items-center text-white hover:text-gray-200 mb-6"
-          >
-            <ArrowLeft className="w-5 h-5 mr-2" />
-            Back to Events
-          </button>
-          <h1 className="text-4xl font-bold mb-4">Event Registration</h1>
-          <div className="max-w-2xl">
-            <h2 className="text-2xl mb-4">{event.title}</h2>
-            <div className="flex flex-wrap gap-6">
-              <div className="flex items-center">
-                <Calendar className="w-5 h-5 mr-2" />
-                {format(event.date, 'MMMM d, yyyy')}
-              </div>
-              <div className="flex items-center">
-                <Clock className="w-5 h-5 mr-2" />
-                {event.time}
-              </div>
-              <div className="flex items-center">
-                <MapPin className="w-5 h-5 mr-2" />
-                {event.location}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Registration Form */}
-      <section className="section-padding">
-        <div className="container-custom">
-          <div className="max-w-2xl mx-auto">
-            <div className="card">
-              <h2 className="text-2xl font-bold mb-6">Registration Information</h2>
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div>
-                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-                    Full Name *
-                  </label>
-                  <input
-                    type="text"
-                    id="name"
-                    name="name"
-                    required
-                    value={formData.name}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                    Email Address *
-                  </label>
-                  <input
-                    type="email"
-                    id="email"
-                    name="email"
-                    required
-                    value={formData.email}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
-                    Phone Number *
-                  </label>
-                  <input
-                    type="tel"
-                    id="phone"
-                    name="phone"
-                    required
-                    value={formData.phone}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="numberOfAttendees" className="block text-sm font-medium text-gray-700 mb-2">
-                    Number of Attendees *
-                  </label>
-                  <input
-                    type="number"
-                    id="numberOfAttendees"
-                    name="numberOfAttendees"
-                    min="1"
-                    max="10"
-                    required
-                    value={formData.numberOfAttendees}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="specialRequests" className="block text-sm font-medium text-gray-700 mb-2">
-                    Special Requests or Accommodations
-                  </label>
-                  <textarea
-                    id="specialRequests"
-                    name="specialRequests"
-                    rows="4"
-                    value={formData.specialRequests}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Any special needs or requests..."
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="btn-primary w-full"
-                >
-                  {isSubmitting ? 'Submitting...' : 'Complete Registration'}
-                </button>
-              </form>
-            </div>
-          </div>
-        </div>
-      </section>
-    </div>
-  )
+export default function EventRegister(){
+  const {id}=useParams()
+  const [event,setEvent]=useState(null),[loading,setLoading]=useState(true),[error,setError]=useState(''),[busy,setBusy]=useState(false),[success,setSuccess]=useState(''),[notice,setNotice]=useState('')
+  const [form,setForm]=useState({name:'',email:'',attendees:1,consent:false})
+  useEffect(()=>{let live=true;setLoading(true);setError('');setSuccess('');setEvent(null);getEvent(id).then(row=>{if(live)setEvent(row)}).catch(e=>{if(live)setError(ministryError(e))}).finally(()=>{if(live)setLoading(false)});return()=>{live=false}},[id])
+  async function register(e){e.preventDefault();if(busy)return;setBusy(true);setError('');try{const result=await registerEvent(id,{...form,attendees:Number(form.attendees)});setSuccess(result.message);setForm({name:'',email:'',attendees:1,consent:false})}catch(e){setError(ministryError(e))}finally{setBusy(false)}}
+  function calendar(){try{downloadEventCalendar(event);setNotice('Calendar download requested.')}catch{setNotice('Unable to download. Keep the event details shown here.')}}
+  const closed=event&&(!event.registration_enabled||Date.parse(event.ends_at)<=Date.now())
+  return <div className="platform-page"><MetaTags title={event?.title||'Event details'} description="Gathering details and event registration at Christ’s Reformation House."/><section className="platform-page-hero"><div className="container-custom"><Link className="meeting-back" to="/events"><ArrowLeft size={17}/>All events</Link><p className="ministry-eyebrow">You are welcome here</p><h1>{event?.title||'Your next gathering'}</h1>{event&&<p>{eventDate(event.starts_at)} · {eventTime(event.starts_at)} WAT<br/>{event.location}</p>}</div></section>
+    <section className="ministry-section">{loading?<p role="status">Loading event…</p>:!event?<div className="event-empty"><h2>Event unavailable</h2><p role="alert">{error}</p><Link to="/events">See available events</Link></div>:<div className="event-detail-grid"><article className="event-card-body event-detail"><p className="ministry-eyebrow">{event.category}</p><h2>About this gathering</h2><p className="event-full-description">{event.description}</p><p>Starts {eventDate(event.starts_at)}, {eventTime(event.starts_at)} WAT.<br/>Ends {eventDate(event.ends_at)}, {eventTime(event.ends_at)} WAT.</p><div className="platform-actions"><button className="secondary-button" onClick={calendar}><Calendar size={17}/>Add to calendar</button>{event.meeting_room&&Date.parse(event.ends_at)>Date.now()&&<Link className="ministry-button dark" to={new URL(meetingLink(event.meeting_room,window.location.origin,event.title)).pathname+`?title=${encodeURIComponent(event.title)}`}><Video size={17}/>Open online room</Link>}</div>{notice&&<p role="status">{notice}</p>}</article>
+      <article className="meeting-action-card">{success?<div role="status"><CheckCircle size={32}/><h2>Thank you for registering</h2><p>{success}</p></div>:closed?<><h2>Registration is closed</h2><p>{Date.parse(event.ends_at)<=Date.now()?'This gathering has ended.':'Online registration is not open for this event. Contact the ministry for attendance details.'}</p><Link to="/contact">Contact the ministry</Link></>:<><h2>Reserve your place</h2><p>Register yourself and up to nine people joining you. Registration is free.</p><form onSubmit={register}><label>Full name<input required maxLength={100} autoComplete="name" value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></label><label>Email<input required type="email" maxLength={254} autoComplete="email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})}/></label><label>Number attending<input required type="number" min="1" max="10" value={form.attendees} onChange={e=>setForm({...form,attendees:e.target.value})}/></label><label className="event-consent"><input required type="checkbox" checked={form.consent} onChange={e=>setForm({...form,consent:e.target.checked})}/><span>I agree that the ministry may use these details to manage my registration for this event.</span></label>{error&&<p role="alert" className="platform-error">{error}</p>}<button disabled={busy} className="ministry-button dark">{busy?'Saving registration…':'Register for this gathering'}</button></form><p className="event-timezone">Confirmation appears here after your registration is saved. This form does not subscribe you to daily emails.</p></>}</article>
+    </div>}</section></div>
 }
-
-export default EventRegister
-
-
-
-
