@@ -144,4 +144,4 @@ router.post('/devotional-editor/entries/:date', wrap(async (req,res) => {
   if (!result?.[0]) throw fail(409, 'Another editor changed this entry. Reload before saving.');
   res.json({ entry:result[0] });
 }));
-module.exports = { router, validateContent, releaseValues, visible, publicEntry, validDate, today };
+module.exports = { router, validateContent, releaseValues, visible, publicEntry, validDate, today, verifiedUser };

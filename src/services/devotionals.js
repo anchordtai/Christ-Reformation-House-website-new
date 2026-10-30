@@ -23,3 +23,21 @@ export async function setEditorPassword(token, password) {
   const { data } = await client.post('/devotional-editor/password', { password }, { headers:{ Authorization:`Bearer ${token}` } })
   return data.message
 }
+
+export function devotionalVisitor() {
+  const key = 'crhDevotionalVisitor'
+  let value = localStorage.getItem(key)
+  if (!/^[a-f0-9]{64}$/.test(value || '')) {
+    const bytes = new Uint8Array(32)
+    crypto.getRandomValues(bytes)
+    value = Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('')
+    localStorage.setItem(key,value)
+  }
+  return value
+}
+const visitorHeaders = value => value ? { 'X-Devotional-Visitor':value } : {}
+export const readCommunity = (date,visitor,offset=0) => client.get(`/devotionals/${encodeURIComponent(date)}/community`,{headers:visitorHeaders(visitor),params:{offset}})
+export const likeDevotional = (date,visitor,liked) => client.post(`/devotionals/${encodeURIComponent(date)}/like`,{liked},{headers:visitorHeaders(visitor)})
+export const commentOnDevotional = (date,visitor,body) => client.post(`/devotionals/${encodeURIComponent(date)}/comments`,body,{headers:visitorHeaders(visitor)})
+export const moderateComments = (status='pending',offset=0) => client.get('/devotional-editor/comments',{...auth(),params:{status,offset}})
+export const reviewComment = (id,status,expectedStatus) => client.post(`/devotional-editor/comments/${encodeURIComponent(id)}/review`,{status,expectedStatus},auth())

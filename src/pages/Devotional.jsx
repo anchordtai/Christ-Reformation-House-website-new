@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { BookOpen, Share2, Printer } from 'lucide-react'
 import DevotionalReading from '../components/DevotionalReading'
+import DevotionalCommunity, { DevotionalGiving } from '../components/DevotionalCommunity'
 import { readDevotionals, devotionalError, nigeriaToday } from '../services/devotionals'
 import './Devotional.css'
 export default function Devotional() {
@@ -43,6 +44,8 @@ export default function Devotional() {
       <div><div className="dev-toolbar dev-no-print"><label>Choose a date<input aria-label="Choose a devotional date" type="date" value={selected} min="2026-11-01" max="2027-10-31" onChange={e => { if(e.target.value) window.location.assign(`/devotional/${e.target.value}`) }}/></label><Link to="/devotional">Today’s reading</Link>{entry && <><button onClick={share}><Share2 size={16}/> Share</button><button onClick={() => window.print()}><Printer size={16}/> Print</button></>}</div>
       <p role="status">{notice}</p>
       {loading ? <div className="dev-card" role="status">Loading your reading…</div> : error ? <div className="dev-card" role="alert"><p>{error}</p><button onClick={() => setRetry(x=>x+1)}>Try again</button></div> : entry ? <DevotionalReading entry={entry}/> : <div className="dev-card"><BookOpen/><h2>No reading has been released for {selected}.</h2><p>Devotionals appear here after pastoral review and their scheduled release. You can choose an available reading from the archive.</p></div>}
+      {entry && <DevotionalCommunity key={entry.publicationDate} entry={entry}/>}
+      <DevotionalGiving/>
       </div>
       <aside className="dev-card dev-archive dev-no-print"><p className="dev-eyebrow">READING ARCHIVE</p><h2>A moment with the Word</h2><label>Search released readings<input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Title, theme or scripture"/></label><nav aria-label="Devotional archive">{entries.filter(c=>[c.title,c.monthlyTheme,c.mainReference].join(' ').toLowerCase().includes(query.toLowerCase())).map(c=><Link key={c.publicationDate} to={`/devotional/${c.publicationDate}`} aria-current={selected===c.publicationDate?'page':undefined}><small>{c.publicationDate} · Day {c.dayNumber}</small><strong>{c.title}</strong></Link>)}</nav>{!entries.length && <p>No released readings are available yet.</p>}<Link to="/admin/devotionals">Editorial desk</Link></aside>
     </div>
