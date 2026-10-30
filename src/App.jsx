@@ -1,3 +1,4 @@
+import DevotionalEditor from './pages/DevotionalEditor'
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import Header from './components/Header'
 import PageEnhancements from './components/PageEnhancements'
@@ -52,6 +53,8 @@ function App() {
             <Route path="/blog" element={<Blog />} />
             <Route path="/blog/:id" element={<BlogPost />} />
             <Route path="/devotional" element={<Devotional />} />
+            <Route path="/devotional/:date" element={<Devotional />} />
+            <Route path="/admin/devotionals" element={<DevotionalEditor />} />
             <Route path="/donate" element={<Donate />} />
             <Route path="/donate/return" element={<DonateReturn />} />
             <Route path="/contact" element={<Contact />} />
