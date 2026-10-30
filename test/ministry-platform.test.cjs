@@ -3,7 +3,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const {JSDOM}=require('jsdom');
-const {buildSync}=require('esbuild');
+const {build}=require('esbuild');
 const dom=new JSDOM('<!doctype html><html><head></head><body></body></html>',{url:'https://church.example/'});
 global.window=dom.window;global.document=dom.window.document;global.navigator=dom.window.navigator;global.IS_REACT_ACT_ENVIRONMENT=true;
 const React=require('react');
@@ -17,7 +17,7 @@ before(async()=>{
  helpers=await import('../src/utils/meeting-links.mjs');
  components={};
  for(const [name,file] of Object.entries({Assistant:'src/components/MinistryAssistant.jsx',Devices:'src/components/meetings/DeviceCheck.jsx',Testimonies:'src/pages/Testimonies.jsx',Meetings:'src/pages/Meetings.jsx',Room:'src/pages/InstantMeetingRoom.jsx'})){
- const out=path.join(temporary,name+'.cjs');buildSync({entryPoints:[file],outfile:out,bundle:true,platform:'node',format:'cjs',jsx:'automatic',define:{'import.meta.env':'{}'},external:['react','react-dom','react-dom/*','react-router-dom']});components[name]=require(out).default;
+ const out=path.join(temporary,name+'.cjs');await build({entryPoints:[file],outfile:out,bundle:true,platform:'node',format:'cjs',jsx:'automatic',define:{'import.meta.env':'{}'},external:['react','react-dom','react-dom/*','react-router-dom','axios'],plugins:[{name:'meeting-service-fixture',setup(build){build.onResolve({filter:/services\/ministry$/},()=>({path:'fixture',namespace:'fixture'}));build.onLoad({filter:/.*/,namespace:'fixture'},()=>({contents:'export const meetingConfig=async()=>({embedded:false}); export const hostSession=()=>null; export const hostLogin=async()=>{}; export const signOutHost=()=>{}; export const joinEmbeddedMeeting=async()=>{}; export const ministryError=()=>"Unavailable";',loader:'js'}))}}]});components[name]=require(out).default;
  }
 });
 beforeEach(()=>{node=document.createElement('div');document.body.append(node);root=createRoot(node);});
