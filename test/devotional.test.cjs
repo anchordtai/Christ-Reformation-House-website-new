@@ -47,3 +47,7 @@ test('recovery tokens leave the address bar and matching password confirmation i
  await act(async()=>Simulate.change(inputs[1],{target:{value:'not-a-real-password'}}));
  await act(async()=>Simulate.submit(node.querySelector('form')));assert.equal(calls.at(-1).url,'/devotional-editor/password');assert.equal(calls.at(-1).headers.Authorization,'Bearer test-recovery-token');assert.equal(sessionStorage.length,0);
 });
+test('the series title and artwork precede each daily topic',async()=>{
+ await renderReader();const article=node.querySelector('article.dev-reading');assert.ok(article);assert.match(article.textContent,/UNLEASH THE SUPERNATURAL/);assert.ok(article.textContent.indexOf('UNLEASH THE SUPERNATURAL')<article.textContent.indexOf('Day 1:'));
+ const art=article.querySelector('.dev-brand-art');assert.equal(art.getAttribute('src'),'/assets/img/unleash-the-supernatural-banner.webp');assert.match(art.getAttribute('alt'),/Bible/);assert.ok(fs.statSync('public/assets/img/unleash-the-supernatural-banner.webp').size>0);
+});

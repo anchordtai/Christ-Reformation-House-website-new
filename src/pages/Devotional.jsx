@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { BookOpen, Share2, Printer } from 'lucide-react'
 import DevotionalReading from '../components/DevotionalReading'
+import DevotionalBrand from '../components/DevotionalBrand'
+import { DEVOTIONAL_BRAND as brand } from '../utils/devotional-brand.mjs'
 import DevotionalCommunity, { DevotionalGiving } from '../components/DevotionalCommunity'
 import { readDevotionals, devotionalError, nigeriaToday } from '../services/devotionals'
 import './Devotional.css'
@@ -28,18 +30,18 @@ export default function Devotional() {
   },[retry])
   useEffect(() => {
     const old = document.title
-    document.title = entry ? `${entry.title} | CRH Daily Devotional` : 'Daily Devotional | Christ’s Reformation House'
+    document.title = entry ? `${entry.title} | ${brand.title}` : `${brand.title} | CRH Daily Devotional`
     return () => { document.title=old }
   },[entry])
   async function share() {
     const url = `${window.location.origin}/devotional/${selected}`
     try {
-      if (navigator.share) await navigator.share({ title:entry.title,text:entry.socialSummary,url })
+      if (navigator.share) await navigator.share({ title:`${brand.title} | ${entry.title}`,text:entry.socialSummary,url })
       else { await navigator.clipboard.writeText(url); setNotice('Reading link copied.') }
     } catch(e) { if(e.name !== 'AbortError') setNotice('Copy the reading link from your address bar to share it.') }
   }
   return <div className="dev-page">
-    <header className="dev-hero dev-no-print"><div className="dev-wrap"><BookOpen size={32}/><p className="dev-eyebrow">GROW IN THE WORD, EVERY DAY</p><h1>Daily bread for a life of faith</h1><p>Read, reflect and pray with Christ’s Reformation House Int’l Inc.</p><small>365-day programme · 1 November 2026 – 31 October 2027</small></div></header>
+    <header className="dev-hero dev-no-print dev-series-hero"><div className="dev-wrap"><DevotionalBrand variant="page"/><small>365-day programme · 1 November 2026 – 31 October 2027</small></div></header>
     <div className="dev-wrap dev-layout">
       <div><div className="dev-toolbar dev-no-print"><label>Choose a date<input aria-label="Choose a devotional date" type="date" value={selected} min="2026-11-01" max="2027-10-31" onChange={e => { if(e.target.value) window.location.assign(`/devotional/${e.target.value}`) }}/></label><Link to="/devotional">Today’s reading</Link>{entry && <><button onClick={share}><Share2 size={16}/> Share</button><button onClick={() => window.print()}><Printer size={16}/> Print</button></>}</div>
       <p role="status">{notice}</p>

@@ -54,3 +54,4 @@ test('giving links to the existing checkout without starting a payment',async()=
 test('moderation sends the expected status and authenticates using the editor session',async()=>{
  sessionStorage.setItem('crhDevotionalEditorToken','test-editor-token');await render(Moderation,{});await click('Approve comment');const request=calls.find(c=>c.url.endsWith('/review'));assert.deepEqual(JSON.parse(request.data),{status:'approved',expectedStatus:'pending'});assert.equal(request.headers.Authorization,'Bearer test-editor-token');
 });
+test('shared captions carry the permanent devotional series title and daily topic',()=>{const share=utils.devotionalShare(entry);assert.ok(share.caption.startsWith('UNLEASH THE SUPERNATURAL\nDay 1: Grace & gratitude'));assert.ok(share.caption.includes(entry.memoryReference))});

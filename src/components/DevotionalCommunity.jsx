@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { Heart, MessageCircle, Share2, Copy, Download, Gift, Instagram, Facebook } from 'lucide-react'
 import { devotionalVisitor,readCommunity,likeDevotional,commentOnDevotional,devotionalError } from '../services/devotionals'
 import { devotionalShare,downloadVerseCard } from '../utils/devotional-share.mjs'
+import { DEVOTIONAL_BRAND as brand } from '../utils/devotional-brand.mjs'
 export function DevotionalGiving() {
   return <section className="dev-giving dev-no-print" aria-label="Support the ministry"><Gift size={30}/><div><h2>Help the Word reach more people</h2><p>Your voluntary gift supports the ministry’s work. Give securely through our giving page.</p></div><Link to="/donate" className="dev-give-link">Give to the ministry →</Link></section>
 }
@@ -35,7 +36,7 @@ export default function DevotionalCommunity({entry,preview=false}) {
   }
   async function nativeShare() {
     if(!navigator.share){await copy();return}
-    try{await navigator.share({title:entry.title,text:entry.socialSummary,url:share.url})}catch(e){if(e.name!=='AbortError'){setInstagram(true);setNotice('Use the caption below or choose WhatsApp or Facebook.')}}
+    try{await navigator.share({title:`${brand.title} | ${entry.title}`,text:entry.socialSummary,url:share.url})}catch(e){if(e.name!=='AbortError'){setInstagram(true);setNotice('Use the caption below or choose WhatsApp or Facebook.')}}
   }
   async function like() {
     const date=entry.publicationDate;setBusy(true);setError('')
