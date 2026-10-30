@@ -1,9 +1,10 @@
+import DevotionalBrand from './DevotionalBrand'
 const prayerSections = [ ['A. Prayer for the individual','individualPrayers'], ['B. Prayer for the family','familyPrayers'], ['C. Prayer for the Church','churchPrayers'], ['D. Prayer for Nigeria and the world','nationsPrayers'], ["E. Prayer for Christ’s Reformation House Int’l Inc.",'ministryPrayers'] ]
 function Text({ children }) { return <div className="dev-text">{String(children || '').split(/\n\s*\n/).map((p,i) => <p key={i}>{p}</p>)}</div> }
 function Points({ items }) { return <ol>{(items || []).map((p,i) => <li key={i}>{p}</li>)}</ol> }
 export default function DevotionalReading({ entry:c }) {
   return <article className="dev-reading">
-    <p className="dev-eyebrow">CHRIST’S REFORMATION HOUSE INT’L INC.</p>
+    <DevotionalBrand/>
     <p>{c.publicationDate} · {c.monthlyTheme}</p>
     <h1>Day {c.dayNumber}: {c.title}</h1>
     <p className="dev-lead">Theme: {c.dailyTheme}</p>
