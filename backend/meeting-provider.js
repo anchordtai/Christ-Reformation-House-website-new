@@ -5,17 +5,8 @@ const { getSupabaseHeaders } = require('./supabase');
 const { fail, ministryUser, bearer, isMeetingHost, limiter, wrap } = require('./ministry-admin');
 const router = express.Router();
 const validRoom = value => /^[a-z0-9][a-z0-9_-]{5,99}$/i.test(value || '');
-function settings(env = process.env) {
-  const appId = String(env.JAAS_APP_ID || '').trim();
-  const keyId = String(env.JAAS_KEY_ID || '').trim();
-  const pem = String(env.JAAS_PRIVATE_KEY || '').replace(/\\n/g,'\n').trim();
-  if (!/^vpaas-magic-cookie-[a-zA-Z0-9-]{10,80}$/.test(appId) || !keyId.startsWith(appId + '/') || keyId.length > 200 || !pem) return null;
-  try {
-    const privateKey = crypto.createPrivateKey(pem);
-    if (privateKey.asymmetricKeyType !== 'rsa' || privateKey.asymmetricKeyDetails?.modulusLength < 2048) return null;
-    return { appId, keyId, privateKey };
-  } catch { return null; }
-}
+const { settings, configurationChecks } = require('./jaas-settings');
+console.info('JaaS configuration check:', JSON.stringify(configurationChecks()));
 function signMeeting({ room, displayName, user, host = false }, config, now = Date.now()) {
   if (!validRoom(room)) throw fail(400,'Invalid meeting code.');
   if (host && (!user || !isMeetingHost(user))) throw fail(403,'This account is not an authorized meeting host.');
@@ -27,6 +18,7 @@ function signMeeting({ room, displayName, user, host = false }, config, now = Da
   return `${content}.${crypto.sign('RSA-SHA256',Buffer.from(content),config.privateKey).toString('base64url')}`;
 }
 router.get('/meeting-provider/config', wrap(async (req,res) => { const ready=!!settings();res.json({embedded:ready,provider:ready?'jaas':'public'}); }));
+router.get('/meeting-provider/diagnostics', wrap(async (req,res) => res.json({checks:configurationChecks()})));
 const authLimit = limiter(12);
 for (const type of ['login','refresh']) router.post(`/meeting-host/${type}`, wrap(async (req,res) => {
   authLimit(req);
