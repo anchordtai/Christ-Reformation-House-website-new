@@ -34,3 +34,23 @@ test('non-RSA and weak RSA keys cannot enable meetings',()=>{
   assert.equal(configurationChecks({...env,JAAS_PRIVATE_KEY:weak}).JAAS_PRIVATE_KEY,'rsa_key_too_small');assert.equal(settings({...env,JAAS_PRIVATE_KEY:weak}),null);
   assert.equal(configurationChecks({...env,JAAS_PRIVATE_KEY:ec}).JAAS_PRIVATE_KEY,'rsa_key_required');assert.equal(settings({...env,JAAS_PRIVATE_KEY:ec}),null);
 });
+
+test('startup log and diagnostic HTTP handler expose status codes only; config response stays compatible',async()=>{
+  const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
+  const routes=new Map(),logs=[];
+  const router={get:(route,fn)=>routes.set(route,fn),post:()=>{}};
+  const sandbox={module:{exports:{}},console:{info:(...args)=>logs.push(args.join(' '))},require:name=>{
+    if(name==='express')return {Router:()=>router};
+    if(name==='axios')return {};
+    if(name==='crypto')return crypto;
+    if(name==='./supabase')return {getSupabaseHeaders:()=>({})};
+    if(name==='./ministry-admin')return {limiter:()=>()=>{},wrap:fn=>fn};
+    if(name==='./jaas-settings')return {settings:()=>settings(env),configurationChecks:()=>configurationChecks(env)};
+    throw new Error('Unexpected dependency');
+  }};
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../meeting-provider.js'),'utf8'),sandbox);
+  let response;const res={json:value=>{response=JSON.parse(JSON.stringify(value))}};
+  await routes.get('/meeting-provider/config')({},res);assert.deepEqual(response,{embedded:true,provider:'jaas'});
+  await routes.get('/meeting-provider/diagnostics')({},res);assert.deepEqual(response,{checks:configurationChecks(env)});
+  const exposed=JSON.stringify({response,logs});assert.doesNotMatch(exposed,/BEGIN|test-key|0123456789abcdef|privateKey/);assert.match(exposed,/JaaS configuration check/);
+});
