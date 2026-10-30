@@ -157,7 +157,7 @@ app.get('/api/sermons/:id', (req, res) => {
 });
 app.get('/api/events', (req, res) => res.json(readJSONFile('events.json')));
 app.get('/api/blog', (req, res) => res.json(readJSONFile('blog.json')));
-app.get('/api/devotionals', (req, res) => res.json(readJSONFile('devotionals.json')));
+app.use('/api', require('./devotionals').router);
 app.get('/api/store/products', (req, res) => res.json(readJSONFile('store-products.json')));
 
 const isValidEmail = (email) => typeof email === 'string' && email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
