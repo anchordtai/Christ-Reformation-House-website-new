@@ -36,14 +36,15 @@ const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           {/* About Section */}
           <div>
-            <div className="flex items-center space-x-3 mb-4">
+            <div className="flex items-start space-x-3 mb-4">
               <img 
                 src="/assets/img/crhlogo.jpg" 
                 alt="Logo" 
-                className="h-10 w-10 rounded-full object-cover"
+                className="h-10 w-10 rounded-full object-cover flex-shrink-0 mt-1"
               />
-              <h3 className="text-white font-bold text-lg">Christ's Reformation House</h3>
+              <h3 className="text-white font-bold text-lg">Christ's Reformation House International Inc.</h3>
             </div>
+            <p className="text-xs tracking-wide text-gray-400 mb-4">CAC REGISTRATION NUMBER 178735</p>
             <p className="text-sm mb-4">
               Where Faith Meets Transformation. Join us for worship, community, and spiritual growth in Christ.
             </p>
@@ -122,7 +123,7 @@ const Footer = () => {
 
         <div className="border-t border-gray-800 mt-8 pt-8 text-center">
           <p className="text-sm">
-            &copy; {currentYear} Christ's Reformation House International. All rights reserved.
+            &copy; {currentYear} Christ's Reformation House International Inc. All rights reserved.
           </p>
         </div>
       </div>
