@@ -166,6 +166,7 @@ app.use('/api', require('./ministry-contact').router);
 app.use('/api', require('./ministry-store').router);
 app.use('/api', require('./meeting-provider').router);
 app.get('/api/blog', (req, res) => res.json(readJSONFile('blog.json')));
+app.use('/api', require('./devotional-archive').router);
 app.use('/api', require('./devotionals').router);
 app.use('/api', require('./devotional-community').router);
 

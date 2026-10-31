@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
-import { BookOpen, Share2, Printer } from 'lucide-react'
+import { Link, useParams, useNavigate } from 'react-router-dom'
+import { BookOpen, Share2, Printer, Bookmark, Check } from 'lucide-react'
 import DevotionalReading from '../components/DevotionalReading'
+import DevotionalArchive from '../components/DevotionalArchive'
+import useDevotionalLibrary from '../hooks/useDevotionalLibrary'
 import DevotionalBrand from '../components/DevotionalBrand'
 import { DEVOTIONAL_BRAND as brand } from '../utils/devotional-brand.mjs'
 import DevotionalCommunity, { DevotionalGiving } from '../components/DevotionalCommunity'
@@ -9,10 +11,10 @@ import { readDevotionals, devotionalError, nigeriaToday } from '../services/devo
 import './Devotional.css'
 export default function Devotional() {
   const { date } = useParams()
+  const navigate=useNavigate()
+  const reader=useDevotionalLibrary()
   const selected = date || nigeriaToday()
   const [entry,setEntry] = useState(null)
-  const [entries,setEntries] = useState([])
-  const [query,setQuery] = useState('')
   const [loading,setLoading] = useState(true)
   const [error,setError] = useState('')
   const [notice,setNotice] = useState('')
@@ -23,11 +25,7 @@ export default function Devotional() {
     readDevotionals({date:selected}).then(r => { if(active) setEntry(r.data.entries[0] || null) }).catch(e => { if(active) setError(devotionalError(e)) }).finally(() => { if(active) setLoading(false) })
     return () => { active=false }
   },[selected,retry])
-  useEffect(() => {
-    let active=true
-    readDevotionals({}).then(r => { if(active) setEntries(r.data.entries) }).catch(() => {})
-    return () => { active=false }
-  },[retry])
+  useEffect(()=>{if(entry?.publicationDate)reader.opened(entry.publicationDate)},[entry?.publicationDate,reader.library.rememberHistory])
   useEffect(() => {
     const old = document.title
     document.title = entry ? `${entry.title} | ${brand.title}` : `${brand.title} | CRH Daily Devotional`
@@ -43,13 +41,16 @@ export default function Devotional() {
   return <div className="dev-page">
     <header className="dev-hero dev-no-print dev-series-hero"><div className="dev-wrap"><DevotionalBrand variant="page"/><small>365-day programme · 1 November 2026 – 31 October 2027</small></div></header>
     <div className="dev-wrap dev-layout">
-      <div><div className="dev-toolbar dev-no-print"><label>Choose a date<input aria-label="Choose a devotional date" type="date" value={selected} min="2026-11-01" max="2027-10-31" onChange={e => { if(e.target.value) window.location.assign(`/devotional/${e.target.value}`) }}/></label><Link to="/devotional">Today’s reading</Link>{entry && <><button onClick={share}><Share2 size={16}/> Share</button><button onClick={() => window.print()}><Printer size={16}/> Print</button></>}</div>
+      <div><div className="dev-toolbar dev-no-print"><label>Choose a date<input aria-label="Choose a devotional date" type="date" value={selected} min="2026-11-01" max="2027-10-31" onChange={e => { if(e.target.value) navigate(`/devotional/${e.target.value}`) }}/></label><Link to="/devotional">Today’s reading</Link><a href="#devotional-reading-space">Search & saved readings</a>{entry && <><button aria-pressed={reader.library.bookmarks.includes(entry.publicationDate)} onClick={()=>reader.toggleBookmark(entry.publicationDate)}><Bookmark size={16}/>{reader.library.bookmarks.includes(entry.publicationDate)?'Saved reading':'Save reading'}</button><button onClick={share}><Share2 size={16}/> Share</button><button onClick={() => window.print()}><Printer size={16}/> Print</button></>}</div>
       <p role="status">{notice}</p>
+      {(reader.storageNotice||!reader.persistent)&&<p role="status" className="dev-library-note">{reader.storageNotice||'Browser storage is unavailable. Your reading preferences may last only in this tab.'}</p>}
       {loading ? <div className="dev-card" role="status">Loading your reading…</div> : error ? <div className="dev-card" role="alert"><p>{error}</p><button onClick={() => setRetry(x=>x+1)}>Try again</button></div> : entry ? <DevotionalReading entry={entry}/> : <div className="dev-card"><BookOpen/><h2>No reading has been released for {selected}.</h2><p>Devotionals appear here after pastoral review and their scheduled release. You can choose an available reading from the archive.</p></div>}
+      {entry&&<section className="dev-reading-progress dev-no-print"><div><h2>Make time for the Word.</h2><p>Finished reflecting on this reading? Mark it as read on this device.</p></div><button aria-pressed={reader.library.completed.includes(entry.publicationDate)} onClick={()=>reader.toggleRead(entry.publicationDate)}><Check size={17}/>{reader.library.completed.includes(entry.publicationDate)?'Marked as read · Undo':'Mark as read'}</button></section>}
       {entry && <DevotionalCommunity key={entry.publicationDate} entry={entry}/>}
       <DevotionalGiving/>
       </div>
-      <aside className="dev-card dev-archive dev-no-print"><p className="dev-eyebrow">READING ARCHIVE</p><h2>A moment with the Word</h2><label>Search released readings<input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Title, theme or scripture"/></label><nav aria-label="Devotional archive">{entries.filter(c=>[c.title,c.monthlyTheme,c.mainReference].join(' ').toLowerCase().includes(query.toLowerCase())).map(c=><Link key={c.publicationDate} to={`/devotional/${c.publicationDate}`} aria-current={selected===c.publicationDate?'page':undefined}><small>{c.publicationDate} · Day {c.dayNumber}</small><strong>{c.title}</strong></Link>)}</nav>{!entries.length && <p>No released readings are available yet.</p>}<Link to="/admin/devotionals">Editorial desk</Link></aside>
+      <DevotionalArchive selected={selected} reader={reader} retry={retry}/>
     </div>
   </div>
 }
+
