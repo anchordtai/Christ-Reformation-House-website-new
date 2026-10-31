@@ -1,7 +1,34 @@
 {
-  "rewrites": [{"source": "/(.*)", "destination": "/index.html"}],
-  "headers": [{"source": "/(.*)", "headers": [
-    {"key": "X-Content-Type-Options", "value": "nosniff"},
-    {"key": "Referrer-Policy", "value": "strict-origin-when-cross-origin"}
-  ]}]
+  "rewrites": [
+    {
+      "source": "/blog/:slug",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(facebookexternalhit|Facebot|WhatsApp|Twitterbot|LinkedInBot|TelegramBot|Discordbot|Slackbot).*"
+        }
+      ],
+      "destination": "https://christ-reformation-house-website-new-1.onrender.com/api/blog/share/:slug"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        }
+      ]
+    }
+  ]
 }
