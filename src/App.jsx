@@ -1,11 +1,11 @@
 import {lazy,Suspense} from 'react'
-import DevotionalEditor from './pages/DevotionalEditor'
+const DevotionalEditor=lazy(()=>import('./pages/DevotionalEditor'))
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import Header from './components/Header'
 import PageEnhancements from './components/PageEnhancements'
 import MinistryAssistant from './components/MinistryAssistant'
 import Watch from './pages/Watch'
-import BroadcastEditor from './pages/BroadcastEditor'
+const BroadcastEditor=lazy(()=>import('./pages/BroadcastEditor'))
 import Salvation from './pages/Salvation'
 import PrayerSupport from './pages/PrayerSupport'
 import Testimonies from './pages/Testimonies'
@@ -17,26 +17,27 @@ import ProtectedRoute from './components/ProtectedRoute'
 import Home from './pages/Home'
 import About from './pages/About'
 import Events from './pages/Events'
-import EventEditor from './pages/EventEditor'
-import Blog from './pages/Blog'
+const EventEditor=lazy(()=>import('./pages/EventEditor'))
+const Blog=lazy(()=>import('./pages/Blog'))
 import Devotional from './pages/Devotional'
 import Donate from './pages/Donate'
 import DonateReturn from './pages/DonateReturn'
 import Contact from './pages/Contact'
 import Ministries from './pages/Ministries'
 import ChurchStore from './pages/ChurchStore'
-import StoreEditor from './pages/StoreEditor'
-import ContactInbox from './pages/ContactInbox'
+const StoreEditor=lazy(()=>import('./pages/StoreEditor'))
+const ContactInbox=lazy(()=>import('./pages/ContactInbox'))
+const BlogEditor=lazy(()=>import('./pages/BlogEditor'))
 const Help=lazy(()=>import('./pages/Help'))
 const Support=lazy(()=>import('./pages/Support'))
 const SupportDesk=lazy(()=>import('./pages/SupportDesk'))
 import EventRegister from './pages/EventRegister'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
-import BlogPost from './pages/BlogPost'
+const BlogPost=lazy(()=>import('./pages/BlogPost'))
 import Meetings from './pages/Meetings'
-import SocialAutomation from './pages/SocialAutomation'
-import AdminLogin from './pages/AdminLogin'
+const SocialAutomation=lazy(()=>import('./pages/SocialAutomation'))
+const AdminLogin=lazy(()=>import('./pages/AdminLogin'))
 
 function App() {
   return (
@@ -61,6 +62,7 @@ function App() {
             <Route path="/admin/events" element={<EventEditor />} />
             <Route path="/events/register/:id" element={<EventRegister />} />
             <Route path="/blog" element={<Blog />} />
+            <Route path="/admin/blog" element={<BlogEditor />} />
             <Route path="/blog/:id" element={<BlogPost />} />
             <Route path="/devotional" element={<Devotional />} />
             <Route path="/devotional/:date" element={<Devotional />} />
