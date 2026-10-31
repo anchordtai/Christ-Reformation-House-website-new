@@ -156,6 +156,7 @@ app.get('/api/sermons/:id', (req, res) => {
   return res.json(item);
 });
 app.use('/api', require('./events').router);
+app.use('/api', require('./live-broadcast').router);
 app.use('/api', require('./meeting-provider').router);
 app.get('/api/blog', (req, res) => res.json(readJSONFile('blog.json')));
 app.use('/api', require('./devotionals').router);
@@ -596,3 +597,4 @@ if (require.main === module) app.listen(PORT, '0.0.0.0', () => {
 
 
 module.exports = app;
+

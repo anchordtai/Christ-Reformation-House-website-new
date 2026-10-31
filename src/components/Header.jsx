@@ -4,7 +4,7 @@ import { Menu, X } from 'lucide-react'
 
 const navLinks = [
   { path: '/', label: 'Home' }, { path: '/about', label: 'About' },
-  { path: '/watch', label: 'Watch' }, { path: '/devotional', label: 'Devotional' },
+  { path: '/watch', label: 'Watch Live' }, { path: '/devotional', label: 'Devotional' },
   { path: '/salvation', label: 'New here?' },
   { path: '/testimonies', label: 'Testimonies' }, { path: '/meetings', label: 'Meetings' },
   { path: '/donate', label: 'Give' }, { path: '/contact', label: 'Contact' },
@@ -21,3 +21,4 @@ export default function Header() {
     <button type="button" onClick={() => setOpen(value => !value)} className="xl:hidden p-3 rounded-lg" aria-label="Toggle menu" aria-expanded={open} aria-controls="mobile-navigation">{open ? <X size={24} /> : <Menu size={24} />}</button>
   </div>{open && <nav id="mobile-navigation" aria-label="Mobile navigation" className="platform-nav platform-mobile-nav xl:hidden">{links}</nav>}</div></header>
 }
+
