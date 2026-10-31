@@ -4,6 +4,7 @@ import Header from './components/Header'
 import PageEnhancements from './components/PageEnhancements'
 import MinistryAssistant from './components/MinistryAssistant'
 import Watch from './pages/Watch'
+import BroadcastEditor from './pages/BroadcastEditor'
 import Salvation from './pages/Salvation'
 import PrayerSupport from './pages/PrayerSupport'
 import Testimonies from './pages/Testimonies'
@@ -43,6 +44,7 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/about" element={<About />} />
             <Route path="/watch" element={<Watch />} />
+            <Route path="/admin/broadcast" element={<BroadcastEditor />} />
             <Route path="/sermons" element={<Watch />} />
             <Route path="/sermons/:id" element={<Watch />} />
             <Route path="/live" element={<Watch />} />
@@ -81,6 +83,7 @@ function App() {
 }
 
 export default App
+
 
 
 
