@@ -7,7 +7,7 @@ const date=today();const old=axios.defaults.adapter;
 axios.defaults.adapter=async config=>{
  calls.push(config);if(unavailable)throw new Error('Secret provider message');
  const table=config.url.split('/').at(-1);const params=config.params||{};const payload=config.data?JSON.parse(config.data):{};let data=[];const headers={};
- if(table==='user')data={id:'editor-id',app_metadata:editor?{devotional_editor:true}:{},user_metadata:{devotional_editor:true}};
+ if(table==='user')data={id:'editor-id',email_confirmed_at:'2026-01-01',app_metadata:editor?{devotional_editor:true}:{},user_metadata:{devotional_editor:true}};
  else if(table==='devotional_entries')data=rows;
  else if(table==='devotional_likes'){
   if(config.method==='head')headers['content-range']=`*/${likes.size}`;
@@ -66,3 +66,4 @@ test('community errors do not expose provider details and invalid pages are reje
  unavailable=true;let r=await fetch(`${base}/devotionals/${date}/community`);assert.equal(r.status,503);assert.equal((await r.text()).includes('Secret'),false);
  unavailable=false;r=await fetch(`${base}/devotionals/${date}/community?offset=-1`);assert.equal(r.status,400);
 });
+

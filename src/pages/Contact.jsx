@@ -3,6 +3,8 @@ import { Mail, Phone, MapPin, Send, MessageCircle } from 'lucide-react'
 import { sendContact, commerceError } from '../services/ministry-commerce'
 import { APP_CONFIG } from '../utils/constants'
 import Error from '../components/Error'
+import {Link} from 'react-router-dom'
+import FormVerification from '../components/FormVerification'
 
 const Contact = () => {
   const [formData, setFormData] = useState({
@@ -13,13 +15,14 @@ const Contact = () => {
     message: '',
   })
   const [loading,setLoading]=useState(false),[error,setError]=useState(''),[success,setSuccess]=useState(false),[reference,setReference]=useState(''),[consent,setConsent]=useState(false),[website,setWebsite]=useState('')
+  const [verificationReady,setVerificationReady]=useState(false),[verificationToken,setVerificationToken]=useState(''),[verificationReset,setVerificationReset]=useState(0)
   const submission=useRef(crypto.randomUUID()),busy=useRef(false)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     if(busy.current)return
     busy.current=true;setLoading(true);setError('')
-    try{const result=await sendContact({...formData,submissionId:submission.current,consent,website});setReference(result.reference||'');setSuccess(true);setFormData({name:'',email:'',phone:'',subject:'',message:''})}catch(e){setError(commerceError(e))}finally{busy.current=false;setLoading(false)}
+    try{const result=await sendContact({...formData,submissionId:submission.current,consent,website,verificationToken});setReference(result.reference||'');setSuccess(true);setFormData({name:'',email:'',phone:'',subject:'',message:''})}catch(e){setError(commerceError(e))}finally{busy.current=false;setLoading(false);setVerificationReset(v=>v+1)}
   }
 
   const handleChange = (e) => {
@@ -127,6 +130,7 @@ const Contact = () => {
             <div className="lg:col-span-2">
               <div className="card">
                 <h2 className="text-2xl font-bold mb-6">Send us a Message</h2>
+                <p className="mb-6"><Link to="/help" className="underline">Find an answer</Link> · <Link to="/support" className="underline">Chat with church staff</Link></p>
                 {error && <div role="alert"><Error message={error} /></div>}
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div style={{position:'absolute',left:'-10000px'}} aria-hidden="true"><label>Website<input tabIndex={-1} autoComplete="off" value={website} onChange={e=>setWebsite(e.target.value)}/></label></div>
@@ -215,9 +219,10 @@ const Contact = () => {
                   </div>
 
                   <label className="flex items-start gap-3 text-sm"><input type="checkbox" required checked={consent} onChange={e=>setConsent(e.target.checked)}/><span>I agree that the ministry may store these contact details and this message to respond to my enquiry. Please do not include payment details or passwords.</span></label>
+                  <FormVerification action="contact" onReady={setVerificationReady} onToken={setVerificationToken} resetKey={verificationReset}/>
                   <button
                     type="submit"
-                    disabled={loading||!consent}
+                    disabled={loading||!consent||!verificationReady}
                     className="btn-primary w-full flex items-center justify-center"
                   >
                     {loading ? (

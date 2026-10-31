@@ -26,6 +26,8 @@ const Footer = () => {
     { path: '/prayer-support', label: 'Prayer & Support' },
     { path: '/contact', label: 'Contact Us' },
     { path: '/store', label: 'Church Store' },
+    { path: '/help', label: 'Help & FAQs' },
+    { path: '/support', label: 'Chat with the ministry' },
   ]
 
   return (
@@ -129,6 +131,7 @@ const Footer = () => {
 }
 
 export default Footer
+
 
 
 

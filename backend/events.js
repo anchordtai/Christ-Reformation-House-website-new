@@ -52,7 +52,7 @@ router.post('/events/:id/register',wrap(async (req,res) => {
   res.status(201).json({message:'Your registration has been received. Keep the event details for your visit. No automatic confirmation email is sent.'});
 }));
 // Authentication is attached to every staff handler before any database access.
-const staff = fn => wrap(async (req,res) => { const user = await ministryUser(bearer(req)); if (!isEventEditor(user)) throw fail(403,'This account cannot manage events.'); await fn(req,res,user); });
+const staff = fn => wrap(async (req,res) => { const user = await ministryUser(bearer(req)); if (!isEventEditor(user)) throw fail(403,'This account cannot manage events.'); req.ministryActor=user.id;await fn(req,res,user); });
 // Staff endpoints have a separate namespace from the public event reader.
 router.get('/ministry-admin/events',staff(async (req,res) => res.json({events:await db('get','ministry_events',{select:fields,order:'starts_at.desc',limit:200})})));
 router.post('/ministry-admin/events',staff(async (req,res,user) => {
@@ -80,3 +80,4 @@ router.get('/ministry-admin/events/:id/registrations',staff(async (req,res) => {
   res.json({registrations:await db('get','ministry_event_registrations',{select:'id,name,email,attendees,created_at',event_id:`eq.${req.params.id}`,order:'created_at.desc',limit:50,offset})});
 }));
 module.exports = {router,validateEvent,validateRegistration};
+

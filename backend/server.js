@@ -36,6 +36,9 @@ const { paymentFailure } = require('./payment-failure');
 const { configuredMethods, methodsFor, methodCatalog, operationKey, customerId, normalizeTransfer, transferResponse } = require('./payment-methods');
 
 const app = express();
+app.disable('x-powered-by');
+app.use(require('./site-security').securityHeaders);
+app.use(require('./site-security').audit);
 const PORT = process.env.PORT || 5000;
 const FRONTEND_ORIGIN = String(process.env.FRONTEND_ORIGIN || 'http://localhost:3000').trim().replace(/\/$/, '');
 const FLW_WEBHOOK_SECRET_HASH = String(process.env.FLW_WEBHOOK_SECRET_HASH || '').trim();
@@ -157,6 +160,8 @@ app.get('/api/sermons/:id', (req, res) => {
 });
 app.use('/api', require('./events').router);
 app.use('/api', require('./live-broadcast').router);
+app.use('/api', require('./site-security').router);
+app.use('/api', require('./ministry-chat').router);
 app.use('/api', require('./ministry-contact').router);
 app.use('/api', require('./ministry-store').router);
 app.use('/api', require('./meeting-provider').router);

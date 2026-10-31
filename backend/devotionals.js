@@ -59,6 +59,7 @@ async function verifiedUser(token) {
   catch (e) { if ([401,403].includes(e.response?.status)) throw fail(401, 'Session expired. Sign in again.'); throw e; }
   const u = r.data;
   if (!u?.id) throw fail(401, 'Sign in again.');
+  if (!u.email_confirmed_at) throw fail(403, 'Confirm your ministry email before signing in.');
   if (u.app_metadata?.role !== 'admin' && u.app_metadata?.devotional_editor !== true) throw fail(403, 'This account has no devotional editing permission.');
   return u;
 }
@@ -74,20 +75,23 @@ router.get('/devotionals', wrap(async (req,res) => {
 }));
 // A bounded per-process limit supplements Supabase Auth's own sign-in limits.
 const attempts = new Map();
+const broadSignInLimit = require('./ministry-admin').limiter(120);
 router.post('/devotional-editor/login', wrap(async (req,res) => {
   const now = Date.now();
   for (const [key,v] of attempts) if (v.until < now) attempts.delete(key);
-  const key = req.ip;
+  broadSignInLimit(req);
+  const key = (req.ip||'unknown')+':'+require('crypto').createHash('sha256').update(String(req.body?.email||'').trim().toLowerCase()).digest('hex');
   const v = attempts.get(key) || { count:0, until:now+600000 };
   if (v.count >= 10 || attempts.size >= 10000) throw fail(429, 'Please wait before trying to sign in again.');
   v.count++; attempts.set(key,v);
-  if (typeof req.body.email !== 'string' || req.body.email.length > 254 || typeof req.body.password !== 'string' || req.body.password.length > 256) throw fail(400, 'Enter your email and password.');
+  if (typeof req.body.email !== 'string' || req.body.email.length > 254 || typeof req.body.password !== 'string' || !req.body.password || req.body.password.length > 256) throw fail(400, 'Enter your email and password.');
   const url = String(process.env.SUPABASE_URL || '').replace(/\/$/, '');
   if (!url || !process.env.SUPABASE_SERVICE_ROLE_KEY) throw fail(503, 'The devotional desk is not configured.');
   let result;
-  try { result = await axios.post(`${url}/auth/v1/token?grant_type=password`, { email:req.body.email, password:req.body.password }, { headers:getSupabaseHeaders(), timeout:10000 }); }
+  try { result = await axios.post(`${url}/auth/v1/token?grant_type=password`, { email:req.body.email.trim().toLowerCase(), password:req.body.password }, { headers:getSupabaseHeaders(), timeout:10000 }); }
   catch (e) { if ([400,401,403].includes(e.response?.status)) throw fail(401, 'Sign-in failed. Check your credentials.'); throw e; }
   const user = await verifiedUser(result.data.access_token);
+  req.ministryActor=user.id;
   res.json({ token:result.data.access_token, email:user.email });
 }));
 // Fixed, ministry-owned callback: never accept a redirect destination from a request.
@@ -145,3 +149,4 @@ router.post('/devotional-editor/entries/:date', wrap(async (req,res) => {
   res.json({ entry:result[0] });
 }));
 module.exports = { router, validateContent, releaseValues, visible, publicEntry, validDate, today, verifiedUser };
+

@@ -1,13 +1,15 @@
-# Static site only – no Netlify Functions. API is your own Express backend.
+# Static site only. API remains on the existing Render service.
 [build]
   command = "npm run build"
   publish = "dist"
-
 [build.environment]
-  NODE_VERSION = "18"
-
-# SPA: serve index.html for all routes (e.g. /donate/return after payment redirect)
+  NODE_VERSION = "24"
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
