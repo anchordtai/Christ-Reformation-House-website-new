@@ -57,3 +57,28 @@ test('late SDK load cannot resurrect an unmounted call; active embed uses parent
   await render('Embed','/',props);const script=document.querySelector('script[src*="8x8.vc"]');assert.ok(script);await act(async()=>root.render(null));await act(async()=>script.onload());assert.equal(count,0);
   let ready=0;await render('Embed','/',{...props,onReady:()=>ready++});assert.equal(count,1);assert.ok(options.parentNode);assert.equal(options.parent,undefined);assert.equal(options.configOverwrite.startWithAudioMuted,true);assert.match(node.querySelector('iframe').getAttribute('allow'),/display-capture/);await act(async()=>listeners.videoConferenceJoined());assert.equal(ready,1);await act(async()=>root.render(null));assert.equal(disposed,1);assert.equal(node.querySelector('iframe'),null);
 });
+
+
+test('host lobby starts only after moderator confirmation, with visible admit and decline requests',async()=>{
+  const appId='vpaas-magic-cookie-fedcba9876543210',props={appId,roomName:appId+'/crh-hosttest',jwt:'test-jwt',host:true};let listeners={},commands=[],options;
+  window.JitsiMeetExternalAPI=function(domain,input){options=input;this.addListener=(name,fn)=>listeners[name]=fn;this.executeCommand=(...args)=>commands.push(args);this.dispose=()=>{}};
+  await render('Embed','/',props);await act(async()=>document.querySelector(`script[src*="${appId}"]`).onload());
+  assert.equal(options.configOverwrite.toolbarConfig.alwaysVisible,true);
+  assert.deepEqual(commands,[]);
+  await act(async()=>listeners.participantRoleChanged({id:'local',role:'participant'}));assert.deepEqual(commands,[]);
+  await act(async()=>listeners.participantRoleChanged({id:'local',role:'moderator'}));assert.deepEqual(commands,[['toggleLobby',true]]);
+  await act(async()=>listeners.participantRoleChanged({id:'local',role:'moderator'}));assert.equal(commands.length,1);
+  await act(async()=>listeners.knockingParticipant({participant:{id:'guest-one',name:'Test guest'}}));
+  assert.match(node.querySelector('[role="alert"]').textContent,/1 participant is waiting/);
+  await click([...node.querySelectorAll('button')].find(b=>b.textContent==='Admit Test guest'));
+  assert.deepEqual(commands.at(-1),['answerKnockingParticipant','guest-one',true]);assert.equal(node.querySelector('[aria-label="Participants waiting to join"]'),null);
+  await act(async()=>listeners.knockingParticipant({participant:{id:'guest-two',name:'Other guest'}}));
+  await click([...node.querySelectorAll('button')].find(b=>b.textContent==='Decline Other guest'));
+  assert.deepEqual(commands.at(-1),['answerKnockingParticipant','guest-two',false]);
+  await act(async()=>listeners.knockingParticipant({participant:{id:'guest-three',name:'Leaving guest'}}));
+  await act(async()=>listeners.participantLeft({id:'guest-three'}));assert.equal(node.querySelector('[aria-label="Participants waiting to join"]'),null);
+  await act(async()=>listeners.micError({type:'NotAllowedError'}));assert.match(node.querySelector('[role="alert"]').textContent,/Allow microphone access/);
+  await act(async()=>root.render(null));commands=[];listeners={};await render('Embed','/',{...props,host:false});
+  await act(async()=>listeners.participantRoleChanged({id:'local',role:'moderator'}));assert.deepEqual(commands,[]);
+  await act(async()=>listeners.knockingParticipant({participant:{id:'guest',name:'Guest'}}));assert.equal(node.querySelector('[aria-label="Participants waiting to join"]'),null);
+});
