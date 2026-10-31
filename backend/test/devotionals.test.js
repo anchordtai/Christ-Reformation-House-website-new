@@ -24,7 +24,7 @@ axios.defaults.adapter=async config=>{
 };
 before(()=>{const app=express();app.use(express.json());app.use('/api',router);return new Promise(resolve=>{server=app.listen(0,'127.0.0.1',()=>{base=`http://127.0.0.1:${server.address().port}/api`;resolve()})})});
 after(()=>{axios.defaults.adapter=realAdapter;return new Promise(r=>server.close(r))});
-beforeEach(()=>{requests=[];user={id:'editor',app_metadata:{devotional_editor:true}};rows=[];conflict=false;unavailable=false});
+beforeEach(()=>{requests=[];user={id:'editor',email_confirmed_at:'2026-01-01',app_metadata:{devotional_editor:true}};rows=[];conflict=false;unavailable=false});
 const post=async(path,body,token='test-token')=>fetch(base+path,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify(body)});
 test('calendar uses Lagos and rejects invalid programme dates',()=>{
  assert.equal(today(new Date('2026-10-31T23:30:00Z')),'2026-11-01');
@@ -93,3 +93,6 @@ test('password setup updates only the token owner and does not return credential
  const r=await post('/devotional-editor/password',{password:'not-a-real-password',user_id:'another-user'});
  assert.equal(r.status,200);const request=requests.at(-1);assert.equal(request.method,'put');assert.match(request.url,/\/auth\/v1\/user$/);assert.equal(request.headers.Authorization,'Bearer test-token');assert.deepEqual(JSON.parse(request.data),{password:'not-a-real-password'});assert.equal((await r.text()).includes('not-a-real-password'),false);
 });
+
+
+test('unconfirmed editorial accounts cannot read drafts even with a staff role',async()=>{delete user.email_confirmed_at;const r=await fetch(base+'/devotional-editor/entries',{headers:{Authorization:'Bearer test'}});assert.equal(r.status,403);assert.equal(requests.some(c=>c.url.includes('/rest/')),false)});

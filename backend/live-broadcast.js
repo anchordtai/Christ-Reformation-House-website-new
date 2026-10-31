@@ -47,7 +47,7 @@ router.get('/live-broadcast',wrap(async (req,res) => {
 const staff = fn => wrap(async(req,res) => {
   const user = await ministryUser(bearer(req));
   if (!isEventEditor(user)) throw fail(403,'This account cannot manage broadcasts.');
-  await fn(req,res,user);
+  req.ministryActor=user.id;await fn(req,res,user);
 });
 router.get('/ministry-admin/live-broadcast',staff(async(req,res) => {
   const rows = await db('get',{select:columns,id:'eq.1',limit:1});
