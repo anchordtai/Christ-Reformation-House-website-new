@@ -11,7 +11,7 @@ export default function MinistryAssistant() {
   const toggle = useRef(null)
   const field = useRef(null)
   const end = useRef(null)
-  const hidden = pathname.startsWith('/donate') || pathname.startsWith('/meetings/room/')
+  const hidden = pathname.startsWith('/donate') || pathname.startsWith('/store') || pathname.startsWith('/meetings/room/')
   useEffect(() => { setOpen(false); setInput('') }, [pathname])
   useEffect(() => { if (open && !hidden) field.current?.focus() }, [open, hidden])
   useEffect(() => { end.current?.scrollIntoView?.({ block: 'nearest' }) }, [messages])
@@ -40,3 +40,4 @@ export default function MinistryAssistant() {
     </div>}
   </>
 }
+

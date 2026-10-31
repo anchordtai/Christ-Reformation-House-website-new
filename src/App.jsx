@@ -24,6 +24,8 @@ import DonateReturn from './pages/DonateReturn'
 import Contact from './pages/Contact'
 import Ministries from './pages/Ministries'
 import ChurchStore from './pages/ChurchStore'
+import StoreEditor from './pages/StoreEditor'
+import ContactInbox from './pages/ContactInbox'
 import EventRegister from './pages/EventRegister'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
@@ -65,6 +67,8 @@ function App() {
             <Route path="/prayer-request" element={<PrayerSupport />} />
             <Route path="/ministries" element={<Ministries />} />
             <Route path="/store" element={<ChurchStore />} />
+            <Route path="/admin/store" element={<StoreEditor />} />
+            <Route path="/admin/contact" element={<ContactInbox />} />
             <Route path="/meetings" element={<Meetings />} />
             <Route path="/meetings/schedule" element={<PlanMeeting />} />
             <Route path="/meetings/room/:id" element={<InstantMeetingRoom />} />
