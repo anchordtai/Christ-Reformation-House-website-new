@@ -27,7 +27,7 @@ export const APP_CONFIG = {
   CHURCH_INSTAGRAM: 'https://www.instagram.com/apostletaiwoanchord?igsh=OW44ejJiZmx6ejN6',
   CHURCH_FACEBOOK: 'https://web.facebook.com/profile.php?id=100069245150281',
   CHURCH_TIKTOK: 'https://vm.tiktok.com/ZS91VQHsE8kaF-6cfm4/',
-  CHURCH_YOUTUBE: '', // Add YouTube channel URL when available
+  CHURCH_YOUTUBE: 'https://www.youtube.com/channel/UCgZv2cTsQy1IKHJqk2zQj7Q',
   CHURCH_ADDRESS: "Christ's Reformation House Giri, FCT Abuja, Nigeria.",
 }
 
@@ -67,6 +67,7 @@ export const PRAYER_REQUEST_TYPES = [
   { value: 'spiritual', label: 'Spiritual Growth' },
   { value: 'other', label: 'Other' },
 ]
+
 
 
 

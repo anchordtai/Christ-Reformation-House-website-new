@@ -1,7 +1,6 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { Mail, Phone, MapPin, Send, MessageCircle } from 'lucide-react'
-import { useFormSubmit } from '../hooks/useApi'
-import { contactService } from '../services/api'
+import { sendContact, commerceError } from '../services/ministry-commerce'
 import { APP_CONFIG } from '../utils/constants'
 import Error from '../components/Error'
 
@@ -13,14 +12,14 @@ const Contact = () => {
     subject: '',
     message: '',
   })
-  const { submit, loading, error, success } = useFormSubmit((data) => contactService.send(data))
+  const [loading,setLoading]=useState(false),[error,setError]=useState(''),[success,setSuccess]=useState(false),[reference,setReference]=useState(''),[consent,setConsent]=useState(false),[website,setWebsite]=useState('')
+  const submission=useRef(crypto.randomUUID()),busy=useRef(false)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    await submit(formData)
-    if (success) {
-      setFormData({ name: '', email: '', phone: '', subject: '', message: '' })
-    }
+    if(busy.current)return
+    busy.current=true;setLoading(true);setError('')
+    try{const result=await sendContact({...formData,submissionId:submission.current,consent,website});setReference(result.reference||'');setSuccess(true);setFormData({name:'',email:'',phone:'',subject:'',message:''})}catch(e){setError(commerceError(e))}finally{busy.current=false;setLoading(false)}
   }
 
   const handleChange = (e) => {
@@ -37,12 +36,13 @@ const Contact = () => {
           <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <Mail className="w-8 h-8 text-green-600" />
           </div>
-          <h2 className="text-2xl font-bold mb-2">Message Sent!</h2>
+          <h2 className="text-2xl font-bold mb-2">Message received</h2>
           <p className="text-gray-600 mb-6">
-            Thank you for contacting us. We'll get back to you as soon as possible.
+            Your message has been saved for the ministry team to review. No automatic email confirmation is sent.
           </p>
+          {reference&&<p className="text-xs break-all mb-4">Your reference: {reference}</p>}
           <button
-            onClick={() => window.location.reload()}
+            onClick={() => {setSuccess(false);setReference('');setConsent(false);submission.current=crypto.randomUUID()}}
             className="btn-primary"
           >
             Send Another Message
@@ -118,9 +118,7 @@ const Contact = () => {
               <div className="card bg-blue-50">
                 <h3 className="font-semibold mb-2">Office Hours</h3>
                 <p className="text-sm text-gray-600">
-                  Monday - Friday: 9:00 AM - 5:00 PM<br />
-                  Saturday: 10:00 AM - 2:00 PM<br />
-                  Sunday: Closed (Worship Services)
+                  Please call or message the ministry to confirm a suitable visiting time.
                 </p>
               </div>
             </div>
@@ -129,8 +127,9 @@ const Contact = () => {
             <div className="lg:col-span-2">
               <div className="card">
                 <h2 className="text-2xl font-bold mb-6">Send us a Message</h2>
-                {error && <Error message={error} />}
+                {error && <div role="alert"><Error message={error} /></div>}
                 <form onSubmit={handleSubmit} className="space-y-6">
+                  <div style={{position:'absolute',left:'-10000px'}} aria-hidden="true"><label>Website<input tabIndex={-1} autoComplete="off" value={website} onChange={e=>setWebsite(e.target.value)}/></label></div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
@@ -138,6 +137,8 @@ const Contact = () => {
                       </label>
                       <input
                         type="text"
+                        maxLength={100}
+                        autoComplete="name"
                         id="name"
                         name="name"
                         required
@@ -152,6 +153,8 @@ const Contact = () => {
                       </label>
                       <input
                         type="email"
+                        maxLength={254}
+                        autoComplete="email"
                         id="email"
                         name="email"
                         required
@@ -168,6 +171,8 @@ const Contact = () => {
                     </label>
                     <input
                       type="tel"
+                      maxLength={40}
+                      autoComplete="tel"
                       id="phone"
                       name="phone"
                       value={formData.phone}
@@ -182,6 +187,7 @@ const Contact = () => {
                     </label>
                     <input
                       type="text"
+                      maxLength={160}
                       id="subject"
                       name="subject"
                       required
@@ -196,6 +202,7 @@ const Contact = () => {
                       Message *
                     </label>
                     <textarea
+                      maxLength={5000}
                       id="message"
                       name="message"
                       rows="6"
@@ -207,9 +214,10 @@ const Contact = () => {
                     />
                   </div>
 
+                  <label className="flex items-start gap-3 text-sm"><input type="checkbox" required checked={consent} onChange={e=>setConsent(e.target.checked)}/><span>I agree that the ministry may store these contact details and this message to respond to my enquiry. Please do not include payment details or passwords.</span></label>
                   <button
                     type="submit"
-                    disabled={loading}
+                    disabled={loading||!consent}
                     className="btn-primary w-full flex items-center justify-center"
                   >
                     {loading ? (
@@ -232,4 +240,5 @@ const Contact = () => {
 }
 
 export default Contact
+
 

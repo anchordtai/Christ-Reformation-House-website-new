@@ -157,11 +157,13 @@ app.get('/api/sermons/:id', (req, res) => {
 });
 app.use('/api', require('./events').router);
 app.use('/api', require('./live-broadcast').router);
+app.use('/api', require('./ministry-contact').router);
+app.use('/api', require('./ministry-store').router);
 app.use('/api', require('./meeting-provider').router);
 app.get('/api/blog', (req, res) => res.json(readJSONFile('blog.json')));
 app.use('/api', require('./devotionals').router);
 app.use('/api', require('./devotional-community').router);
-app.get('/api/store/products', (req, res) => res.json(readJSONFile('store-products.json')));
+
 
 const isValidEmail = (email) => typeof email === 'string' && email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 const isValidCurrency = (currency) => ['NGN', 'USD', 'GBP', 'EUR', 'GHS', 'ZAR', 'KES'].includes(currency);
@@ -547,6 +549,7 @@ app.post('/api/payments/webhook', async (req, res) => {
   const chargeId = String(data.id || '').trim();
   if (!txRef || !chargeId) return res.status(400).json({ error: 'Webhook transaction data missing' });
   try {
+    if (await require('./ministry-store').webhook(txRef,chargeId)) return res.status(200).json({received:true});
     const donation = await getDonationByTxRef(txRef);
     if (!donation) return res.status(200).json({ received: true });
     const response = await retrieveCharge(chargeId);

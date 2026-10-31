@@ -1,249 +1,36 @@
-import { useState } from 'react'
-import { ShoppingCart, Plus, Minus, Search } from 'lucide-react'
-
-const ChurchStore = () => {
-  const [searchTerm, setSearchTerm] = useState('')
-  const [cart, setCart] = useState([])
-
-  // Sample products - in production, fetch from API
-  const products = [
-    {
-      id: 1,
-      name: 'Church T-Shirt',
-      price: 25.99,
-      image: '/assets/img/portfolio/portfolio-1.jpg',
-      category: 'Apparel',
-      description: 'Comfortable cotton t-shirt with church logo.',
-    },
-    {
-      id: 2,
-      name: 'Study Bible',
-      price: 49.99,
-      image: '/assets/img/bible.jpeg',
-      category: 'Books',
-      description: 'Comprehensive study Bible with commentary and notes.',
-    },
-    {
-      id: 3,
-      name: 'Worship CD',
-      price: 15.99,
-      image: '/assets/img/portfolio/portfolio-2.jpg',
-      category: 'Media',
-      description: 'Collection of our favorite worship songs.',
-    },
-    {
-      id: 4,
-      name: 'Devotional Book',
-      price: 19.99,
-      image: '/assets/img/portfolio/portfolio-3.jpg',
-      category: 'Books',
-      description: '365 daily devotionals to strengthen your faith.',
-    },
-    {
-      id: 5,
-      name: 'Church Hoodie',
-      price: 45.99,
-      image: '/assets/img/portfolio/portfolio-4.jpg',
-      category: 'Apparel',
-      description: 'Warm and cozy hoodie perfect for any season.',
-    },
-    {
-      id: 6,
-      name: 'Prayer Journal',
-      price: 12.99,
-      image: '/assets/img/portfolio/portfolio-5.jpg',
-      category: 'Accessories',
-      description: 'Beautiful journal for recording prayers and answers.',
-    },
-  ]
-
-  const filteredProducts = products.filter(product =>
-    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.category.toLowerCase().includes(searchTerm.toLowerCase())
-  )
-
-  const addToCart = (product) => {
-    const existingItem = cart.find(item => item.id === product.id)
-    if (existingItem) {
-      setCart(cart.map(item =>
-        item.id === product.id
-          ? { ...item, quantity: item.quantity + 1 }
-          : item
-      ))
-    } else {
-      setCart([...cart, { ...product, quantity: 1 }])
-    }
-  }
-
-  const updateQuantity = (id, change) => {
-    setCart(cart.map(item => {
-      if (item.id === id) {
-        const newQuantity = item.quantity + change
-        return { ...item, quantity: Math.max(1, newQuantity) }
-      }
-      return item
-    }))
-  }
-
-  const removeFromCart = (id) => {
-    setCart(cart.filter(item => item.id !== id))
-  }
-
-  const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0)
-
-  return (
-    <div>
-      {/* Hero Section */}
-      <section className="bg-gradient-to-r from-blue-600 to-purple-600 text-white section-padding">
-        <div className="container-custom text-center">
-          <ShoppingCart className="w-16 h-16 mx-auto mb-4" />
-          <h1 className="text-5xl font-bold mb-4">Church Store</h1>
-          <p className="text-xl max-w-3xl mx-auto">
-            Find books, apparel, and resources to support your faith journey.
-          </p>
-        </div>
-      </section>
-
-      {/* Search and Cart */}
-      <section className="section-padding bg-gray-50">
-        <div className="container-custom">
-          <div className="flex flex-col md:flex-row gap-4 items-center justify-between mb-6">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input
-                type="text"
-                placeholder="Search products..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-12 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-            {cart.length > 0 && (
-              <div className="card bg-blue-50">
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold">Cart: {cart.length} item(s)</span>
-                  <span className="font-bold text-blue-600">${total.toFixed(2)}</span>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* Products Grid */}
-      <section className="section-padding">
-        <div className="container-custom">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {filteredProducts.map((product) => {
-              const cartItem = cart.find(item => item.id === product.id)
-              return (
-                <div key={product.id} className="card group hover:shadow-2xl transition-all">
-                  <div className="relative mb-4 overflow-hidden rounded-lg">
-                    <img
-                      src={product.image}
-                      alt={product.name}
-                      className="w-full h-48 object-cover group-hover:scale-110 transition-transform duration-300"
-                    />
-                    <div className="absolute top-4 right-4 bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-semibold">
-                      {product.category}
-                    </div>
-                  </div>
-                  <h3 className="text-xl font-semibold mb-2">{product.name}</h3>
-                  <p className="text-gray-600 mb-4 text-sm">{product.description}</p>
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-2xl font-bold text-blue-600">${product.price}</span>
-                    {cartItem ? (
-                      <div className="flex items-center space-x-2">
-                        <button
-                          onClick={() => updateQuantity(product.id, -1)}
-                          className="p-1 bg-gray-200 rounded hover:bg-gray-300"
-                        >
-                          <Minus className="w-4 h-4" />
-                        </button>
-                        <span className="font-semibold">{cartItem.quantity}</span>
-                        <button
-                          onClick={() => updateQuantity(product.id, 1)}
-                          className="p-1 bg-gray-200 rounded hover:bg-gray-300"
-                        >
-                          <Plus className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => addToCart(product)}
-                        className="btn-primary flex items-center"
-                      >
-                        <ShoppingCart className="w-4 h-4 mr-2" />
-                        Add to Cart
-                      </button>
-                    )}
-                  </div>
-                  {cartItem && (
-                    <button
-                      onClick={() => removeFromCart(product.id)}
-                      className="text-sm text-red-600 hover:text-red-700"
-                    >
-                      Remove from cart
-                    </button>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-
-          {filteredProducts.length === 0 && (
-            <div className="text-center py-12">
-              <p className="text-xl text-gray-500">No products found matching your search.</p>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* Cart Summary */}
-      {cart.length > 0 && (
-        <section className="section-padding bg-gray-100">
-          <div className="container-custom">
-            <div className="max-w-2xl mx-auto card">
-              <h2 className="text-2xl font-bold mb-6">Shopping Cart</h2>
-              <div className="space-y-4 mb-6">
-                {cart.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between border-b pb-4">
-                    <div className="flex items-center space-x-4">
-                      <img src={item.image} alt={item.name} className="w-16 h-16 object-cover rounded" />
-                      <div>
-                        <h3 className="font-semibold">{item.name}</h3>
-                        <p className="text-sm text-gray-600">${item.price} x {item.quantity}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-4">
-                      <span className="font-bold">${(item.price * item.quantity).toFixed(2)}</span>
-                      <button
-                        onClick={() => removeFromCart(item.id)}
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="flex justify-between items-center mb-6 pt-4 border-t">
-                <span className="text-xl font-bold">Total:</span>
-                <span className="text-2xl font-bold text-blue-600">${total.toFixed(2)}</span>
-              </div>
-              <button className="btn-primary w-full">
-                Proceed to Checkout
-              </button>
-            </div>
-          </div>
-        </section>
-      )}
-    </div>
-  )
+import {useEffect,useRef,useState} from 'react'
+import {Link} from 'react-router-dom'
+import {ShoppingBag,ShieldCheck,Search} from 'lucide-react'
+import MetaTags from '../components/MetaTags'
+import {APP_CONFIG} from '../utils/constants'
+import {readStore,createStoreOrder,readStoreOrder,storeOrderAction,commerceError,naira} from '../services/ministry-commerce'
+import '../styles/commerce.css'
+const CART='crhStoreCartV1',SESSION='crhStoreCheckoutV1',uuid=v=>/^[\da-f]{8}-[\da-f]{4}-4[\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/i.test(v||'')
+function cartValue(){try{const c=JSON.parse(localStorage.getItem(CART)||'[]');return Array.isArray(c)?c.filter(i=>uuid(i.id)&&Number.isInteger(i.quantity)&&i.quantity>=1&&i.quantity<=10).slice(0,20):[]}catch{return []}}
+function sessionValue(){try{const s=JSON.parse(sessionStorage.getItem(SESSION)||'null');return uuid(s?.id)&&/^[a-f0-9]{64}$/.test(s.token)?s:null}catch{return null}}
+function newSession(){const bytes=new Uint8Array(32);crypto.getRandomValues(bytes);return {id:crypto.randomUUID(),token:Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('')}}
+export default function ChurchStore(){
+ const [catalog,setCatalog]=useState(null),[loading,setLoading]=useState(true),[query,setQuery]=useState(''),[category,setCategory]=useState('All'),[cart,setCart]=useState(cartValue),[session,setSession]=useState(sessionValue),[order,setOrder]=useState(null),[customer,setCustomer]=useState({name:'',email:'',phone:'',consent:false}),[busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState(''),[retry,setRetry]=useState(0),[,tick]=useState(0),lock=useRef(false)
+ useEffect(()=>{let active=true;setLoading(true);readStore().then(d=>{if(active)setCatalog(d)}).catch(e=>{if(active)setError(commerceError(e))}).finally(()=>{if(active)setLoading(false)});return()=>{active=false}},[retry])
+ useEffect(()=>{try{localStorage.setItem(CART,JSON.stringify(cart))}catch{}},[cart])
+ useEffect(()=>{if(!session)return;let active=true;readStoreOrder(session.id,session.token).then(o=>{if(active)setOrder(o)}).catch(e=>{if(active&&e.response?.status!==404)setError(commerceError(e))});return()=>{active=false}},[session?.id])
+ useEffect(()=>{if(order?.status==='paid')setCart([])},[order?.status])
+ useEffect(()=>{if(!order?.transfer)return;const timer=setInterval(()=>tick(v=>v+1),15000);return()=>clearInterval(timer)},[order?.transfer?.expires_at])
+ const products=catalog?.products||[],items=cart.map(item=>({...products.find(p=>p.id===item.id),...item})),total=items.reduce((s,i)=>s+(i.price_minor||0)*i.quantity,0),validCart=items.length>0&&items.every(i=>i.name&&i.stock>=i.quantity),filtered=products.filter(p=>(category==='All'||p.category===category)&&`${p.name} ${p.description} ${p.category}`.toLowerCase().includes(query.toLowerCase()))
+ function quantity(id,delta){setError('');setCart(previous=>{const item=previous.find(i=>i.id===id),p=products.find(p=>p.id===id);if(!p)return previous;const qty=(item?.quantity||0)+delta;if(qty<=0)return previous.filter(i=>i.id!==id);if(qty>Math.min(p.stock,10)){setNotice('Quantity is limited by available stock and 10 per product.');return previous}return item?previous.map(i=>i.id===id?{...i,quantity:qty}:i):[...previous,{id,quantity:qty}]})}
+ async function place(e){e.preventDefault();if(lock.current)return;lock.current=true;setBusy(true);setError('');setNotice('');try{if(!validCart||!customer.consent)throw Error('Check stock, your cart and consent before checkout.');let current=session;if(!current){current=newSession();sessionStorage.setItem(SESSION,JSON.stringify(current));setSession(current)}else{try{const existing=await readStoreOrder(current.id,current.token);setOrder(existing);return}catch(e){if(e.response?.status!==404)throw e}}const o=await createStoreOrder({...current,...customer,items:cart});setOrder(o)}catch(e){setError(e.response?commerceError(e):e.message||commerceError(e))}finally{lock.current=false;setBusy(false)}}
+ async function action(type){if(lock.current||!session)return;lock.current=true;setBusy(true);setError('');setNotice('');try{const o=await storeOrderAction(session,type);setOrder(o);if(type==='verify'&&o.status!=='paid')setNotice('Payment has not been confirmed. Do not transfer again if you already paid; keep your reference and contact the ministry.');if(type==='cancel')setRetry(v=>v+1)}catch(e){setError(commerceError(e))}finally{lock.current=false;setBusy(false)}}
+ function startAgain(){setOrder(null);setSession(null);sessionStorage.removeItem(SESSION);setError('');setNotice('');setRetry(v=>v+1)}
+ const bank=order?.transfer,expired=bank&&(bank.expired||Date.parse(bank.expires_at)<=Date.now())
+ return <div className="platform-page crh-store-page"><MetaTags title="Church Store" description="Ministry books and resources. Browse available products and pay securely through Flutterwave."/><section className="platform-page-hero crh-store-hero"><div className="container-custom"><p className="ministry-eyebrow">Resources for the journey</p><h1>Carry the Word.<br/><span>Grow in faith.</span></h1><p>Discover available ministry resources. Prices are in Nigerian naira; orders are for collection from the ministry.</p><div className="crh-store-assurance"><ShieldCheck size={19}/><span>Server-verified payments · No card details collected here</span></div></div></section><section className="ministry-section">
+ {error&&<div className="platform-error" role="alert"><p>{error}</p><button className="secondary-button" disabled={busy} onClick={()=>{setError('');setRetry(v=>v+1)}}>Reload products</button></div>}{notice&&<p role="status" className="crh-store-notice">{notice}</p>}
+ {order?<div className="crh-store-checkout"><p className="ministry-eyebrow">Your order</p><h2>{order.status==='paid'?'Payment verified. Thank you.':order.status==='cancelled'?'Order cancelled':'Review and complete your order'}</h2><p className="crh-store-reference">Reference: {order.reference}</p><p>{order.name} · {order.email}</p><ul className="crh-order-lines">{order.items.map(i=><li key={i.id}><span>{i.name} × {i.quantity}</span><strong>{naira(i.price_minor*i.quantity)}</strong></li>)}</ul><div className="crh-store-row"><strong>Products total</strong><strong>{naira(order.total_minor)}</strong></div>
+ {order.status==='paid'?<><p role="status">Your payment was confirmed by the payment provider. Keep your reference and contact the ministry to arrange collection.</p><p>{APP_CONFIG.CHURCH_ADDRESS}</p>{order.collected_at&&<p>Marked collected by the ministry.</p>}<button className="ministry-button dark" onClick={startAgain}>Start another order</button></>:order.status==='cancelled'?<><p>Your unpaid reservation has been released. No payment is requested for this order.</p><button className="ministry-button dark" onClick={startAgain}>Return to the store</button></>:<><p>Collection only: {APP_CONFIG.CHURCH_ADDRESS} Please contact the ministry to arrange a collection time. Shipping is not offered in this checkout.</p>{order.status==='pending'?<div className="platform-actions"><button className="ministry-button dark" disabled={busy||!catalog?.payment_methods?.includes('bank_transfer')} onClick={()=>action('payment')}>{busy?'Preparing…':'Get secure bank-transfer details'}</button><button className="secondary-button" disabled={busy} onClick={()=>action('cancel')}>Cancel unpaid order</button></div>:bank?<div className="crh-store-bank">{expired?<p role="alert">These bank details have expired. Do not transfer to them. Check payment status if you already paid.</p>:<><h3>Transfer exactly {naira(Math.round(bank.amount*100))}</h3><dl><dt>Bank</dt><dd>{bank.bank_name}</dd><dt>Account number</dt><dd>{bank.account_number}</dd>{bank.account_name&&<><dt>Account name</dt><dd>{bank.account_name}</dd></>}</dl><p>{bank.note}</p><p>Provider charges included above: {naira(Math.round(bank.amount*100)-order.total_minor)}. This account is for this order only. Do not save or reuse it.</p><p>Expires: {new Intl.DateTimeFormat('en-NG',{dateStyle:'medium',timeStyle:'short',timeZone:'Africa/Lagos'}).format(new Date(bank.expires_at))} WAT.</p></>}</div>:<p role="status">Payment preparation needs reconciliation. Use Check payment status to recover the original account; do not start another payment.</p>}<button className="secondary-button" disabled={busy} onClick={()=>action('verify')}>{busy?'Checking…':'Check payment status'}</button><p className="crh-source-note">Pressing this button does not mark an order paid or start a new charge. The server verifies the payment with Flutterwave.</p></>}
+ <a className="secondary-button" href={`${APP_CONFIG.CHURCH_WHATSAPP_LINK}?text=${encodeURIComponent('Please help with my CRH store order '+order.reference)}`} target="_blank" rel="noopener noreferrer">Contact the ministry about this order</a></div>:<>
+ <div className="crh-store-filters"><label><Search size={18}/>Search products<input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Books, resources…"/></label><label>Category<select value={category} onChange={e=>setCategory(e.target.value)}>{['All',...new Set(products.map(p=>p.category))].map(c=><option key={c}>{c}</option>)}</select></label></div>
+ {loading?<p role="status">Loading available resources…</p>:catalog&&products.length===0?<div className="crh-store-empty"><ShoppingBag size={40}/><h2>Resources are being prepared.</h2><p>There are no products available to purchase yet. Contact the ministry about books and other resources, or explore the free devotional.</p><div className="platform-actions"><Link className="ministry-button dark" to="/contact">Enquire about resources</Link><Link className="secondary-button" to="/devotional">Read the devotional</Link></div></div>:<div className="crh-store-grid">{filtered.map(p=><article className="crh-store-product" key={p.id}><img src={p.image_path} alt={p.name} loading="lazy"/><p className="ministry-eyebrow">{p.category}</p><h2>{p.name}</h2><p>{p.description}</p><div className="crh-store-row"><strong>{naira(p.price_minor)}</strong><span>{p.stock>0?`${p.stock} available`:'Out of stock'}</span></div><button className="ministry-button dark" disabled={p.stock<1||cart.length>=20&&!cart.some(i=>i.id===p.id)} onClick={()=>quantity(p.id,1)}>Add to cart</button></article>)}</div>}
+ {catalog&&products.length>0&&filtered.length===0&&<p>No products match your search.</p>}{cart.length>0&&<div className="crh-store-checkout"><h2>Your shopping cart</h2><ul className="crh-order-lines">{items.map(i=><li key={i.id}><div><strong>{i.name||'Unavailable product'}</strong><p>{i.price_minor?naira(i.price_minor):'Reload the catalogue'}</p></div><div className="crh-store-quantities"><button aria-label={`Reduce ${i.name||'product'} quantity`} onClick={()=>quantity(i.id,-1)}>−</button><span>{i.quantity}</span><button aria-label={`Increase ${i.name||'product'} quantity`} disabled={!i.name||i.quantity>=Math.min(i.stock,10)} onClick={()=>quantity(i.id,1)}>+</button><button onClick={()=>setCart(c=>c.filter(p=>p.id!==i.id))}>Remove</button></div></li>)}</ul><div className="crh-store-row"><strong>Products total</strong><strong>{naira(total)}</strong></div>{!validCart&&<p role="alert">A product or stock quantity has changed. Update the cart before checkout.</p>}{!catalog?.payment_methods?.includes('bank_transfer')?<p>Checkout is temporarily unavailable. Contact the ministry before making a payment.</p>:<form className="meeting-action-card" onSubmit={place}><h3>Collection details</h3><p>No shipping charge is added. Any payment-provider charge will be shown with the exact transfer amount before you pay.</p>{[['name','Full name','text',100],['email','Email','email',254],['phone','Phone number','tel',40]].map(([key,label,type,max])=><label key={key}>{label}<input required type={type} maxLength={max} autoComplete={key==='name'?'name':key==='phone'?'tel':'email'} value={customer[key]} onChange={e=>setCustomer(c=>({...c,[key]:e.target.value}))}/></label>)}<label className="crh-store-consent"><input type="checkbox" required checked={customer.consent} onChange={e=>setCustomer(c=>({...c,consent:e.target.checked}))}/><span>I agree that the ministry may store these details to process my order and arrange collection. I understand this order is for collection, not shipping.</span></label><button className="ministry-button dark" disabled={busy||!validCart||!customer.consent}>{busy?'Reserving stock…':'Review order and continue'}</button></form>}</div>}
+ {session&&!order&&<div className="crh-store-notice"><p>An existing checkout reference is saved in this tab: {session.id}. If your last request timed out, resume it before starting another payment.</p><button className="secondary-button" disabled={busy} onClick={async()=>{setBusy(true);try{setOrder(await readStoreOrder(session.id,session.token));setError('')}catch(e){setError(commerceError(e))}finally{setBusy(false)}}}>Resume saved order</button></div>}
+ </>}
+ <div className="crh-store-help"><h2>Questions before you order?</h2><p>Contact the ministry to confirm product suitability, collection arrangements or help with a payment. No shipping or return terms are assumed.</p><Link to="/contact">Contact the ministry</Link></div></section></div>
 }
-
-export default ChurchStore
-
-
-
-

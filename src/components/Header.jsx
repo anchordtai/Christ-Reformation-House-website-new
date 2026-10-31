@@ -7,7 +7,7 @@ const navLinks = [
   { path: '/watch', label: 'Watch Live' }, { path: '/devotional', label: 'Devotional' },
   { path: '/salvation', label: 'New here?' },
   { path: '/testimonies', label: 'Testimonies' }, { path: '/meetings', label: 'Meetings' },
-  { path: '/donate', label: 'Give' }, { path: '/contact', label: 'Contact' },
+  { path: '/store', label: 'Store' }, { path: '/donate', label: 'Give' }, { path: '/contact', label: 'Contact' },
 ]
 export default function Header() {
   const [open, setOpen] = useState(false)
