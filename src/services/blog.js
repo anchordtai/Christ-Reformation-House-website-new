@@ -56,7 +56,7 @@ export const blogModerate = (id, status, expected) =>
   );
 export const blogAI = (body) =>
   client
-    .post("/ministry-admin/blog/ai", body, { ...staff(), timeout: 55000 })
+    .post("/ministry-admin/blog/ai", body, { ...staff(), timeout: 160000 })
     .then((r) => r.data.suggestion);
 export const blogImage = (id) => `${BLOG_API}/blog/images/${id}`;
 export const blogDate = (value) =>

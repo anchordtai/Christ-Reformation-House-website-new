@@ -428,3 +428,31 @@ test("AI ignores provider thought parts when parsing the final editorial JSON", 
     assert.equal((await ai.assist({ action: "draft", input: "Public brief", consent: true }, user.id)).title, "AI suggestion");
   } finally { axios.defaults.adapter = adapter; }
 });
+
+test("Gemini 3 Flash editorial generation uses low thinking and a 90-second provider timeout without automatic retries", async () => {
+  process.env.BLOG_AI_ENABLED = "true"; process.env.GEMINI_API_KEY = "test-provider-key"; process.env.BLOG_AI_MODEL = "gemini-3.8-flash";
+  await ai.assist({ action: "draft", input: "Write an encouraging 800-word public article about trusting God.", consent: true }, user.id);
+  const calls = requests.filter(c => c.url.includes(":generateContent"));
+  assert.equal(calls.length, 1); assert.equal(calls[0].timeout, 90000);
+  const config = JSON.parse(calls[0].data).generationConfig;
+  assert.equal(config.thinkingConfig.thinkingLevel, "low"); assert.equal(config.maxOutputTokens, 6000);
+  assert.equal(requests.some(c => c.method === "patch"), false);
+});
+test("Gemini 2.5 requests do not receive incompatible thinkingLevel configuration", async () => {
+  process.env.BLOG_AI_ENABLED = "true"; process.env.GEMINI_API_KEY = "test-provider-key"; process.env.BLOG_AI_MODEL = "gemini-2.5-flash";
+  await ai.assist({ action: "draft", input: "A public brief", consent: true }, user.id);
+  assert.equal(JSON.parse(requests.find(c => c.url.includes(":generateContent")).data).generationConfig.thinkingConfig, undefined);
+});
+test("a timed-out generation makes one provider attempt and preserves all saved articles", async () => {
+  process.env.BLOG_AI_ENABLED = "true"; process.env.GEMINI_API_KEY = "test-provider-key"; process.env.BLOG_AI_MODEL = "gemini-3.8-flash";
+  const adapter = axios.defaults.adapter;
+  try {
+    axios.defaults.adapter = async c => {
+      if (!c.url.includes(":generateContent")) return adapter(c);
+      requests.push(c); const e = new Error("secret request text"); e.code = "ECONNABORTED"; throw e;
+    };
+    await assert.rejects(ai.assist({ action: "draft", input: "Public brief", consent: true }, user.id), e => e.status === 503 && /90 seconds/.test(e.message) && !/secret request/.test(e.message));
+    assert.equal(requests.filter(c => c.url.includes(":generateContent")).length, 1);
+    assert.equal(requests.some(c => c.url.endsWith("/ministry_blog_posts")), false);
+  } finally { axios.defaults.adapter = adapter; }
+});

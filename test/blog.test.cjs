@@ -307,3 +307,21 @@ test("staff desk shows the specific missing AI setting and can refresh configura
   await click(button("Refresh AI settings"));
   assert.ok(calls.filter(c => c.name === "blogDesk").length >= 2);
 });
+
+test("AI shows progress, prevents repeat submission and preserves the brief after timeout", async () => {
+  globalThis.__blogSigned = true;
+  handlers.blogDesk = async () => ({ posts: [], ai_ready: true });
+  let rejectGeneration;
+  handlers.blogAI = () => new Promise((resolve, reject) => { rejectGeneration = reject; });
+  await render("Desk");
+  await change(label("Public brief or article"), "Keep this public brief after timeout");
+  await act(async () => { Simulate.submit(node.querySelector(".blog-ai form")); });
+  assert.ok(button("Generating suggestion…").disabled);
+  assert.match(node.querySelector('[role="status"]').textContent, /90 seconds/);
+  await act(async () => { rejectGeneration(new Error("Google did not finish within 90 seconds.")); });
+  assert.equal(label("Public brief or article").value, "Keep this public brief after timeout");
+  assert.match(node.textContent, /Google did not finish within 90 seconds/);
+  assert.equal(button("Generate suggestion").disabled, false);
+  assert.equal(calls.filter(c => c.name === "blogAI").length, 1);
+  assert.equal(calls.filter(c => c.name === "blogSave").length, 0);
+});
