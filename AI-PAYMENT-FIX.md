@@ -8,8 +8,8 @@ OPay uses Flutterwave V4's documented customer → payment method → charge flo
 
 - Production Flutterwave OAuth health returned HTTP 200 on 1 November; NGN configuration includes OPay.
 - Recent production donations include rejected initializations, but the old code discarded the provider reason before logging it. These records cannot establish the precise historical OPay cause.
-- No blog AI usage rows or recorded AI POST requests were present when checked. A real generation and the deployed environment values have not been verified.
-- Render's connector cannot read individual environment variables. Dashboard inspection currently needs owner sign-in. Never paste an API key into chat or GitHub.
+- No blog AI usage rows or recorded AI POST requests were present when checked. Dashboard inspection then confirmed the root activation issue: the owner saved the key under `crh-AI-api-key`, while the code reads `GEMINI_API_KEY`. Renamed the variable in Render without viewing or changing its secret value, using Save only. `BLOG_AI_ENABLED=true` and `BLOG_AI_MODEL=gemini-3.8-flash` were verified. The rename needs an approved deployment to take effect; real generation remains unverified.
+- Render's connector cannot read individual environment variables. The owner completed secure dashboard sign-in. Automatic approval review blocked Save and deploy because production deployment required explicit approval; used its suggested Save only alternative. Never paste an API key into chat or GitHub.
 - Google/Flutterwave account availability cannot be granted by this code. Keep billing disabled. Do not enable a paid model or paid plan to complete verification.
 - No live charge, donation, public article, role grant or secret was created by these tests.
 
