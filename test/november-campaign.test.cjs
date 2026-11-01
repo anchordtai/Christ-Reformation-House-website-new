@@ -208,3 +208,31 @@ test("supporting pages receive a compact theme link", async () => {
   assert.ok(node.querySelector('a[href="/november"]'));
   assert.match(node.textContent, /Supernatural Provision/);
 });
+test("hover, keyboard focus and backgrounding each suspend rotation", async (c) => {
+  c.mock.timers.enable({ apis: ["setInterval"] });
+  try {
+    await render();
+    const el = node.querySelector("section");
+    await act(async () => Simulate.mouseEnter(el));
+    await act(async () => c.mock.timers.tick(18000));
+    assert.match(image().src, /banner-1/);
+    await act(async () => Simulate.mouseLeave(el));
+    await act(async () => c.mock.timers.tick(9000));
+    assert.match(image().src, /banner-2/);
+    await act(async () => Simulate.focus(node.querySelector("a")));
+    await act(async () => c.mock.timers.tick(18000));
+    assert.match(image().src, /banner-2/);
+    await click("Play November slideshow");
+    await act(async () => {
+      Object.defineProperty(document, "visibilityState", {
+        configurable: true,
+        value: "hidden",
+      });
+      document.dispatchEvent(new window.Event("visibilitychange"));
+    });
+    await act(async () => c.mock.timers.tick(18000));
+    assert.match(image().src, /banner-2/);
+  } finally {
+    c.mock.timers.reset();
+  }
+});

@@ -286,3 +286,10 @@
   border-radius: 6px;
   margin-left: 12px;
 }
+@media (max-width: 600px) {
+  .november-banner-controls button,
+  .november-banner-controls .november-banner-dot {
+    width: 44px;
+    height: 44px;
+  }
+}

@@ -30,10 +30,10 @@ Prompt set: coordinated landscape church campaign with exact church name, Happy 
 
 Owner authorized social sharing throughout the week. Brand 7758846 is Christ's Reformation House Int'l Inc., owner anchordtai@gmail.com, timezone Africa/Lagos. Connected social handles are Facebook, Instagram and TikTok. Google Business Profile is connected as a directory profile; its post/gallery choice is separate. YouTube, X and WhatsApp publishing are not connected in Metricool; no claim of automatic delivery to those accounts.
 
-Seven campaign posts are planned for 1–7 November at 18:00 Africa/Lagos, distinct from the 08:00 devotional automation. Designs rotate 1,2,3,1,2,3, with all three in the final carousel. Exact copy and scheduling receipts are recorded in `campaigns/november-2026-social.json` when scheduling succeeds. The tool returned no meaningful best-time data, so a consistent evening slot is used. Generated-media labels are retained in supported provider metadata.
+Seven campaign posts are scheduled for 1–7 November at 18:00 Africa/Lagos, distinct from the 08:00 devotional automation. Designs rotate 1,2,3,1,2,3, with all three in the final carousel. Exact copy and scheduling receipts are recorded in `campaigns/november-2026-social.json` with verified scheduling receipts. The tool returned no meaningful best-time data, so a consistent evening slot is used. Generated-media labels are retained in supported provider metadata.
 
 The existing daily devotional automation is not duplicated, paused or modified. Social scheduling and website merge/deployment are separate: new PR release requires the owner's explicit per-PR approval. Do not claim posts published merely because scheduling was accepted.
 
 ## Validation
 
-114 frontend tests pass, including nine new campaign tests for month boundaries, fallback/expiry, all assets, manual/keyboard/swipe controls, reduced motion, pause/play and failed images. Production build passes. Browser QA covers the homepage controls and related-page/gallery links. Website images remain under 300KB each, with no additional image library or paid service.
+115 frontend tests pass, including ten new campaign tests for month boundaries, fallback/expiry, all assets, manual/keyboard/swipe controls, reduced motion, pause/play and failed images. Production build passes. Browser QA covers desktop and 390px mobile homepage controls and the gallery. Website images remain under 300KB each, with no additional image library or paid service.
