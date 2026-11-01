@@ -27,7 +27,7 @@ function providerFailure(e) {
     quota: "Google's AI quota is unavailable for this project. Check the model's free quota in Google AI Studio; adding a new key to the same project does not reset it. Your article is unchanged.",
     model: "Google could not find BLOG_AI_MODEL for this project. Choose an available model ID in Google AI Studio and update the Render backend. Your article is unchanged.",
     access: "Google rejected AI access. Check the key's project, Generative Language API restrictions and API availability in Google AI Studio. Your article is unchanged.",
-    timeout: "Google did not finish the AI request in time. Try a shorter public brief. Your article is unchanged.",
+    timeout: "Google did not finish within 90 seconds. Your article and brief are unchanged. Wait before trying again; each attempt counts toward your daily AI limit.",
     provider: "AI assistance is unavailable. Check the backend's Blog AI diagnostic in Render logs. Your saved article is unchanged.",
   };
   return fail(category === "quota" ? 429 : 503, messages[category]);
@@ -90,11 +90,16 @@ async function assist(body, actor) {
           responseMimeType: "application/json",
           responseSchema: schema,
           maxOutputTokens: 6000,
+          // Gemini 3 Flash supports thinkingLevel; 2.5 models require a different API.
+          // Keep the selected model and output capacity, with less time spent reasoning.
+          ...(/^gemini-3(?:\.\d+)?-flash(?:-|$)/.test(config.model)
+            ? { thinkingConfig: { thinkingLevel: "low" } }
+            : {}),
         },
       },
       {
         headers: { "x-goog-api-key": config.key },
-        timeout: 45000,
+        timeout: 90000,
         maxContentLength: 100000,
       },
     );

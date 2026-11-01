@@ -57,6 +57,7 @@ function Desk() {
     [commentMore, setCommentMore] = useState(false);
   const [aiReady, setAiReady] = useState(false),
     [aiStatus, setAiStatus] = useState(""),
+    [aiPending, setAiPending] = useState(false),
     [aiConsent, setAiConsent] = useState(false),
     [aiInput, setAiInput] = useState(""),
     [aiAction, setAiAction] = useState("draft"),
@@ -228,12 +229,17 @@ function Desk() {
   async function ai(e) {
     e.preventDefault();
     await run(async () => {
-      setSuggestion(
-        await blogAI({ action: aiAction, input: aiInput, consent: aiConsent }),
-      );
-      setMessage(
-        "AI suggestion ready. Review its accuracy and Bible references before applying.",
-      );
+      setAiPending(true);
+      try {
+        setSuggestion(
+          await blogAI({ action: aiAction, input: aiInput, consent: aiConsent }),
+        );
+        setMessage(
+          "AI suggestion ready. Review its accuracy and Bible references before applying.",
+        );
+      } finally {
+        setAiPending(false);
+      }
     });
   }
   return (
@@ -554,8 +560,9 @@ function Desk() {
               may be used by the provider to improve its products.
             </p>
             <button className="ministry-button dark" disabled={busy}>
-              Generate suggestion
+              {aiPending ? "Generating suggestion…" : "Generate suggestion"}
             </button>
+            {aiPending && <p role="status" className="blog-small">Drafting your suggestion. This can take up to 90 seconds after the server wakes. Keep this page open; your saved article stays unchanged.</p>}
           </form>
         )}
         {suggestion && (
