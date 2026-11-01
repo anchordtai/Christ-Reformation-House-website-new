@@ -1,18 +1,42 @@
 const axios = require("axios");
 const { db, text } = require("./blog-data");
 const { fail } = require("./ministry-admin");
-function configured() {
-  return (
-    process.env.BLOG_AI_ENABLED === "true" &&
-    !!process.env.GEMINI_API_KEY &&
-    /^gemini-[a-z0-9.-]{1,80}$/.test(process.env.BLOG_AI_MODEL || "")
-  );
+function settings() {
+  return {
+    enabled: String(process.env.BLOG_AI_ENABLED || "").trim().toLowerCase() === "true",
+    key: String(process.env.GEMINI_API_KEY || "").trim(),
+    model: String(process.env.BLOG_AI_MODEL || "").trim().replace(/^models\//, ""),
+  };
+}
+function configurationStatus() {
+  const { enabled, key, model } = settings();
+  const missing = [];
+  if (!enabled) missing.push("Set BLOG_AI_ENABLED to true on the Render backend.");
+  if (!key || /^(?:paste\b|your[ _-]|<|\$\{)/i.test(key)) missing.push("Set GEMINI_API_KEY to your actual Google API key on the Render backend.");
+  if (!/^gemini-[a-z0-9.-]{1,80}$/.test(model)) missing.push("Set BLOG_AI_MODEL to a Gemini model ID available to your Google project.");
+  return { ready: missing.length === 0, message: missing.length ? missing.join(" ") : "AI settings are present. Generate a suggestion to check provider access. No article is published automatically." };
+}
+function configured() { return configurationStatus().ready; }
+function providerFailure(e) {
+  const status = Number(e.response?.status) || null;
+  const reason = e.response?.data?.error?.details?.find(d => typeof d?.reason === "string")?.reason;
+  const category = status === 429 ? "quota" : status === 404 ? "model" : status === 401 || status === 403 || reason === "API_KEY_INVALID" ? "access" : e.code === "ECONNABORTED" ? "timeout" : "provider";
+  // Never log Axios errors: they contain the key, request headers and editorial text.
+  console.error("Blog AI unavailable:", { category, status });
+  const messages = {
+    quota: "Google's AI quota is unavailable for this project. Check the model's free quota in Google AI Studio; adding a new key to the same project does not reset it. Your article is unchanged.",
+    model: "Google could not find BLOG_AI_MODEL for this project. Choose an available model ID in Google AI Studio and update the Render backend. Your article is unchanged.",
+    access: "Google rejected AI access. Check the key's project, Generative Language API restrictions and API availability in Google AI Studio. Your article is unchanged.",
+    timeout: "Google did not finish the AI request in time. Try a shorter public brief. Your article is unchanged.",
+    provider: "AI assistance is unavailable. Check the backend's Blog AI diagnostic in Render logs. Your saved article is unchanged.",
+  };
+  return fail(category === "quota" ? 429 : 503, messages[category]);
 }
 async function assist(body, actor) {
   if (!configured())
     throw fail(
       503,
-      "AI assistance is not configured. Manual editing is available.",
+      configurationStatus().message,
     );
   if (body.consent !== true)
     throw fail(
@@ -41,10 +65,11 @@ async function assist(body, actor) {
     },
     required: ["title", "excerpt", "body", "tags"],
   };
+  const config = settings();
   let r;
   try {
     r = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/${process.env.BLOG_AI_MODEL}:generateContent`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${config.model}:generateContent`,
       {
         systemInstruction: {
           parts: [
@@ -68,27 +93,19 @@ async function assist(body, actor) {
         },
       },
       {
-        headers: { "x-goog-api-key": process.env.GEMINI_API_KEY },
+        headers: { "x-goog-api-key": config.key },
         timeout: 45000,
         maxContentLength: 100000,
       },
     );
   } catch (e) {
-    if (e.response?.status === 429)
-      throw fail(
-        429,
-        "The AI provider free quota is unavailable. Try manual editing.",
-      );
-    throw fail(
-      503,
-      "AI assistance is unavailable. Your saved article is unchanged.",
-    );
+    throw providerFailure(e);
   }
   try {
     if (r.data.candidates?.[0]?.finishReason !== "STOP")
       throw Error("incomplete");
     const value = JSON.parse(
-      r.data.candidates[0].content.parts.map((p) => p.text || "").join(""),
+      r.data.candidates[0].content.parts.filter((p) => p.thought !== true).map((p) => p.text || "").join(""),
     );
     return {
       title: text(value.title, 160, "AI title"),
@@ -106,4 +123,4 @@ async function assist(body, actor) {
     );
   }
 }
-module.exports = { configured, assist };
+module.exports = { configured, configurationStatus, assist };

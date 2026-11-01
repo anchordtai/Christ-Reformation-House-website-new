@@ -56,6 +56,7 @@ function Desk() {
     [commentPage, setCommentPage] = useState(0),
     [commentMore, setCommentMore] = useState(false);
   const [aiReady, setAiReady] = useState(false),
+    [aiStatus, setAiStatus] = useState(""),
     [aiConsent, setAiConsent] = useState(false),
     [aiInput, setAiInput] = useState(""),
     [aiAction, setAiAction] = useState("draft"),
@@ -70,6 +71,7 @@ function Desk() {
           setPosts(r.posts.slice(0, 30));
           setHasMore(r.posts.length > 30);
           setAiReady(r.ai_ready);
+          setAiStatus(r.ai_status?.message || "");
         }
       })
       .catch((e) => {
@@ -505,11 +507,10 @@ function Desk() {
           AI suggestions need human review. They cannot publish or change your
           article automatically.
         </p>
+        <button type="button" disabled={loading || busy} onClick={() => setReload(value => value + 1)}>Refresh AI settings</button>
         {!aiReady ? (
           <p className="blog-notice">
-            AI is not configured yet. Manual editing, scheduling and publishing
-            are available. The ministry owner must configure a suitable provider
-            account before this feature can run.
+            {aiStatus || "AI is not configured yet. Configure the provider settings on the Render backend. Manual editing remains available."}
           </p>
         ) : (
           <form onSubmit={ai}>

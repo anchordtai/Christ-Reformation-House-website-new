@@ -20,6 +20,8 @@ Object.assign(db, {
 });
 Object.assign(provider, {
   createDirectCharge: async args => { creates++; assert.equal(args.idempotencyKey, initializationKey(donation.tx_ref)); lastMethod = args.paymentMethod; if (args.paymentMethod.type === 'card') { assert.ok(args.paymentMethod.card.encrypted_card_number); assert.equal(args.paymentMethod.card.number, undefined); } if (providerError === 'rejected') { const error = new Error('Rejected'); error.code = 'FLUTTERWAVE_API_ERROR'; error.providerStatus = 400; throw error; } if (providerError) throw new Error('Timeout'); return { data: { data: charge } }; },
+  createPaymentMethod: async args => { assert.equal(args.type, 'opay'); assert.ok(args.idempotencyKey); lastMethod = { type: 'opay' }; return { data: { data: { id: 'pmd_test', type: 'opay' } } }; },
+  createCharge: async args => { creates++; assert.equal(args.idempotencyKey, initializationKey(donation.tx_ref)); assert.equal(args.customerId, 'cus_test'); assert.equal(args.paymentMethodId, 'pmd_test'); if (providerError === 'rejected') { const e = new Error('rejected'); e.code = 'FLUTTERWAVE_API_ERROR'; e.providerStatus = 400; e.providerDetails = { message: 'Merchant is not enabled to accept opay transactions.' }; throw e; } if (providerError) throw new Error('Timeout'); return { data: { data: charge } }; },
   createCustomer: async () => { customers++; if (customerConflict) { const error = new Error('Conflict'); error.code = 'FLUTTERWAVE_API_ERROR'; error.providerStatus = 409; throw error; } return { data: { data: { id: 'cus_test' } } }; },
   findCustomerByEmail: async () => existingCustomer,
   listVirtualAccountsByReference: async reference => { assert.equal(reference, donation.tx_ref); return { data: { data: recoveredAccounts } }; },
@@ -39,7 +41,7 @@ let server, base;
 before(async () => { server = app.listen(0, '127.0.0.1'); await new Promise(resolve => server.once('listening', resolve)); base = `http://127.0.0.1:${server.address().port}/api`; });
 after(async () => { await new Promise(resolve => server.close(resolve)); });
 beforeEach(() => {
-  donation = fixture(); charge = { id: 'chg_test', reference: donation.tx_ref, amount: 5000, currency: 'NGN', status: 'pending', next_action: { type: 'requires_otp' } };
+  donation = fixture(); charge = { id: 'chg_test', customer_id: 'cus_test', reference: donation.tx_ref, amount: 5000, currency: 'NGN', status: 'pending', next_action: { type: 'requires_otp' } };
   process.env.DONATION_PAYMENT_METHODS = 'card'; virtualCreates = 0; customers = 0; transferCharges = []; lastMethod = null; customerConflict = false; existingCustomer = { id: 'cus_test', email: donation.email }; recoveredAccounts = [];
   creates = 0; claims = 0; authorizations = 0; dbError = false; providerError = false; updateError = false; eventError = false;
 });
@@ -143,7 +145,7 @@ test('OPay submits a wallet payment and returns provider authorization', async (
   process.env.DONATION_PAYMENT_METHODS = 'opay';
   charge.next_action = { type: 'redirect_url', redirect_url: { url: 'https://wallet.example/authorize' } };
   const result = await post('/payments/initialize', { tx_ref: donation.tx_ref, paymentMethod: { type: 'opay' } });
-  assert.equal(result.status, 200); assert.deepEqual(lastMethod, { type: 'opay' }); assert.equal(result.data.next_action.type, 'redirect_url');
+  assert.equal(result.status, 200); assert.equal(customers, 1); assert.deepEqual(lastMethod, { type: 'opay' }); assert.equal(result.data.next_action.type, 'redirect_url');
 });
 test('bank-only configuration remains available when card encryption is absent', async () => {
   process.env.DONATION_PAYMENT_METHODS = 'card,bank_transfer,opay'; const key = process.env.FLW_ENCRYPTION_KEY; delete process.env.FLW_ENCRYPTION_KEY;
@@ -238,7 +240,7 @@ test('frontend accepts only verified success and preserves unresolved states', a
 
 test('definitive initialization rejection is recoverable as a failed payment', async () => {
   providerError = 'rejected';
-  const result = await initialize(); assert.equal(result.status, 200); assert.equal(result.data.status, 'failed');
+  const result = await initialize(); assert.equal(result.status, 422); assert.equal(result.data.status, 'failed');
   const verification = await fetch(base + '/payments/verify/' + donation.tx_ref); assert.equal((await verification.json()).status, 'failed');
   assert.equal((await initialize()).data.status, 'failed'); assert.equal(creates, 1);
 });
@@ -291,4 +293,30 @@ test('unknown processor responses stay generic and sensitive support codes are o
   assert.equal(result.category, 'provider_failure'); assert.equal(result.support_code, undefined);
   assert.equal(JSON.stringify(result).includes('private@example.com'), false);
   assert.equal(paymentFailure({ status: 'pending', processor_response: { message: 'declined' } }), null);
+});
+
+test('OPay reuses an exact customer and resumes the same wallet charge', async () => {
+  process.env.DONATION_PAYMENT_METHODS = 'opay'; customerConflict = true;
+  charge.next_action = { type: 'redirect_url', redirect_url: { url: 'https://wallet.example/authorize' } };
+  const body = { tx_ref: donation.tx_ref, paymentMethod: { type: 'opay' } };
+  assert.equal((await post('/payments/initialize', body)).status, 200);
+  assert.equal((await post('/payments/initialize', body)).status, 200);
+  assert.equal(creates, 1); assert.equal(customers, 1); assert.equal(donation.metadata.payment_method, 'opay');
+});
+test('OPay customer mismatch cannot charge and a timeout cannot charge twice', async () => {
+  process.env.DONATION_PAYMENT_METHODS = 'opay'; customerConflict = true; existingCustomer.email = 'someone-else@example.com';
+  const body = { tx_ref: donation.tx_ref, paymentMethod: { type: 'opay' } };
+  assert.equal((await post('/payments/initialize', body)).status, 502); assert.equal(creates, 0);
+  assert.equal((await post('/payments/initialize', body)).status, 409);
+});
+test('OPay merchant rejection shows a safe actionable reason without provider payloads', async () => {
+  process.env.DONATION_PAYMENT_METHODS = 'opay'; providerError = 'rejected';
+  const result = await post('/payments/initialize', { tx_ref: donation.tx_ref, paymentMethod: { type: 'opay' } });
+  assert.equal(result.status, 422); assert.match(result.data.error, /has not enabled OPay/); assert.equal(donation.status, 'failed');
+});
+test('uncertain OPay charge remains protected from duplicate submission', async () => {
+  process.env.DONATION_PAYMENT_METHODS = 'opay'; providerError = true;
+  const body = { tx_ref: donation.tx_ref, paymentMethod: { type: 'opay' } };
+  assert.equal((await post('/payments/initialize', body)).status, 502);
+  assert.equal((await post('/payments/initialize', body)).status, 409); assert.equal(creates, 1);
 });

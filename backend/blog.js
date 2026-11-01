@@ -204,6 +204,7 @@ router.get(
         ...page(req, 30),
       }),
       ai_ready: require("./blog-ai").configured(),
+      ai_status: require("./blog-ai").configurationStatus(),
     });
   }),
 );

@@ -33,6 +33,7 @@ const {
 
 const { enabledCurrencies, authorizationType, paymentResponse, matchesDonation, initializationKey } = require('./payment-state');
 const { paymentFailure } = require('./payment-failure');
+const { createOpayCharge, initializationFailure } = require('./opay-payment');
 const { configuredMethods, methodsFor, methodCatalog, operationKey, customerId, normalizeTransfer, transferResponse } = require('./payment-methods');
 
 const app = express();
@@ -333,8 +334,9 @@ app.post('/api/payments/initialize', async (req, res) => {
     const claimed = await claimDonationInitialization(donation, key);
     if (!claimed) return res.status(409).json({ error: 'Payment is already being prepared. Check its status before paying again.' });
     claimedDonationId = donation.id;
+    claimed.metadata = { ...claimed.metadata, payment_method: method };
+    if (['opay', 'bank_transfer'].includes(method)) await updateDonationById(donation.id, { metadata: claimed.metadata });
     if (method === 'bank_transfer') {
-      await updateDonationById(donation.id, { metadata: { ...claimed.metadata, payment_method: method } });
       let customer;
       try {
         const customerResult = await createCustomer({ ...buildFlutterwaveCustomerName(donation.donor_name), email: donation.email, idempotencyKey: operationKey(txRef, 'customer') });
@@ -351,7 +353,7 @@ app.post('/api/payments/initialize', async (req, res) => {
       return res.json(transferResponse(donation, transfer));
     }
     const customerPhone = buildFlutterwavePhone(donation.phone);
-    const response = await createDirectCharge({
+    const response = await (method === 'opay' ? createOpayCharge : createDirectCharge)({
       amount: Number(donation.amount), currency: donation.currency, reference: txRef,
       customer: { email: donation.email, name: buildFlutterwaveCustomerName(donation.donor_name), ...(customerPhone ? { phone: customerPhone } : {}) },
       paymentMethod: preparedMethod,
@@ -368,13 +370,15 @@ app.post('/api/payments/initialize', async (req, res) => {
   } catch (error) {
     if (claimedDonationId && error.code === 'FLUTTERWAVE_API_ERROR' && [400, 422].includes(error.providerStatus)) {
       try {
+        const failure = initializationFailure(error);
+        console.error('Payment initialization rejected:', { category: failure.category, status: error.providerStatus });
         await updateDonationById(claimedDonationId, { status: 'failed', failure_reason: 'Payment provider rejected initialization' });
-        return res.json({ tx_ref: txRef, status: 'failed' });
+        return res.status(422).json({ tx_ref: txRef, status: 'failed', error: failure.message });
       } catch { /* Keep uncertain outcomes protected from a second charge. */ }
     }
     console.error('Payment initialization unavailable:', {
       code: error.code || 'unknown', status: error.providerStatus || null,
-      endpoint: ['/customers', '/virtual-accounts', '/orchestration/direct-charges'].includes(error.providerEndpoint) ? error.providerEndpoint : null,
+      endpoint: ['/customers', '/payment-methods', '/charges', '/virtual-accounts', '/orchestration/direct-charges'].includes(error.providerEndpoint) ? error.providerEndpoint : null,
       provider_code: /^[A-Za-z0-9_-]{1,20}$/.test(String(error.providerCode || '')) ? String(error.providerCode) : null,
     });
     return res.status(502).json({ error: 'We could not confirm that checkout started. Keep your reference and check payment status before paying again.' });
