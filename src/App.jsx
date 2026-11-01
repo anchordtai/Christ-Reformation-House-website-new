@@ -1,6 +1,7 @@
 import {lazy,Suspense} from 'react'
+const Crism=lazy(()=>import('./crism/Crism'))
 const DevotionalEditor=lazy(()=>import('./pages/DevotionalEditor'))
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom'
 import Header from './components/Header'
 import PageEnhancements from './components/PageEnhancements'
 import MinistryAssistant from './components/MinistryAssistant'
@@ -41,17 +42,21 @@ import Meetings from './pages/Meetings'
 const SocialAutomation=lazy(()=>import('./pages/SocialAutomation'))
 const AdminLogin=lazy(()=>import('./pages/AdminLogin'))
 
-function App() {
+function App() { return <Router><AppRoutes /></Router> }
+function AppRoutes() {
+  const {pathname}=useLocation()
+  const institutional=pathname==='/crism'||pathname.startsWith('/crism/')
   return (
-    <Router>
+    <>
       <PageEnhancements />
-      <MinistryAssistant />
+      {!institutional && <MinistryAssistant />}
       <div className="min-h-screen flex flex-col">
-        <Header />
+        {!institutional && <Header />}
         <main id="main-content" tabIndex={-1} className="flex-grow">
-          <NovemberThemeRibbon />
+          {!institutional && <NovemberThemeRibbon />}
           <Suspense fallback={<div className="ministry-section" role="status">Loading page…</div>}><Routes>
             <Route path="/" element={<Home />} />
+            <Route path="/crism/*" element={<Crism />} />
             <Route path="/november" element={<NovemberCampaign />} />
             <Route path="/about" element={<About />} />
             <Route path="/watch" element={<Watch />} />
@@ -93,9 +98,9 @@ function App() {
             <Route path="/signup" element={<Signup />} />
           </Routes></Suspense>
         </main>
-        <Footer />
+        {!institutional && <Footer />}
       </div>
-    </Router>
+    </>
   )
 }
 
