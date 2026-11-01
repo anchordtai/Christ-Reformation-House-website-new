@@ -298,3 +298,12 @@ test("Lagos dates reject impossible values and convert without the editor device
     /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/,
   );
 });
+
+test("staff desk shows the specific missing AI setting and can refresh configuration", async () => {
+  globalThis.__blogSigned = true;
+  handlers.blogDesk = async () => ({ posts: [post], ai_ready: false, ai_status: { ready: false, message: "Set BLOG_AI_MODEL on the Render backend." } });
+  await render("Desk");
+  assert.match(node.textContent, /Set BLOG_AI_MODEL/);
+  await click(button("Refresh AI settings"));
+  assert.ok(calls.filter(c => c.name === "blogDesk").length >= 2);
+});

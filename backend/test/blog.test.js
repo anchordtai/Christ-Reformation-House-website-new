@@ -25,7 +25,7 @@ const input = {
   cover_id: media,
   cover_alt: "Test cover",
   status: "scheduled",
-  publish_at: "2026-11-01T07:00:00Z",
+  publish_at: "2099-11-01T07:00:00Z",
   reviewed: true,
 };
 let server,
@@ -391,4 +391,40 @@ test("AI sends only provided editorial text to a fixed provider and returns unsa
     requests.some((c) => c.url.endsWith("/ministry_blog_posts")),
     false,
   );
+});
+
+test("AI settings tolerate copied whitespace and models prefix while reporting missing settings without secrets", () => {
+  process.env.BLOG_AI_ENABLED = " TRUE "; process.env.GEMINI_API_KEY = " test-provider-key "; process.env.BLOG_AI_MODEL = " models/gemini-test ";
+  assert.equal(ai.configured(), true);
+  assert.doesNotMatch(JSON.stringify(ai.configurationStatus()), /test-provider-key/);
+  process.env.GEMINI_API_KEY = "Paste your Google API key";
+  assert.equal(ai.configured(), false); assert.match(ai.configurationStatus().message, /GEMINI_API_KEY/);
+});
+test("AI uses normalized model and key when calling the provider", async () => {
+  process.env.BLOG_AI_ENABLED = " TRUE "; process.env.GEMINI_API_KEY = " test-provider-key "; process.env.BLOG_AI_MODEL = " models/gemini-test ";
+  await ai.assist({ action: "draft", input: "Public brief", consent: true }, user.id);
+  const request = requests.find(c => c.url.includes(":generateContent"));
+  assert.match(request.url, /models\/gemini-test:generateContent$/); assert.equal(request.headers["x-goog-api-key"], "test-provider-key");
+});
+test("AI provider errors disclose only actionable static messages, never the key or raw provider response", async () => {
+  process.env.BLOG_AI_ENABLED = "true"; process.env.GEMINI_API_KEY = "test-provider-key"; process.env.BLOG_AI_MODEL = "gemini-test";
+  const adapter = axios.defaults.adapter;
+  try {
+    for (const [status, match] of [[403, /rejected AI access/], [404, /BLOG_AI_MODEL/], [429, /quota/]]) {
+      axios.defaults.adapter = async c => {
+        if (!c.url.includes(":generateContent")) return adapter(c);
+        const e = new Error("secret provider text test-provider-key"); e.response = { status, data: { error: { message: e.message } } }; throw e;
+      };
+      await assert.rejects(ai.assist({ action: "draft", input: "Public brief", consent: true }, user.id), e => match.test(e.message) && !/test-provider-key|secret provider text/.test(e.message));
+    }
+  } finally { axios.defaults.adapter = adapter; }
+});
+
+test("AI ignores provider thought parts when parsing the final editorial JSON", async () => {
+  process.env.BLOG_AI_ENABLED = "true"; process.env.GEMINI_API_KEY = "test-provider-key"; process.env.BLOG_AI_MODEL = "gemini-test";
+  const adapter = axios.defaults.adapter;
+  try {
+    axios.defaults.adapter = async c => { const r = await adapter(c); if (c.url.includes(":generateContent")) r.data.candidates[0].content.parts.unshift({ thought: true, text: "Internal reasoning" }); return r; };
+    assert.equal((await ai.assist({ action: "draft", input: "Public brief", consent: true }, user.id)).title, "AI suggestion");
+  } finally { axios.defaults.adapter = adapter; }
 });
