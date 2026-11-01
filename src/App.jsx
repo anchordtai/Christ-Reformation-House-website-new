@@ -15,6 +15,8 @@ import './styles/platform.css'
 import Footer from './components/Footer'
 import ProtectedRoute from './components/ProtectedRoute'
 import Home from './pages/Home'
+import {NovemberThemeRibbon} from './components/NovemberWelcome'
+const NovemberCampaign=lazy(()=>import('./pages/NovemberCampaign'))
 import About from './pages/About'
 import Events from './pages/Events'
 const EventEditor=lazy(()=>import('./pages/EventEditor'))
@@ -47,8 +49,10 @@ function App() {
       <div className="min-h-screen flex flex-col">
         <Header />
         <main id="main-content" tabIndex={-1} className="flex-grow">
+          <NovemberThemeRibbon />
           <Suspense fallback={<div className="ministry-section" role="status">Loading page…</div>}><Routes>
             <Route path="/" element={<Home />} />
+            <Route path="/november" element={<NovemberCampaign />} />
             <Route path="/about" element={<About />} />
             <Route path="/watch" element={<Watch />} />
             <Route path="/admin/broadcast" element={<BroadcastEditor />} />
@@ -96,6 +100,7 @@ function App() {
 }
 
 export default App
+
 
 
 
