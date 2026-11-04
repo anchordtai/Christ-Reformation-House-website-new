@@ -88,3 +88,7 @@ SMS opt-in UI, verified phone identity, SMS delivery adapter, SMS approval/sched
 - https://help.brevo.com/hc/en-us/articles/12163873383186-Authenticate-your-domain-with-Brevo-Brevo-code-DKIM-DMARC
 - https://docs.github.com/en/actions/concepts/billing-and-usage
 - https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows
+
+## Prepared WhatsApp extension
+
+See [WHATSAPP.md](WHATSAPP.md) for the additional official Meta Cloud API integration, independent consent, masked subscriber management, template/campaign planning, tests and exact human setup steps. It is not active in production. Live and paid broadcasts remain blocked by the free-only policy; email activation above is unchanged.
