@@ -27,6 +27,8 @@ const Footer = () => {
     { path: '/contact', label: 'Contact Us' },
     { path: '/store', label: 'Church Store' },
     { path: '/help', label: 'Help & FAQs' },
+    { path: '/subscribe', label: 'Subscribe to ministry emails' },
+    { path: '/communication-privacy', label: 'Communication privacy' },
     { path: '/support', label: 'Chat with the ministry' },
   ]
 

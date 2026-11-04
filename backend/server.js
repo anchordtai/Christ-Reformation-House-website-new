@@ -159,6 +159,7 @@ app.get('/api/sermons/:id', (req, res) => {
   if (!item) return res.status(404).json({ error: 'Sermon not found' });
   return res.json(item);
 });
+app.use('/api', require('./communications/routes').router);
 app.use('/api', require('./events').router);
 app.use('/api', require('./live-broadcast').router);
 app.use('/api', require('./site-security').router);

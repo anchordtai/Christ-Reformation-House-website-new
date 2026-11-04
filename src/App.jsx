@@ -1,4 +1,7 @@
 import {lazy,Suspense} from 'react'
+const CommunicationDesk=lazy(()=>import('./pages/CommunicationDesk'))
+const CommunicationSubscription=lazy(()=>import('./pages/CommunicationSubscription'))
+const CommunicationPrivacy=lazy(()=>import('./pages/CommunicationSubscription').then(m=>({default:m.CommunicationPrivacy})))
 const Crism=lazy(()=>import('./crism/Crism'))
 const DevotionalEditor=lazy(()=>import('./pages/DevotionalEditor'))
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom'
@@ -56,6 +59,9 @@ function AppRoutes() {
           {!institutional && <NovemberThemeRibbon />}
           <Suspense fallback={<div className="ministry-section" role="status">Loading page…</div>}><Routes>
             <Route path="/" element={<Home />} />
+            <Route path="/subscribe/*" element={<CommunicationSubscription />} />
+            <Route path="/communication-privacy" element={<CommunicationPrivacy />} />
+            <Route path="/admin/communications" element={<CommunicationDesk />} />
             <Route path="/crism/*" element={<Crism />} />
             <Route path="/november" element={<NovemberCampaign />} />
             <Route path="/about" element={<About />} />
