@@ -2,7 +2,7 @@
 
 ## Release status
 
-This is the tested first slice of the owner's phased brief, not a claim that all 15 proposed modules are complete. No email/SMS credentials, sender identity, DNS, staff grants, paid resources or production sends have been configured by this change. CRISM is paused. Existing donor/event/contact records are **not** imported as marketing subscribers.
+This is the tested first slice of the owner's phased brief, not a claim that all 15 proposed modules are complete. PR #35 is deployed. The owner subsequently approved communication-admin access for anchordtai@gmail.com. Brevo domain/sender verification and the restricted transactional-email API key are configured. See ACTIVATION.md for current scheduler and delivery evidence. No paid resources or SMS delivery were activated. CRISM is paused. Existing donor/event/contact records are **not** imported as marketing subscribers.
 
 ### Implemented
 
@@ -16,8 +16,8 @@ This is the tested first slice of the owner's phased brief, not a claim that all
 - Durable SQL queue, unique campaign/recipient keys, atomic claims and hard cap of 280 attempted email sends in any rolling 24 hours. Confirmation/welcome attempts consume this allowance too. No automatic provider retry after an uncertain send. An interrupted attempt becomes `needs_review`; reconcile in Brevo before any replacement.
 - Daily devotional switch/time (Africa/Lagos): only that day's database reading with published/scheduled status, reviewed_by/reviewed_at and elapsed release time. Unique dated source key; original editorial revision checked again before delivery. Unsent dated jobs expire at Nigeria day's end. Switching off stops future preparation; cancel the already-created campaign separately if needed.
 - Brevo adapter, one recipient per message; acceptance and provider-reported delivery are distinct. Authenticated webhook handling records delivery/bounce/failure, deduplicates events, respects event time and suppresses hard-bounce/spam/unsubscribe/invalid/blocked contacts. Opens/clicks are not collected.
-- Public-repository GitHub Actions worker every 15 minutes (offset from the hour), fixed Render endpoint, strong secret, no broad token permissions, no blind POST retries. Missing secret is an explicit inactive state. Standard public runners only; no paid Render cron/worker.
-- 8 new server-only tables: contacts, tokens, consents, campaigns, jobs, activity, settings, delivery_events. RLS enabled; anon/authenticated grants revoked; RPCs service-role-only and security invoker. No existing tables are altered.
+- Existing Supabase Cron runs the fixed Render queue endpoint every 15 minutes, with its worker credential in Supabase Vault. The GitHub workflow is manual-only emergency fallback and has no automatic schedule. No paid Render cron/worker is used.
+- The initial release adds 8 server-only tables; activation adds communication_worker_invocations for scheduler history. Initial tables: contacts, tokens, consents, campaigns, jobs, activity, settings, delivery_events. RLS enabled; anon/authenticated grants revoked; RPCs service-role-only and security invoker. No existing tables are altered.
 
 ## Free-plan decision and constraints
 
@@ -27,7 +27,7 @@ Do **not** add a card, prepaid credits, paid email automation, paid seats, dedic
 
 A few hundred free daily sends cannot deliver one daily message to thousands of subscribers. Regular campaign overflow waits for a later worker and expires after two days; dated devotionals expire that same day. Do not advertise unlimited daily delivery. The worker processes up to four sends/run; it is bounded for Render Free and can be delayed by cold starts and scheduler load.
 
-GitHub scheduled jobs are best-effort, may be delayed/dropped, and can be disabled after 60 days without repository activity. This is not an exact-minute or high-availability promise. Monitor Actions and provider reports. If the repository becomes private, disable this schedule before reviewing any Actions minute budget. It is currently a public repository; `ubuntu-latest` is a standard runner. Render Free and the existing Supabase/Vercel plans remain unchanged.
+Supabase Cron dispatches the queue through pg_net with a 240-second timeout to accommodate Render cold starts. Cron and HTTP outcomes are distinct: inspect cron.job_run_details plus net._http_response and communication_worker_invocations. Free-service suspension or capacity limits can delay delivery; this is not a high-availability guarantee. Render Free and existing Supabase/Vercel plans remain unchanged. The manual GitHub fallback must not be configured as a second automatic scheduler.
 
 ## Setup — no secrets in chat or source
 
@@ -49,9 +49,9 @@ GitHub scheduled jobs are best-effort, may be delayed/dropped, and can be disabl
 5. Apply `supabase/migrations/20261104113426_free_communications_foundation.sql` through the approved Supabase migration workflow **once**. It has been transaction-tested with rollback; check migration history before applying. Do not execute legacy `database/schema.sql`.
 6. Grant the existing ministry owner **communication admin only** through trusted Supabase Auth administration by merging `app_metadata.communication_role="admin"` without discarding any existing metadata. Verify the exact existing account first. Never use user_metadata. Future staff: `approver`, `manager`, `editor`, `viewer`. Staff management UI/grant/revocation workflow is a later phase; do not expose an unauthenticated role endpoint.
 7. Configure an **unbatched transactional** Brevo webhook at `https://christ-reformation-house-website-new-1.onrender.com/api/communications/webhooks/brevo` with `auth.type="bearer"`, token equal to `COMMUNICATIONS_WEBHOOK_SECRET`. Subscribe to delivered, hardBounce, softBounce, spam, unsubscribed, invalid, blocked and error as named in the provider's creation UI/API; incoming payload event values are normalized as documented (`hard_bounce`, `invalid_email`, etc.). Confirm actual payloads in rehearsal. No API key goes in webhook URLs. Early unknown message references return 503 for reconciliation/retry.
-8. Merge/deploy frontend and backend through the existing GitHub PR workflow. Add the matching `COMMUNICATIONS_WORKER_SECRET` as a **GitHub Actions repository secret**. The workflow is inactive without this. No additional ChatGPT automation is needed.
-9. Keep daily delivery off initially. Owner explicitly subscribes using their own inbox, confirms the link, checks welcome, preferences and unsubscribe. Activate only after this rehearsal. No other contacts are emailed for testing. For the first campaign, use only a consented owner category; inspect actual recipients before approval.
-10. Enable daily devotional delivery/time in the desk only after the provider/worker rehearsal. Use the existing editorial desk for devotional review and scheduling; this feature does not change editorial status.
+8. Merge/deploy frontend and backend through the existing GitHub PR workflow. Apply the additional communication_queue_scheduler migration, provision the matching worker secret in Supabase Vault under crh_communication_worker, and verify one dispatcher response. The GitHub fallback remains manual-only and inactive without an independently configured repository secret. No additional ChatGPT automation is needed.
+9. Rehearse delivery using only the owner inbox. The real confirmation delivery is verified in ACTIVATION.md; owner confirmation, welcome and preference/unsubscribe interaction remain to be completed by the owner. No other contacts are emailed for testing. For the first campaign, use only a consented owner category; inspect actual recipients before approval.
+10. Daily devotional preparation is enabled at 06:00 Africa/Lagos following the real worker/provider delivery rehearsal. Only confirmed, consented subscribers qualify. Use the existing editorial desk for devotional review and scheduling; this feature does not change editorial status.
 
 ## Routes
 
@@ -66,7 +66,7 @@ Worker POST `/api/communications/process` uses the worker bearer secret. Provide
 - New backend tests exercise consent/validation, safe HTML, SMS segments, trusted roles, disabled sending, worker authentication, acceptance versus delivery, uncertain sends, unsubscribe race, SMS send prohibition, exact-date reviewed devotional preparation and webhook authentication/reconciliation.
 - Frontend component tests exercise default opt-ins, inactive sender state, deliberate confirmation/unsubscribe and no pre-login private requests. Production build passes. Final regression totals: 132 frontend tests and 165 backend tests pass, including 5 new frontend tests and 14 new backend tests.
 - PostgreSQL transactional test creates the proposed schema, checks signup/claim/token replay/welcome deduplication/unsubscribe/role grants/free quota, then rolls back all tables and fixtures. No real subscriber or payment record is created.
-- Live Brevo delivery/DNS/worker/webhook tests remain **blocked on owner account credentials**. No real email or SMS has been sent. Browser visual QA has not been completed; component checks are not a mobile-browser rehearsal.
+- Live DNS authentication, worker dispatch and an authenticated real Brevo delivery callback were verified on 4 November 2026; see ACTIVATION.md. One owner-only confirmation email was delivered. SMS remains disabled. Owner confirmation and welcome/preferences/unsubscribe interaction remain pending; no public CAPTCHA was solved during this test.
 
 ## Next slices — not yet implemented
 
