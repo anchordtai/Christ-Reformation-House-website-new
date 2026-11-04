@@ -1,0 +1,25 @@
+name: Process ministry email queue
+on:
+  schedule:
+    - cron: '7,22,37,52 * * * *'
+  workflow_dispatch:
+permissions: {}
+concurrency:
+  group: ministry-email-worker
+  cancel-in-progress: false
+jobs:
+  process:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Process a bounded queue batch
+        env:
+          WORKER_SECRET: ${{ secrets.COMMUNICATIONS_WORKER_SECRET }}
+        shell: bash
+        run: |
+          if [ -z "$WORKER_SECRET" ]; then
+            echo '::notice::Email worker is not activated; configure its secret after sender verification.'
+            exit 0
+          fi
+          # Credentials through stdin, not command arguments or output. Never retry an uncertain POST.
+          printf 'header = "Authorization: Bearer %s"\n' "$WORKER_SECRET" | curl --config - --silent --show-error --fail --max-time 240 --request POST --header 'Content-Type: application/json' --data '{}' 'https://christ-reformation-house-website-new-1.onrender.com/api/communications/process'

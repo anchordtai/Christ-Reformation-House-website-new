@@ -1,3 +1,4 @@
+import CommunicationSignup from '../components/CommunicationSignup'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Calendar, Clock, MapPin, ArrowRight, Video, Search } from 'lucide-react'
@@ -21,5 +22,5 @@ export default function Events() {
         {event.image_path?<img src={event.image_path} alt="" loading="lazy" onError={e=>{e.currentTarget.hidden=true}}/>:<div className="event-art"><Calendar size={48}/><span>Christ’s Reformation House</span></div>}
         <div className="event-card-body"><p className="ministry-eyebrow">{event.category}{event.meeting_room?' · Online access':''}</p><h2>{event.title}</h2><p className="event-description">{event.description}</p><dl className="event-facts"><div><dt><Calendar size={16}/>Date</dt><dd>{eventDate(event.starts_at)}</dd></div><div><dt><Clock size={16}/>Time</dt><dd>{eventTime(event.starts_at)} – {eventTime(event.ends_at)} WAT{eventDate(event.starts_at)!==eventDate(event.ends_at)?` · ends ${eventDate(event.ends_at)}`:''}</dd></div><div><dt><MapPin size={16}/>Location</dt><dd>{event.location}</dd></div></dl><div className="platform-actions"><Link className="ministry-button dark" to={`/events/register/${event.id}`}>{event.registration_enabled && Date.parse(event.ends_at)>Date.now()?'Details & registration':'View event'}<ArrowRight size={17}/></Link><button className="secondary-button" onClick={()=>calendar(event)}>Add to calendar</button></div></div>
       </article>)}</div>}{notice&&<p role="status">{notice}</p>}<p className="event-editor-link"><Link to="/admin/events">Staff event desk</Link></p>
-    </section></div>
+    </section><CommunicationSignup category="events"/></div>
 }
