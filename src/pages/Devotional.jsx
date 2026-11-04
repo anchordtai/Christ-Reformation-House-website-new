@@ -1,3 +1,4 @@
+import WhatsAppSignup from '../components/WhatsAppSignup'
 import CommunicationSignup from '../components/CommunicationSignup'
 import { useEffect, useState } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
@@ -48,7 +49,7 @@ export default function Devotional() {
       {loading ? <div className="dev-card" role="status">Loading your reading…</div> : error ? <div className="dev-card" role="alert"><p>{error}</p><button onClick={() => setRetry(x=>x+1)}>Try again</button></div> : entry ? <DevotionalReading entry={entry}/> : <div className="dev-card"><BookOpen/><h2>No reading has been released for {selected}.</h2><p>Devotionals appear here after pastoral review and their scheduled release. You can choose an available reading from the archive.</p></div>}
       {entry&&<section className="dev-reading-progress dev-no-print"><div><h2>Make time for the Word.</h2><p>Finished reflecting on this reading? Mark it as read on this device.</p></div><button aria-pressed={reader.library.completed.includes(entry.publicationDate)} onClick={()=>reader.toggleRead(entry.publicationDate)}><Check size={17}/>{reader.library.completed.includes(entry.publicationDate)?'Marked as read · Undo':'Mark as read'}</button></section>}
       {entry && <DevotionalCommunity key={entry.publicationDate} entry={entry}/>}
-      <CommunicationSignup/>
+      <CommunicationSignup/><WhatsAppSignup/>
       <DevotionalGiving/>
       </div>
       <DevotionalArchive selected={selected} reader={reader} retry={retry}/>

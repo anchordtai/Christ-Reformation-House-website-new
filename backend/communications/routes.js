@@ -93,4 +93,5 @@ router.post('/communications/webhooks/brevo',wrap(async(req,res)=>{
 }));
 function workerAuthorized(req){const expected=process.env.COMMUNICATIONS_WORKER_SECRET||'',value=bearer(req)||'';return expected.length>=32&&value.length===expected.length&&crypto.timingSafeEqual(Buffer.from(value),Buffer.from(expected));}
 router.post('/communications/process',wrap(async(req,res)=>{if(!workerAuthorized(req))throw fail(401,'Worker authorization required.');res.json(await require('./worker').runWorker());}));
+router.use(require('./whatsapp-routes')(staff));
 module.exports={router,workerAuthorized};
