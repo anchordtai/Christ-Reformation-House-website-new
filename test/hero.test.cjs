@@ -33,19 +33,19 @@ const render = async () => act(async () => root.render(React.createElement(Memor
 const click = async label => act(async () => Simulate.click(node.querySelector(`[aria-label="${label}"]`)));
 const selected = () => node.querySelector('.ministry-slide-dot[aria-pressed="true"]').getAttribute('aria-label');
 
-test('all six slides retain the two approved portraits and have local media and alternative text', async () => {
+test('all five slides retain the two approved portraits and have local media and alternative text', async () => {
   await render(); assert.equal(node.querySelectorAll('h1').length, 1);
-  assert.equal(node.querySelectorAll('.ministry-slide-dot').length, 6);
+  assert.equal(node.querySelectorAll('.ministry-slide-dot').length, 5);
   for (const image of node.querySelectorAll('img')) { assert.ok(fs.existsSync('public' + image.getAttribute('src'))); assert.ok(image.alt.length > 20); }
   assert.match(node.textContent, /7th–13th December 2026/);
   assert.match(node.textContent, /5:00 PM/);
-  await click('Show slide 5: Grow in the Word'); assert.match(node.textContent, /Rooted in Christ/);
-  await click('Show slide 6: A community of prayer'); assert.equal(node.querySelector('.ministry-actions a').getAttribute('href'), '/prayer-request');
+  await click('Show slide 4: Grow in the Word'); assert.match(node.textContent, /Rooted in Christ/);
+  await click('Show slide 5: A community of prayer'); assert.equal(node.querySelector('.ministry-actions a').getAttribute('href'), '/prayer-request');
 });
 test('arrows, indicators and keyboard cycle through the full collection and wrap', async () => {
   await render(); await click('Next ministry slide'); assert.match(selected(), /slide 2/);
   await click('Previous ministry slide'); assert.match(selected(), /slide 1/);
-  await click('Previous ministry slide'); assert.match(selected(), /slide 6/);
+  await click('Previous ministry slide'); assert.match(selected(), /slide 5/);
   await act(async () => Simulate.keyDown(node.querySelector('section'), { key: 'ArrowRight', preventDefault() {} })); assert.match(selected(), /slide 1/);
 });
 test('autoplay advances at seven seconds and explicit pause survives mouse leave', async context => {
@@ -94,9 +94,13 @@ test('registration uses the existing published event route and watch uses the br
 test('missing crusade registration does not create a guessed event URL', async () => {
   await render(); assert.equal(node.querySelector('.ministry-actions button').disabled, true); assert.match(node.textContent, /Online registration opens/); assert.equal(node.querySelector('a[href^="/events/register/"]'), null);
 });
-test('video mounts on selection with controls, muted sound, captions and no eager download', async () => {
-  await render(); assert.equal(node.querySelector('video'), null);
-  await click('Show slide 4: Your invitation'); const player = node.querySelector('video'); assert.ok(player.controls); assert.equal(player.getAttribute('preload'), 'none'); assert.equal(player.autoplay, false); assert.ok(player.querySelector('track')); assert.ok(fs.existsSync('public' + player.querySelector('source').getAttribute('src')));
+test('the complete slider collection contains images only', async () => {
+  await render();
+  for (const button of [...node.querySelectorAll('.ministry-slide-dot')]) {
+    await act(async () => Simulate.click(button));
+    assert.equal(node.querySelector('video'), null);
+    assert.ok(node.querySelector('.is-active img'));
+  }
 });
 test('media error leaves a local fallback and visible event details', async () => {
   await render(); await act(async () => Simulate.error(node.querySelector('img'))); assert.equal(node.querySelector('img').getAttribute('src'), '/assets/img/crhlogo.jpg'); assert.match(node.textContent, /Media is unavailable/); assert.match(node.textContent, /GOD OF/);

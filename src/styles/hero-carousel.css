@@ -2,7 +2,6 @@
 .ministry-controls { flex-wrap:wrap; }
 .hero-slide-count { color:#cbd5e1; font-size:12px; margin-left:4px; }
 .ministry-hero-slide { transition:opacity .65s ease,visibility .65s; }
-.ministry-hero-slide video { width:100%; height:100%; object-fit:contain; position:relative; z-index:2; }
 .crusade-hero { background:radial-gradient(ellipse at 10% 10%,#182f65,#080f20 75%); }
 .crusade-hero .ministry-hero-inner { grid-template-columns:.95fr 1.15fr; }
 .crusade-hero .ministry-hero-copy { padding-top:48px; padding-bottom:40px; }
@@ -19,7 +18,6 @@
 .crusade-availability { font-size:12px; color:#c1cddd; line-height:1.6; margin:16px 0; max-width:460px; }
 .crusade-hero button:disabled { opacity:.65; cursor:default; }
 .crusade-hero .ministry-hero-visual figcaption { z-index:3; pointer-events:none; padding-bottom:12px; }
-.crusade-hero:has(video) .ministry-hero-visual figcaption { bottom:52px; }
 .ministry-hero button:focus-visible,.ministry-hero a:focus-visible { outline:3px solid #f5ca75; outline-offset:4px; }
 @media(max-width:767px) {
   .crusade-hero .ministry-hero-inner { display:flex; flex-direction:column; }

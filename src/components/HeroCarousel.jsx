@@ -19,9 +19,8 @@ export default function HeroCarousel() {
   const [reducedMotion, setReducedMotion] = useState(() => Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches))
   const [now, setNow] = useState(Date.now)
   const [event, setEvent] = useState(null)
-  const [videoPlaying, setVideoPlaying] = useState(false)
   const [failedMedia, setFailedMedia] = useState({})
-  const gesture = useRef(null), video = useRef(null)
+  const gesture = useRef(null)
   const campaignActive = now < decemberCrusade.endsAt
   const slides = campaignActive ? [...crusadeSlides, ...ministrySlides] : ministrySlides
   const index = current % slides.length, slide = slides[index]
@@ -41,17 +40,16 @@ export default function HeroCarousel() {
     return () => { clearInterval(clock); query?.removeEventListener('change', motion); document.removeEventListener('visibilitychange', visibility) }
   }, [])
   useEffect(() => {
-    if (paused || hovered || focused || hidden || reducedMotion || videoPlaying) return
+    if (paused || hovered || focused || hidden || reducedMotion) return
     const timer = setTimeout(() => setCurrent(value => (value + 1) % slides.length), 7000)
     return () => clearTimeout(timer)
-  }, [current, slides.length, paused, hovered, focused, hidden, reducedMotion, videoPlaying])
-  useEffect(() => { if (hidden) video.current?.pause() }, [hidden])
+  }, [current, slides.length, paused, hovered, focused, hidden, reducedMotion])
   useEffect(() => {
     const nextImage = new window.Image()
     const next = slides[(index + 1) % slides.length]
     nextImage.src = window.innerWidth < 768 && next.smallImage ? next.smallImage : next.image
   }, [index, campaignActive])
-  const select = value => { setVideoPlaying(false); setCurrent((value + slides.length) % slides.length) }
+  const select = value => { setCurrent((value + slides.length) % slides.length) }
   const registrationOpen = event?.registration_enabled && Date.parse(event.ends_at) > now
   return <section className={`ministry-hero ${isCrusade ? 'crusade-hero' : ''}`} aria-roledescription="carousel" aria-label="Welcome to Christ’s Reformation House"
     onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
@@ -61,12 +59,12 @@ export default function HeroCarousel() {
     onTouchCancel={() => { gesture.current = null }}
     onTouchEnd={e => {
       const start = gesture.current; gesture.current = null
-      if (!start || e.target.closest('video, button, a')) return
+      if (!start || e.target.closest('button, a')) return
       const touch = e.changedTouches[0], dx = touch.clientX - start.x, dy = touch.clientY - start.y
       if (Math.abs(dx) >= 50 && Math.abs(dx) > Math.abs(dy) * 1.25) select(index + (dx < 0 ? 1 : -1))
     }}
     onKeyDown={e => {
-      if (e.target.closest('video, input, textarea, select')) return
+      if (e.target.closest('input, textarea, select')) return
       if (e.key === 'ArrowLeft') { e.preventDefault(); select(index - 1) }
       if (e.key === 'ArrowRight') { e.preventDefault(); select(index + 1) }
     }}>
@@ -90,11 +88,9 @@ export default function HeroCarousel() {
       </div>
     </div><figure className="ministry-hero-visual">
       {slides.map((item, i) => <div key={item.image} className={`ministry-hero-slide ${i === index ? 'is-active' : ''} ${item.artwork ? 'hero-artwork' : ''}`} aria-hidden={i !== index} role="group" aria-roledescription="slide" aria-label={`${i + 1} of ${slides.length}`}>
-        {item.video && i === index && !failedMedia[item.image] ? <video ref={video} controls muted playsInline preload="none" poster={item.image} aria-label="God of Wonder cinematic portrait invitation" onPlay={() => setVideoPlaying(true)} onPause={() => setVideoPlaying(false)} onEnded={() => setVideoPlaying(false)} onError={() => { setVideoPlaying(false); setFailedMedia(value => ({ ...value, [item.image]: true })) }}>
-          <source src={item.video} type="video/mp4" /><track kind="captions" src="/assets/campaigns/december-2026/crusade-promo.vtt" srcLang="en" label="Event invitation" default />Your browser cannot play this video.
-        </video> : <img src={failedMedia[item.image] ? '/assets/img/crhlogo.jpg' : item.image} srcSet={!failedMedia[item.image] && item.smallImage ? `${item.smallImage} 960w, ${item.image} 1672w` : undefined} sizes="(max-width: 767px) 100vw, 55vw" alt={item.alt} width={isCrusade ? 1672 : 933} height={isCrusade ? 941 : 1400} loading={i === 0 ? 'eager' : 'lazy'} fetchpriority={i === 0 ? 'high' : 'low'} decoding="async" onError={() => { if (!failedMedia[item.image]) setFailedMedia(value => ({ ...value, [item.image]: true })) }} />}
+        <img src={failedMedia[item.image] ? '/assets/img/crhlogo.jpg' : item.image} srcSet={!failedMedia[item.image] && item.smallImage ? `${item.smallImage} 960w, ${item.image} 1672w` : undefined} sizes="(max-width: 767px) 100vw, 55vw" alt={item.alt} width={isCrusade ? 1672 : 933} height={isCrusade ? 941 : 1400} loading={i === 0 ? 'eager' : 'lazy'} fetchpriority={i === 0 ? 'high' : 'low'} decoding="async" onError={() => { if (!failedMedia[item.image]) setFailedMedia(value => ({ ...value, [item.image]: true })) }} />
       </div>)}
-      <figcaption>{failedMedia[slide.image] ? 'Media is unavailable. The event details remain available here.' : slide.illustration ? 'Illustrative prayer scene · December Fire Crusade 2026' : slide.video ? 'Apostle Anchord Taiwo · Cinematic portrait invitation' : isCrusade ? 'Come and experience the power of God!' : 'Apostle (Dr) Anchord Taiwo'}<span>{isCrusade ? decemberCrusade.venue : 'Senior Pastor · Christ’s Reformation House International'}</span></figcaption>
+      <figcaption>{failedMedia[slide.image] ? 'Media is unavailable. The event details remain available here.' : slide.illustration ? 'Illustrative prayer scene · December Fire Crusade 2026' : isCrusade ? 'Come and experience the power of God!' : 'Apostle (Dr) Anchord Taiwo'}<span>{isCrusade ? decemberCrusade.venue : 'Senior Pastor · Christ’s Reformation House International'}</span></figcaption>
     </figure></div>
   </section>
 }
