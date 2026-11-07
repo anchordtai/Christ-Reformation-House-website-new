@@ -1,0 +1,18 @@
+const media = '/assets/campaigns/december-2026'
+export const decemberCrusade = {
+  dates: '7th–13th December 2026',
+  time: '5:00 PM daily · Nigeria time',
+  venue: "Christ’s Reformation House Int’l · Zoe Assembly",
+  address: 'No. 8 Rainbo Street, Ayegbami, Sagamu, Ogun State, Nigeria.',
+  message: 'Join us for seven powerful days of prayer, worship, healing, miracles, and encounters with God.',
+  endsAt: Date.parse('2026-12-14T00:00:00+01:00'),
+}
+export const crusadeSlides = [
+  { image: `${media}/approved-flyer.webp`, smallImage: `${media}/approved-flyer-960.webp`, alt: 'Approved God of Wonder December Fire Crusade flyer, 7–13 December 2026, 5 PM daily, Sagamu.', label: 'God of Wonder', artwork: true },
+  { image: `${media}/healing-prayer.webp`, smallImage: `${media}/healing-prayer-960.webp`, alt: 'Illustrative artwork of a minister seen from behind leading an African congregation in healing prayer.', label: 'Gather in prayer', illustration: true },
+  { image: `${media}/corporate-prayer.webp`, smallImage: `${media}/corporate-prayer-960.webp`, alt: 'Illustrative artwork of worshippers praying toward a blue and gold crusade stage.', label: 'United in faith', illustration: true },
+  { image: `${media}/portrait-promo-poster.webp`, alt: 'Original microphone photograph of Apostle Anchord Taiwo in a black suit and white shirt, used in a cinematic portrait slideshow.', label: 'Your invitation', video: `${media}/crusade-website.mp4` },
+]
+export function findCrusadeEvent(events) {
+  return events.find(event => /god\s+of\s+wonder|december.*fire.*crusade|fire.*crusade.*december/i.test(event.title) && String(event.starts_at).startsWith('2026-12-07') && String(event.ends_at).slice(0,10) === '2026-12-13') || null
+}
