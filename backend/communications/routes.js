@@ -15,6 +15,7 @@ router.post('/communications/subscribe',wrap(async(req,res)=>{
  const confirm=core.token(),manage=core.token(),link=core.ORIGIN+'/subscribe/confirm#token='+confirm,preferences=core.ORIGIN+'/subscribe/preferences#token='+manage;
  const text='Confirm that you requested ministry email updates. Your categories: '+c.categories.join(', ')+'.\n\nConfirm subscription: '+link+'\n\nIf you did not request this, ignore this email. This link expires in 24 hours.';
  await rpc('crh_communication_subscribe',{p_email:c.email,p_name:c.name,p_phone:c.phone,p_categories:c.categories,p_sms:c.sms_consent,p_confirm_hash:core.sha(confirm),p_manage_hash:core.sha(manage),p_text:text,p_html:core.emailHtml('Confirm your CRH subscription',text,preferences)});
+ require('./notifications').kickNotifications();
  res.status(202).json({message:'If this address is eligible, a confirmation email is queued. Delivery can be delayed by the free daily allowance. Check your inbox and spam folder; your subscription starts only after confirmation.'});
 }));
 router.post('/communications/confirm',wrap(async(req,res)=>{
@@ -25,6 +26,7 @@ router.post('/communications/confirm',wrap(async(req,res)=>{
  await db('communication_tokens','post',{}, {hash:core.sha(manage),contact_id:t.contact_id,purpose:'manage',expires_at:new Date(Date.now()+365*86400000).toISOString()});
  const text='Thank you for confirming your subscription. You can choose your devotional, event, service and newsletter updates or unsubscribe at any time.\n\n'+url;
  if(!await rpc('crh_communication_confirm',{p_hash:core.sha(req.body.token),p_text:text,p_html:core.emailHtml('Welcome to CRH updates',text,url)}))throw fail(400,'This link has expired or was already used.');
+ require('./notifications').kickNotifications();
  res.json({message:'Your email subscription is confirmed. A welcome email is queued.'});
 }));
 router.post('/communications/preferences',wrap(async(req,res)=>{

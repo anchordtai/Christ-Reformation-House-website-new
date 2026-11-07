@@ -7,9 +7,9 @@ const React=require('react'),{act}=React,{createRoot}=require('react-dom/client'
 const temp=fs.mkdtempSync(path.join(process.cwd(),'.meeting-events-test-'));let root,node,components,helpers,mock;
 before(async()=>{
   helpers=await import('../src/utils/events.mjs');components={};
-  const serviceExports=['getEvents','getEvent','registerEvent','editEvents','saveEvent','eventRegistrations','meetingConfig','hostSession','hostLogin','signOutHost','joinEmbeddedMeeting'];
-  const plugin={name:'ministry-fixture',setup(build){build.onResolve({filter:/services\/ministry$/},()=>({path:'ministry-fixture',namespace:'fixture'}));build.onLoad({filter:/.*/,namespace:'fixture'},()=>({contents:serviceExports.map(name=>`export const ${name}=(...args)=>globalThis.__ministryMock.${name}(...args);`).join('\n')+'\nexport const ministryError=e=>e.response?.data?.error||e.message;',loader:'js'}))}};
-  for(const [name,file]of Object.entries({Events:'src/pages/Events.jsx',Register:'src/pages/EventRegister.jsx',Room:'src/pages/InstantMeetingRoom.jsx',Embed:'src/components/meetings/JitsiMeeting.jsx'})){
+  const serviceExports=['registerMeeting','getEvents','getEvent','registerEvent','editEvents','saveEvent','eventRegistrations','meetingConfig','hostSession','hostLogin','signOutHost','joinEmbeddedMeeting'];
+  const plugin={name:'ministry-fixture',setup(build){build.onResolve({filter:/FormVerification$/},()=>({path:'verification',namespace:'verification'}));build.onLoad({filter:/.*/,namespace:'verification'},()=>({contents:`import {useEffect} from 'react';export default function Verification({onReady}){useEffect(()=>onReady(true),[]);return null}`,loader:'js'}));build.onResolve({filter:/services\/ministry$/},()=>({path:'ministry-fixture',namespace:'fixture'}));build.onLoad({filter:/.*/,namespace:'fixture'},()=>({contents:serviceExports.map(name=>`export const ${name}=(...args)=>globalThis.__ministryMock.${name}(...args);`).join('\n')+'\nexport const ministryError=e=>e.response?.data?.error||e.message;',loader:'js'}))}};
+  for(const [name,file]of Object.entries({Events:'src/pages/Events.jsx',Register:'src/pages/EventRegister.jsx',Room:'src/pages/InstantMeetingRoom.jsx',Embed:'src/components/meetings/JitsiMeeting.jsx',Registration:'src/components/meetings/MeetingRegistration.jsx'})){
     const out=path.join(temp,name+'.cjs');await build({entryPoints:[file],outfile:out,bundle:true,platform:'node',format:'cjs',jsx:'automatic',loader:{'.css':'empty'},define:{'import.meta.env':'{}'},external:['react','react-dom','react-dom/*','react-router-dom','axios'],plugins:[plugin]});components[name]=require(out).default;
   }
 });
@@ -81,4 +81,14 @@ test('host lobby starts only after moderator confirmation, with visible admit an
   await act(async()=>root.render(null));commands=[];listeners={};await render('Embed','/',{...props,host:false});
   await act(async()=>listeners.participantRoleChanged({id:'local',role:'moderator'}));assert.deepEqual(commands,[]);
   await act(async()=>listeners.knockingParticipant({participant:{id:'guest',name:'Guest'}}));assert.equal(node.querySelector('[aria-label="Participants waiting to join"]'),null);
+});
+
+test('meeting registration requires separate consent, preserves failures and confirms only after saving',async()=>{
+ mock.registerMeeting=async input=>{assert.equal(input.room,'crh-publicroom');assert.equal(input.provider,'public');throw Error('Try later')};
+ await render('Registration','/',{invitation:{room:'crh-publicroom',title:'Prayer',url:'https://www.christreformationhouse.org.ng/meetings/room/crh-publicroom?provider=public'}});
+ await act(async()=>{node.querySelector('details').open=true;node.querySelector('details').dispatchEvent(new window.Event('toggle'))});
+ assert.equal(node.querySelector('input[type=checkbox]').checked,false);assert.equal(node.querySelectorAll('input[type=password]').length,0);
+ await change('input[autocomplete=name]','Reader');await change('input[type=email]','reader@example.test');await change('input[type=checkbox]','',{checked:true});
+ await act(async()=>Simulate.submit(node.querySelector('form')));assert.match(node.textContent,/Try later/);assert.equal(node.querySelector('input[type=email]').value,'reader@example.test');
+ mock.registerMeeting=async()=>({message:'Confirmation is queued.'});await act(async()=>Simulate.submit(node.querySelector('form')));assert.equal(node.querySelector('form'),null);assert.match(node.textContent,/queued/);
 });

@@ -161,6 +161,7 @@ app.get('/api/sermons/:id', (req, res) => {
 });
 app.use('/api', require('./communications/routes').router);
 app.use('/api', require('./events').router);
+app.use('/api', require('./meeting-registration').router);
 app.use('/api', require('./live-broadcast').router);
 app.use('/api', require('./site-security').router);
 app.use('/api', require('./ministry-chat').router);

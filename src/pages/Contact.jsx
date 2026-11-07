@@ -14,6 +14,7 @@ const Contact = () => {
     subject: '',
     message: '',
   })
+  const [receipt,setReceipt]=useState('')
   const [loading,setLoading]=useState(false),[error,setError]=useState(''),[success,setSuccess]=useState(false),[reference,setReference]=useState(''),[consent,setConsent]=useState(false),[website,setWebsite]=useState('')
   const [verificationReady,setVerificationReady]=useState(false),[verificationToken,setVerificationToken]=useState(''),[verificationReset,setVerificationReset]=useState(0)
   const submission=useRef(crypto.randomUUID()),busy=useRef(false)
@@ -22,7 +23,7 @@ const Contact = () => {
     e.preventDefault()
     if(busy.current)return
     busy.current=true;setLoading(true);setError('')
-    try{const result=await sendContact({...formData,submissionId:submission.current,consent,website,verificationToken});setReference(result.reference||'');setSuccess(true);setFormData({name:'',email:'',phone:'',subject:'',message:''})}catch(e){setError(commerceError(e))}finally{busy.current=false;setLoading(false);setVerificationReset(v=>v+1)}
+    try{const result=await sendContact({...formData,submissionId:submission.current,consent,website,verificationToken});setReference(result.reference||'');setReceipt(result.message||'Your message has been saved.');setSuccess(true);setFormData({name:'',email:'',phone:'',subject:'',message:''})}catch(e){setError(commerceError(e))}finally{busy.current=false;setLoading(false);setVerificationReset(v=>v+1)}
   }
 
   const handleChange = (e) => {
@@ -41,7 +42,7 @@ const Contact = () => {
           </div>
           <h2 className="text-2xl font-bold mb-2">Message received</h2>
           <p className="text-gray-600 mb-6">
-            Your message has been saved for the ministry team to review. No automatic email confirmation is sent.
+            {receipt}
           </p>
           {reference&&<p className="text-xs break-all mb-4">Your reference: {reference}</p>}
           <button
@@ -218,7 +219,7 @@ const Contact = () => {
                     />
                   </div>
 
-                  <label className="flex items-start gap-3 text-sm"><input type="checkbox" required checked={consent} onChange={e=>setConsent(e.target.checked)}/><span>I agree that the ministry may store these contact details and this message to respond to my enquiry. Please do not include payment details or passwords.</span></label>
+                  <label className="flex items-start gap-3 text-sm"><input type="checkbox" required checked={consent} onChange={e=>setConsent(e.target.checked)}/><span>I agree that the ministry may store these contact details and this message to respond to my enquiry and email an automatic acknowledgement. Please do not include payment details or passwords.</span></label>
                   <FormVerification action="contact" onReady={setVerificationReady} onToken={setVerificationToken} resetKey={verificationReset}/>
                   <button
                     type="submit"

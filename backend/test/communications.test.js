@@ -13,7 +13,7 @@ axios.defaults.adapter=async c=>{
  else if(c.url.endsWith('/communication_jobs')&&c.method==='get')data=config.eventJob?[{id:'job'}]:[];
  else if(c.url.endsWith('/communication_campaigns'))data=c.method==='get'?[]:rows;
  else if(c.url.endsWith('/communication_contacts'))data=[{status:config.contactStatus,categories:['newsletter']}];
- else if(c.url.endsWith('/rpc/crh_communication_claim'))data=jobs.length?[jobs.shift()]:[];
+ else if((c.url.endsWith('/rpc/crh_communication_claim')||c.url.endsWith('/rpc/crh_communication_claim_next')))data=jobs.length?[jobs.shift()]:[];
  else if(c.url==='https://api.brevo.com/v3/smtp/email'){
   if(config.timeout)throw Error('Timed out after sending');
   assert.equal(body.to.length,1);data={messageId:'provider-test-reference'};
@@ -90,4 +90,17 @@ test('webhooks reconcile a known message and reject unknown references for later
  assert.equal(calls.find(c=>c.url.endsWith('/communication_jobs')).params.provider_id,'eq.provider-id');
  assert.ok(calls.find(c=>c.url.endsWith('/rpc/crh_communication_event')));config.eventJob=false;
  assert.equal((await req('/communications/webhooks/brevo',body,'h'.repeat(40))).status,503);delete process.env.COMMUNICATIONS_WEBHOOK_SECRET;
+});
+
+test('transactional receipt does not require newsletter consent and uses receipt-specific HTML',async()=>{
+ enable();config.contactStatus='unsubscribed';jobs=[{...job(),contact_id:null,kind:'registration',html:'',text:'A saved registration. <script>bad</script>'}];
+ await runWorker();const send=calls.find(c=>c.url==='https://api.brevo.com/v3/smtp/email');assert.ok(send);const html=JSON.parse(send.data).htmlContent;
+ assert.match(html,/automatic receipt/);assert.match(html,/&lt;script&gt;/);assert.doesNotMatch(html,/Manage preferences or unsubscribe/);
+});
+test('hard-bounce suppression blocks a receipt before crossing the provider boundary',async()=>{
+ enable();config.contactStatus='suppressed';jobs=[{...job(),contact_id:null,kind:'registration'}];await runWorker();assert.equal(calls.some(c=>c.url==='https://api.brevo.com/v3/smtp/email'),false);
+});
+
+test('request-triggered processing claims only notifications and does not prepare bulk campaigns',async()=>{
+ enable();jobs=[job()];await runWorker({notificationsOnly:true});assert.ok(calls.some(c=>c.url.endsWith('/rpc/crh_communication_claim_next')));assert.equal(calls.some(c=>c.url.endsWith('/communication_campaigns')),false);assert.equal(calls.some(c=>c.url.endsWith('/communication_settings')),false);
 });

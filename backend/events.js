@@ -47,9 +47,11 @@ router.post('/events/:id/register',wrap(async (req,res) => {
   registerLimit(req);
   if (!uuid(req.params.id)) throw fail(404,'Event not found.');
   const input = validateRegistration(req.body || {});
+  await require('./site-security').verifyBot(req,'event_registration');
   try { await db('post','rpc/register_ministry_event',{}, {p_event:req.params.id,p_name:input.name,p_email:input.email,p_attendees:input.attendees}); }
   catch (error) { if (error.response?.data?.code === 'P0001') throw fail(409,'Registration is closed or this event is no longer available.'); throw error; }
-  res.status(201).json({message:'Your registration has been received. Keep the event details for your visit. No automatic confirmation email is sent.'});
+  require('./communications/notifications').kickNotifications();
+  res.status(201).json({message:'Your registration has been received. A confirmation email is queued for new registrations. Check your inbox and spam folder. Delivery may be delayed by the free daily allowance. Registering again does not send a duplicate receipt.'});
 }));
 // Authentication is attached to every staff handler before any database access.
 const staff = fn => wrap(async (req,res) => { const user = await ministryUser(bearer(req)); if (!isEventEditor(user)) throw fail(403,'This account cannot manage events.'); req.ministryActor=user.id;await fn(req,res,user); });

@@ -19,11 +19,11 @@ async function prepareDaily(){
  status:'scheduled',scheduled_at:now.toISOString(),expires_at:date+'T23:59:59+01:00',created_by:settings.updated_by,approved_by:row.reviewed_by,approved_at:row.reviewed_at});}
  catch(e){if(e.response?.status!==409)throw e;}
 }
-async function runWorker(){
+async function runWorker({notificationsOnly=false}={}){
  if(providerConfig().email!=='configured')return {processed:0,state:'setup_required'};
- await prepareDaily();
+ if(!notificationsOnly)await prepareDaily();
  // Bounded work survives Render restarts through durable rows. Claims are never automatically replayed.
- const campaigns=await db('communication_campaigns','get',{status:'eq.scheduled',channel:'eq.email',scheduled_at:'lte.'+new Date().toISOString(),order:'scheduled_at.asc',limit:3});
+ const campaigns=notificationsOnly?[]:await db('communication_campaigns','get',{status:'eq.scheduled',channel:'eq.email',scheduled_at:'lte.'+new Date().toISOString(),order:'scheduled_at.asc',limit:3});
  for(const a of campaigns){
   const recipients=await rpc('crh_communication_recipients',{p_campaign:a.id});
   if(!recipients.length){
@@ -40,16 +40,17 @@ async function runWorker(){
  let processed=0;
  const stop=Date.now()+90000;
  while(processed<4&&Date.now()<stop){
-  const [j]=await rpc('crh_communication_claim',{});if(!j)break;
+  const [j]=await rpc('crh_communication_claim_next',{p_notifications:notificationsOnly});if(!j)break;
   // Recheck consent and cancellation immediately before crossing the provider boundary.
-  const [c]=await db('communication_contacts','get',{id:'eq.'+j.contact_id,select:'status,categories',limit:1});
+  const [c]=await db('communication_contacts','get',{...(j.kind==='registration'?{email:'eq.'+j.email}:{id:'eq.'+j.contact_id}),select:'status,categories',limit:1});
+  const suppressed=j.kind==='registration'&&(await db('communication_suppressions','get',{email:'eq.'+j.email,select:'email',limit:1})).length>0;
   const [a]=j.campaign_id?await db('communication_campaigns','get',{id:'eq.'+j.campaign_id,select:'status,source_key,source_revision',limit:1}):[null];
   let released=true;
   if(a?.source_key?.startsWith('devotional:')){
    const date=a.source_key.slice(11),[reading]=await db('devotional_entries','get',{publication_date:'eq.'+date,limit:1});
    released=!!reading&&reading.publication_date===require('../devotionals').today()&&reading.revision===a.source_revision&&!!require('../devotionals').visible(reading);
   }
-  const eligible=released&&c&&(j.kind==='confirm'?c.status==='pending':c.status==='active')&&(!j.campaign_id||(a?.status==='scheduled'&&c.categories.includes(j.category)));
+  const eligible=j.kind==='registration'?!suppressed&&c?.status!=='suppressed':released&&c&&(j.kind==='confirm'?c.status==='pending':c.status==='active')&&(!j.campaign_id||(a?.status==='scheduled'&&c.categories.includes(j.category)));
   if(!eligible){await db('communication_jobs','patch',{id:'eq.'+j.id,status:'eq.attempting'},{status:'cancelled',error_code:'consent_or_campaign_changed'});continue;}
   try{
    const providerId=await sendEmail(j);
