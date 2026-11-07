@@ -32,3 +32,5 @@ export async function joinEmbeddedMeeting(input) {
   const token = input.host ? await hostToken() : null
   return client.post('/meeting-provider/join',input,token ? {headers:{Authorization:`Bearer ${token}`}} : {}).then(r=>r.data)
 }
+
+export const registerMeeting = input => client.post('/meetings/register',input).then(r=>r.data)

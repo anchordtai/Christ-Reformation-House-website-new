@@ -7,7 +7,7 @@ async function sendEmail(job){
  const result=await axios.post('https://api.brevo.com/v3/smtp/email',{
   sender:{name:"Christ's Reformation House International Inc.",email:'info@christreformationhouse.org.ng'},
   replyTo:{email:'info@christreformationhouse.org.ng'},to:[{email:job.email}],
-  subject:job.subject,htmlContent:job.html,textContent:job.text,
+  subject:job.subject,htmlContent:job.kind==='registration'?require('./notifications').receiptHtml(job.subject,job.text):job.html,textContent:job.text,
   headers:{idempotencyKey:job.id},tags:['crh-communications']
  },{headers:{'api-key':process.env.BREVO_API_KEY,'Content-Type':'application/json'},timeout:20000});
  if(!result.data?.messageId)throw fail(503,'Provider acceptance could not be confirmed.');

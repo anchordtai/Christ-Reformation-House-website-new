@@ -87,7 +87,7 @@ test('registration requires consent, valid attendance and an available event tra
   for(const change of [{consent:false},{attendees:0},{attendees:1.5},{attendees:11},{email:'invalid'}])assert.throws(()=>validateRegistration({...valid,...change}));
   assert.equal((await post(`/events/${id}/register`,{...valid,consent:false})).status,400);assert.equal(requests.length,0);
   conflict=true;assert.equal((await post(`/events/${id}/register`,valid)).status,409);
-  conflict=false;const r=await post(`/events/${id}/register`,valid);assert.equal(r.status,201);assert.match((await r.json()).message,/No automatic confirmation email/);
+  conflict=false;const r=await post(`/events/${id}/register`,valid);assert.equal(r.status,201);assert.match((await r.json()).message,/confirmation email is queued/);
 });
 test('private attendee lists require staff authentication and bounded pagination',async()=>{
   assert.equal((await fetch(base+`/ministry-admin/events/${id}/registrations`)).status,401);

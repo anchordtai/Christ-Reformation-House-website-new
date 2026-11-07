@@ -30,3 +30,11 @@
 
 - **POST** `/api/donations` – Body: `{ amount, donationType, name, email, phone?, message? }`. Returns `{ success: true, redirectUrl }` (redirect user to `redirectUrl`).
 - **POST** `/api/donations/verify` – Body: `{ transaction_id, tx_ref? }`. Returns `{ verified: true }` or `{ verified: false, error }`.
+
+### Automatic registration confirmations
+
+New event and meeting registrations and contact enquiries atomically queue a transactional receipt in `communication_jobs`. An after-insert trigger prevents missing emails when a request is interrupted. Unique registration keys prevent duplicate receipts. Receipts do not create marketing contacts or grant newsletter consent. Meeting registration is optional and never grants host permission. `/signup` uses the real double-opt-in community subscription flow instead of simulating account creation.
+
+Apply the `registration_confirmations` migration before deploying this backend. The legacy claim function remains unchanged so the running backend continues to process existing subscriptions and campaigns during deployment; the new worker uses the additive claim function. Public forms use action-bound Turnstile verification. Successful requests start a bounded notification-only queue run; the existing Supabase cron remains a durable fallback if Render restarts. Subscription confirmation and welcome messages use the same immediate processing. The shared 280-attempt rolling daily cap protects the existing free Brevo allowance. Quota delays expire after 24 hours for opt-in links and two days for receipts; unresolved provider timeouts require staff review, never blind retries. Delivery reports in the Communication Desk are updated by the existing authenticated Brevo webhook. `accepted` means provider acceptance; only a delivery event sets `delivered`. No paid worker, SMS, email credits or automatic plan upgrade is enabled.
+
+Checks: backend/API and frontend suites; `backend/test/registration-confirmations.rollback.sql` tests atomic queue creation, duplicate suppression, independent consent, bounce suppression, free cap and private access inside a rolled-back transaction.
