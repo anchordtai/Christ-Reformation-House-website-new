@@ -6,7 +6,7 @@ Prepared on 7 November 2026 for owner review before production release.
 
 The existing component is `src/components/HeroCarousel.jsx`. Its two approved portrait slides and seven-second interval worked. Keyboard focus and every manual selection permanently paused autoplay until Play was pressed. Touch navigation was missing. The component is extended with seven-second cycling, hover/resume, keyboard focus protection, swipe detection that allows vertical scrolling, next-image preloading, media error fallback, and reduced-motion support. An intentional Pause remains in force on mouse leave. The browser suspends rotation when hidden. Video playback holds the slide until playback finishes or is paused.
 
-The carousel contains six slides. They are the previously approved crusade flyer, two new illustrative prayer scenes, a portrait invitation video, and the two existing ministry portrait slides. The dated crusade slides expire at midnight Africa/Lagos on 14 December 2026. The two ministry slides then continue.
+The carousel contains six slides. They are the newly requested white-suit and gold-tie crusade flyer, two new illustrative prayer scenes, a portrait invitation video, and the two existing ministry portrait slides. The dated crusade slides expire at midnight Africa/Lagos on 14 December 2026. The two ministry slides then continue.
 
 ## Files changed
 
@@ -14,12 +14,12 @@ The carousel contains six slides. They are the previously approved crusade flyer
 - `src/content/december-crusade.mjs` contains the supplied event copy, media list, expiry and event matching.
 - `src/styles/hero-carousel.css` contains responsive presentation and media styles.
 - `test/hero.test.cjs` contains 13 slider tests.
-- `public/assets/campaigns/december-2026/` contains six responsive WebP variants, the video poster, caption track and four MP4 exports.
+- `public/assets/campaigns/december-2026/` contains eight responsive WebP variants, the video poster, caption track and four MP4 exports.
 - This report records sources, checks and remaining work.
 
 ## Media provenance and formats
 
-The approved flyer was recovered from `Emerald and Gold Crusade Flyer.png`. Its artwork is preserved. It says Rainbow Street. The latest supplied brief says Rainbo Street, which is used in the new HTML and video. The owner should confirm the spelling before release.
+The approved flyer was recovered from `Emerald and Gold Crusade Flyer.png` and is preserved as `approved-flyer.webp`. The owner then requested a new white-suit and gold-tie design. It was created with the image generator using the original microphone photograph as the identity reference and the prior flyer as the style reference. The new first slide is `white-gold-flyer.webp` and needs portrait and artwork review before release. The owner confirmed Rainbow Street, which is used throughout the HTML, video overlays and captions.
 
 Two prayer scenes were made with the built-in image generator. They are illustrative scenes with fictional congregations. The foreground minister is shown from behind, and the other minister is distant. Neither scene reconstructs the pastor's face. The slider captions identify the scenes as illustrative artwork. Originals remain with the generated images. Responsive exports are stored alongside the campaign media.
 
@@ -32,7 +32,7 @@ The source for the portrait invitation is the existing `public/assets/img/PHOTO 
 | `crusade-website.mp4` | H.264/AAC | 1280 × 720 | 12 seconds |
 | `crusade-whatsapp.mp4` | H.264/AAC | 960 × 540 | 12 seconds |
 
-Every MP4 is below 400 KB with fast-start metadata. Website video loads on interaction, starts muted, has native playback controls and a poster, and has an English VTT text track. The high-resolution WebP originals and 960px variants use responsive sources. All campaign assets total approximately 2.2 MB, with video files loaded only when requested.
+Every MP4 is below 400 KB with fast-start metadata. Website video loads on interaction, starts muted, has native playback controls and a poster, and has an English VTT text track. The high-resolution WebP originals and 960px variants use responsive sources. All campaign assets total approximately 2.6 MB, with video files loaded only when requested.
 
 The image prompts requested a 16:9 Nigerian revival scene in royal blue, gold and subtle orange, first viewed from the altar across the crowd with a minister seen from behind, then from the rear-side of the auditorium toward a distant stage. Both prompts required realistic anatomy, dignified worship and no text, medical conditions or miraculous visual effects.
 
