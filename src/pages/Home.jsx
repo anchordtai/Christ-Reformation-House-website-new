@@ -1,3 +1,4 @@
+import { ScriptureContent } from '../components/ScriptureText'
 import CommunicationSignup from '../components/CommunicationSignup'
 import { Link } from 'react-router-dom'
 import { ArrowRight, BookOpen, Calendar, Globe2, Heart, Users } from 'lucide-react'
@@ -12,7 +13,7 @@ const pathways = [
   { icon: Users, title: 'Find your place', description: 'Discover ways to grow, serve, and participate in the life of the ministry.', href: '/ministries', action: 'Find a ministry' },
 ]
 export default function Home() {
-  return <div className="ministry-home">
+  return <ScriptureContent><div className="ministry-home">
     <HeroCarousel />
     <section className="ministry-welcome-strip"><div><Globe2 size={24} /><p><strong>From Abuja. With a heart for the nations.</strong><span>Faith, fellowship, and purpose—beyond the walls of a building.</span></p></div><Link to="/contact">Connect with us <ArrowRight size={17} /></Link></section>
     <section className="ministry-section home-watch" id="watch"><div className="ministry-section-heading"><div><p className="ministry-eyebrow">Watch. Reflect. Grow.</p><h2>A word for your life.<br />Hope for your next step.</h2></div><div><p>Explore Apostle (Dr) Anchord Taiwo’s ministry preaching on faith, salvation and prayer.</p><a href={ministryFacebook} target="_blank" rel="noopener noreferrer" className="ministry-text-link">Visit the ministry on Facebook<ArrowRight size={17} /></a></div></div><PreachingLibrary /></section>
@@ -26,6 +27,6 @@ export default function Home() {
     <section className="ministry-section"><div className="ministry-section-heading"><div><p className="ministry-eyebrow">Stay connected</p><h2>Faith grows in fellowship.</h2></div></div><div className="grid gap-6 md:grid-cols-2"><Link to="/prayer-support" className="ministry-feature"><Heart size={30} /><h3>A place for prayer and support.</h3><p>Connect with the ministry for encouragement, prayer and pastoral care.</p><span>Find prayer support<ArrowRight size={18} /></span></Link><Link to="/meetings" className="ministry-feature ministry-feature-light"><Globe2 size={30} /><h3>Gather from wherever you are.</h3><p>Create an online meeting invitation or join a room shared by your host.</p><span>Open meeting center<ArrowRight size={18} /></span></Link></div></section>
     <CommunicationSignup/>
     <section className="ministry-giving"><div><p className="ministry-eyebrow">Generosity with purpose</p><h2>Be part of the mission.</h2><p>Partner with us in sharing the Gospel, nurturing faith, and serving our community.</p></div><Link to="/donate" className="ministry-button">Give online <Heart size={18} /></Link></section>
-  </div>
+  </div></ScriptureContent>
 }
 

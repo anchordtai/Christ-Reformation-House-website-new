@@ -1,0 +1,16 @@
+.scripture-link { color:inherit; text-decoration:underline; text-decoration-color:#c69a51; text-underline-offset:3px; text-decoration-thickness:1px; border-radius:2px; }
+.scripture-link:hover { text-decoration-thickness:2px; }
+.scripture-link:focus-visible { outline:2px solid #c69a51; outline-offset:4px; }
+.bible-page { max-width:1000px; margin:auto; padding:40px 24px; }
+.bible-page h1 { font-size:clamp(1.8rem,5vw,3rem); margin:20px 0 12px; }
+.bible-page .crh-bible-reader { margin-top:24px; }
+.bible-passage-reference { margin:16px 0; font-weight:600; }
+.bible-invalid { padding:18px; border:1px solid #d2a556; border-radius:10px; margin:20px 0; }
+.crh-bible-text small { font-size:12px; }
+.content-share { margin-top:20px; padding-top:16px; border-top:1px solid #b8becb55; }
+.content-share-title { font-weight:600; font-size:14px; margin-bottom:10px; }
+.content-share-actions { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+.content-share-actions a,.content-share-actions button { display:inline-flex; align-items:center; min-height:44px; padding:8px 12px; border:1px solid #b8becb80; border-radius:8px; font-size:13px; background:transparent; color:inherit; }
+.content-share-actions a:focus-visible,.content-share-actions button:focus-visible { outline:2px solid #b58a3e; outline-offset:3px; }
+.content-share input { width:100%; margin-top:8px; padding:10px; border:1px solid #a7afbc; color:#172033; background:white; }
+.content-share-status { margin-top:10px; font-size:13px; }

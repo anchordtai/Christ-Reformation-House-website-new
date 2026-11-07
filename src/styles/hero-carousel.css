@@ -29,3 +29,9 @@
   .ministry-controls { gap:5px; }
 }
 @media(prefers-reduced-motion:reduce) { .ministry-hero-slide { transition:none; } }
+/* Every slide uses the same landscape media frame, including the first flyer. */
+.ministry-hero .ministry-hero-inner { grid-template-columns:1fr 1fr; }
+.ministry-hero .ministry-hero-visual { width:100%; aspect-ratio:16/9; min-height:0; height:auto; align-self:center; flex-shrink:0; }
+@media(max-width:767px) {
+  .ministry-hero .ministry-hero-inner { display:flex; flex-direction:column; }
+}

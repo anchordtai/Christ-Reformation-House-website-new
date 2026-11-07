@@ -1,3 +1,4 @@
+import ScriptureText, { ScriptureContent, ScripturePassage } from './ScriptureText'
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
@@ -64,7 +65,7 @@ export default function NovemberWelcome({ fallback = null }) {
       setCurrent((value + novemberBanners.length) % novemberBanners.length);
       setPaused(true);
     };
-  return (
+  return (<ScriptureContent>
     <section
       className="november-welcome"
       role="region"
@@ -147,7 +148,7 @@ export default function NovemberWelcome({ fallback = null }) {
           <p className="ministry-eyebrow">Our theme for November</p>
           <h1>Supernatural Provision</h1>
           <p>
-            {banner.verse} <strong>— {banner.reference} (KJV)</strong>
+            <ScripturePassage reference={banner.reference}>{banner.verse}</ScripturePassage> <strong>— {banner.reference} (KJV)</strong>
           </p>
         </div>
         <div className="november-banner-navigation">
@@ -193,7 +194,7 @@ export default function NovemberWelcome({ fallback = null }) {
           </Link>
         </div>
       </div>
-    </section>
+    </section></ScriptureContent>
   );
 }
 export function NovemberThemeRibbon() {
@@ -208,10 +209,9 @@ export function NovemberThemeRibbon() {
       <Link to="/november">
         <span className="november-ribbon-month">November 2026</span>
         <strong>Supernatural Provision</strong>
-        <span>
-          Philippians 4:19 <span aria-hidden="true">→</span>
-        </span>
+        <span aria-hidden="true">→</span>
       </Link>
+      <p className="november-ribbon-scripture"><ScriptureText>Philippians 4:19</ScriptureText></p>
     </aside>
   );
 }

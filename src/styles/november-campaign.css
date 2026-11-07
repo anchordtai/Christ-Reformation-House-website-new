@@ -293,3 +293,5 @@
     height: 44px;
   }
 }
+.november-ribbon-scripture { margin:0; padding:0 20px 10px; text-align:center; font-size:12px; }
+.november-ribbon-scripture a { display:inline; padding:0; }
