@@ -36,11 +36,15 @@ Every MP4 is below 400 KB with fast-start metadata. The video exports remain ava
 
 The image prompts requested a 16:9 Nigerian revival scene in royal blue, gold and subtle orange, first viewed from the altar across the crowd with a minister seen from behind, then from the rear-side of the auditorium toward a distant stage. Both prompts required realistic anatomy, dignified worship and no text, medical conditions or miraculous visual effects.
 
-## Event integration and remaining steps
+## Event publication
 
-The public events endpoint and the existing `public.ministry_events` table were inspected. Neither contained a December crusade entry. The registration CTA remains disabled with an explanatory message until a published matching event is available. When staff publish the gathering with registration enabled, the carousel uses `/events/register/<existing-event-id>` and the existing registration system. No duplicate event or registration system was created.
+The owner authorised publication and opening free registration. Event `4f3e175c-a9e9-42f6-ac0b-709b31e9ab3f` is published in the existing ministry event system. Its first service starts on 7 December at 5 PM Africa/Lagos. The owner corrected the final service ending to 12 noon on Sunday, 13 December. Evening services at 5 PM are advertised for 7–12 December, and the final service's starting time awaits a ministry announcement.
 
-Staff need to publish the event through `/admin/events`, including its confirmed end time on 13 December. The supplied 5 PM daily start is available, but the final session end time was not supplied. The watch CTA uses `/watch#broadcast`, the current ministry broadcast page. The carousel states that the crusade starts on 7 December. Staff can announce the actual stream through the existing broadcast desk when it is ready.
+The corrected schedule appears in the homepage copy, event details and corrected white-suit/gold-tie flyer. Event-editor cover selection uses the existing backend-supported assets directory. The 864 × 1080 social JPEG meets the previously observed TikTok maximum dimensions.
+
+Free registration was submitted successfully through the public API, returned HTTP 201, and produced the expected database record. The disposable test registration was removed using its exact ID and test email. The current endpoint confirms registration on screen and does not send an automatic confirmation email.
+
+The registration link is `/events/register/4f3e175c-a9e9-42f6-ac0b-709b31e9ab3f`. The homepage automatically resolves this published event through the existing public endpoint. The Watch CTA uses the existing `/watch#broadcast` page, and the ministry will announce the actual stream through its broadcast desk.
 
 ## Verification
 
