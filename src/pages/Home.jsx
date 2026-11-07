@@ -2,7 +2,6 @@ import CommunicationSignup from '../components/CommunicationSignup'
 import { Link } from 'react-router-dom'
 import { ArrowRight, BookOpen, Calendar, Globe2, Heart, Users } from 'lucide-react'
 import HeroCarousel from '../components/HeroCarousel'
-import NovemberWelcome from '../components/NovemberWelcome'
 import PreachingLibrary from '../components/PreachingLibrary'
 import { ministryFacebook, approvedTestimonies } from '../content/ministry'
 
@@ -14,7 +13,7 @@ const pathways = [
 ]
 export default function Home() {
   return <div className="ministry-home">
-    <NovemberWelcome fallback={<HeroCarousel />} />
+    <HeroCarousel />
     <section className="ministry-welcome-strip"><div><Globe2 size={24} /><p><strong>From Abuja. With a heart for the nations.</strong><span>Faith, fellowship, and purpose—beyond the walls of a building.</span></p></div><Link to="/contact">Connect with us <ArrowRight size={17} /></Link></section>
     <section className="ministry-section home-watch" id="watch"><div className="ministry-section-heading"><div><p className="ministry-eyebrow">Watch. Reflect. Grow.</p><h2>A word for your life.<br />Hope for your next step.</h2></div><div><p>Explore Apostle (Dr) Anchord Taiwo’s ministry preaching on faith, salvation and prayer.</p><a href={ministryFacebook} target="_blank" rel="noopener noreferrer" className="ministry-text-link">Visit the ministry on Facebook<ArrowRight size={17} /></a></div></div><PreachingLibrary /></section>
     <section className="home-salvation"><div className="ministry-section home-salvation-inner"><div><p className="ministry-eyebrow">New here? Start with Jesus.</p><h2>You are loved.<br /><em>There is a new beginning.</em></h2><p>Discover the good news of Jesus Christ. Ask questions, explore faith and connect with people who will walk with you.</p><Link to="/salvation" className="ministry-button">Explore salvation<ArrowRight size={18} /></Link></div><div className="salvation-verse"><span>JOHN 3:16</span><p>God’s love is the beginning.<br />Faith is a step you can take.</p><Link to="/prayer-support">I would like prayer<ArrowRight size={17} /></Link></div></div></section>
