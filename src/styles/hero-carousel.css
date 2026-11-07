@@ -1,0 +1,31 @@
+.ministry-hero { touch-action:pan-y; overflow:clip; }
+.ministry-controls { flex-wrap:wrap; }
+.hero-slide-count { color:#cbd5e1; font-size:12px; margin-left:4px; }
+.ministry-hero-slide { transition:opacity .65s ease,visibility .65s; }
+.crusade-hero { background:radial-gradient(ellipse at 10% 10%,#182f65,#080f20 75%); }
+.crusade-hero .ministry-hero-inner { grid-template-columns:.95fr 1.15fr; }
+.crusade-hero .ministry-hero-copy { padding-top:48px; padding-bottom:40px; }
+.crusade-hero h1 { font-size:clamp(3.2rem,5.7vw,5.5rem); line-height:.98; letter-spacing:-.04em; }
+.crusade-hero .hero-title-accent,.crusade-hero .ministry-eyebrow { color:#f5ca75; }
+.crusade-hero .hero-values { margin-top:24px; }
+.crusade-hero .ministry-hero-intro { margin-top:22px; }
+.crusade-hero .ministry-hero-visual { background:#080f20; }
+.crusade-hero .ministry-hero-slide img { object-fit:contain; }
+.crusade-details { margin:22px 0; font-size:14px; line-height:1.7; color:#e2e8f0; }
+.crusade-details strong { color:#ffe4ad; font-size:19px; }
+.crusade-details p { margin:6px 0; }
+.crusade-scripture { color:#edc374; letter-spacing:.08em; text-transform:uppercase; font-size:12px; }
+.crusade-availability { font-size:12px; color:#c1cddd; line-height:1.6; margin:16px 0; max-width:460px; }
+.crusade-hero button:disabled { opacity:.65; cursor:default; }
+.crusade-hero .ministry-hero-visual figcaption { z-index:3; pointer-events:none; padding-bottom:12px; }
+.ministry-hero button:focus-visible,.ministry-hero a:focus-visible { outline:3px solid #f5ca75; outline-offset:4px; }
+@media(max-width:767px) {
+  .crusade-hero .ministry-hero-inner { display:flex; flex-direction:column; }
+  .crusade-hero .ministry-hero-copy { padding:32px 24px; }
+  .crusade-hero .ministry-hero-visual { aspect-ratio:16/9; height:auto; min-height:0; }
+  .crusade-hero .ministry-hero-visual figcaption { font-size:10px; }
+  .crusade-hero .ministry-hero-visual figcaption span { display:none; }
+  .crusade-hero h1 { font-size:clamp(3.6rem,13vw,5rem); }
+  .ministry-controls { gap:5px; }
+}
+@media(prefers-reduced-motion:reduce) { .ministry-hero-slide { transition:none; } }
