@@ -14,12 +14,12 @@ The carousel contains six slides. They are the newly requested white-suit and go
 - `src/content/december-crusade.mjs` contains the supplied event copy, media list, expiry and event matching.
 - `src/styles/hero-carousel.css` contains responsive presentation and media styles.
 - `test/hero.test.cjs` contains 13 slider tests.
-- `public/assets/campaigns/december-2026/` contains eight responsive WebP variants, the video poster, caption track and four MP4 exports.
+- `public/assets/campaigns/december-2026/` contains ten responsive WebP variants, the video poster, caption track and four MP4 exports.
 - This report records sources, checks and remaining work.
 
 ## Media provenance and formats
 
-The approved flyer was recovered from `Emerald and Gold Crusade Flyer.png` and is preserved as `approved-flyer.webp`. The owner then requested a new white-suit and gold-tie design. It was created with the image generator using the original microphone photograph as the identity reference and the prior flyer as the style reference. The new first slide is `white-gold-flyer.webp` and needs portrait and artwork review before release. The owner confirmed Rainbow Street, which is used throughout the HTML, video overlays and captions.
+The approved flyer was recovered from `Emerald and Gold Crusade Flyer.png` and is preserved as `approved-flyer.webp`. The owner then requested a new white-suit and gold-tie design. It was created with the image generator using the original microphone photograph as the identity reference and the prior flyer as the style reference. The owner corrected the likeness to match the existing homepage portrait. The final first slide is `homepage-portrait-flyer.webp`, using `ministering-pink.webp` as the identity reference while retaining the white suit, gold tie and poster design. Earlier flyer versions are preserved. The final portrait needs owner review before release. The owner confirmed Rainbow Street, which is used throughout the HTML, video overlays and captions.
 
 Two prayer scenes were made with the built-in image generator. They are illustrative scenes with fictional congregations. The foreground minister is shown from behind, and the other minister is distant. Neither scene reconstructs the pastor's face. The slider captions identify the scenes as illustrative artwork. Originals remain with the generated images. Responsive exports are stored alongside the campaign media.
 
@@ -32,7 +32,7 @@ The source for the portrait invitation is the existing `public/assets/img/PHOTO 
 | `crusade-website.mp4` | H.264/AAC | 1280 × 720 | 12 seconds |
 | `crusade-whatsapp.mp4` | H.264/AAC | 960 × 540 | 12 seconds |
 
-Every MP4 is below 400 KB with fast-start metadata. Website video loads on interaction, starts muted, has native playback controls and a poster, and has an English VTT text track. The high-resolution WebP originals and 960px variants use responsive sources. All campaign assets total approximately 2.6 MB, with video files loaded only when requested.
+Every MP4 is below 400 KB with fast-start metadata. Website video loads on interaction, starts muted, has native playback controls and a poster, and has an English VTT text track. The high-resolution WebP originals and 960px variants use responsive sources. All campaign assets total approximately 3 MB, with video files loaded only when requested.
 
 The image prompts requested a 16:9 Nigerian revival scene in royal blue, gold and subtle orange, first viewed from the altar across the crowd with a minister seen from behind, then from the rear-side of the auditorium toward a distant stage. Both prompts required realistic anatomy, dignified worship and no text, medical conditions or miraculous visual effects.
 

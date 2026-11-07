@@ -8,7 +8,7 @@ export const decemberCrusade = {
   endsAt: Date.parse('2026-12-14T00:00:00+01:00'),
 }
 export const crusadeSlides = [
-  { image: `${media}/white-gold-flyer.webp`, smallImage: `${media}/white-gold-flyer-960.webp`, alt: 'God of Wonder December Fire Crusade flyer with Apostle Anchord Taiwo in a white suit and gold tie, 7–13 December 2026, 5 PM daily, Sagamu.', label: 'God of Wonder', artwork: true },
+  { image: `${media}/homepage-portrait-flyer.webp`, smallImage: `${media}/homepage-portrait-flyer-960.webp`, alt: 'God of Wonder December Fire Crusade flyer with Apostle Anchord Taiwo in a white suit and gold tie, 7–13 December 2026, 5 PM daily, Sagamu.', label: 'God of Wonder', artwork: true },
   { image: `${media}/healing-prayer.webp`, smallImage: `${media}/healing-prayer-960.webp`, alt: 'Illustrative artwork of a minister seen from behind leading an African congregation in healing prayer.', label: 'Gather in prayer', illustration: true },
   { image: `${media}/corporate-prayer.webp`, smallImage: `${media}/corporate-prayer-960.webp`, alt: 'Illustrative artwork of worshippers praying toward a blue and gold crusade stage.', label: 'United in faith', illustration: true },
   { image: `${media}/portrait-promo-poster.webp`, alt: 'Original microphone photograph of Apostle Anchord Taiwo in a black suit and white shirt, used in a cinematic portrait slideshow.', label: 'Your invitation', video: `${media}/crusade-website.mp4` },
