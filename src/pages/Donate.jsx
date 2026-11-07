@@ -1,3 +1,4 @@
+import ScriptureText, { ScripturePassage } from '../components/ScriptureText'
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Heart, CreditCard, Loader2, ShieldCheck, Globe2, BookOpen, Users } from 'lucide-react'
@@ -153,7 +154,7 @@ export default function Donate() {
       <div className="absolute right-0 top-0 h-80 w-80 rounded-full bg-amber-400/10 blur-3xl" aria-hidden="true" />
       <div className="container-custom relative grid items-center gap-8 lg:grid-cols-2">
         <div><p className="mb-4 text-sm font-semibold uppercase tracking-widest text-amber-300">Generosity with purpose</p><h1 className="mb-6 text-4xl font-bold leading-tight md:text-6xl">Your giving.<br /><span className="text-amber-300">A shared mission.</span></h1><p className="max-w-xl text-lg leading-relaxed text-slate-300">Help Christ’s Reformation House share the Gospel, nurture faith, and serve people in Abuja and beyond.</p></div>
-        <div className="rounded-3xl border border-white/15 bg-white/5 p-8"><Heart className="mb-5 h-8 w-8 text-amber-300" /><p className="text-xl leading-relaxed">“God loves a cheerful giver.”</p><p className="mt-3 text-sm text-slate-400">2 Corinthians 9:7</p><p className="mt-6 text-sm leading-relaxed text-slate-300">Give freely, as you purpose in your heart. Every gift is an opportunity to participate in the work of ministry.</p></div>
+        <div className="rounded-3xl border border-white/15 bg-white/5 p-8"><Heart className="mb-5 h-8 w-8 text-amber-300" /><p className="text-xl leading-relaxed"><ScripturePassage reference="2 Corinthians 9:7">“God loves a cheerful giver.”</ScripturePassage></p><p className="mt-3 text-sm text-slate-400"><ScriptureText>2 Corinthians 9:7</ScriptureText></p><p className="mt-6 text-sm leading-relaxed text-slate-300">Give freely, as you purpose in your heart. Every gift is an opportunity to participate in the work of ministry.</p></div>
       </div>
     </section>
     <section className="container-custom grid gap-10 px-5 py-12 lg:grid-cols-3 md:py-16">

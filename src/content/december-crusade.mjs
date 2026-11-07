@@ -8,7 +8,7 @@ export const decemberCrusade = {
   endsAt: Date.parse('2026-12-14T00:00:00+01:00'),
 }
 export const crusadeSlides = [
-  { image: '/assets/img/december-fire-crusade-2026-noon.webp', smallImage: '/assets/img/december-fire-crusade-2026-noon-960.webp', alt: 'God of Wonder December Fire Crusade flyer with Apostle Anchord Taiwo in a white suit and gold tie, 7–12 December at 5 PM daily; final service closes at noon on 13 December, Sagamu.', label: 'God of Wonder', artwork: true },
+  { image: `${media}/landscape-flyer.webp`, smallImage: `${media}/landscape-flyer-960.webp`, alt: 'God of Wonder December Fire Crusade flyer with Apostle Anchord Taiwo in a white suit and gold tie, 7–12 December at 5 PM daily; final service closes at noon on 13 December, Sagamu.', label: 'God of Wonder', artwork: true },
   { image: `${media}/healing-prayer.webp`, smallImage: `${media}/healing-prayer-960.webp`, alt: 'Illustrative artwork of a minister seen from behind leading an African congregation in healing prayer.', label: 'Gather in prayer', illustration: true },
   { image: `${media}/corporate-prayer.webp`, smallImage: `${media}/corporate-prayer-960.webp`, alt: 'Illustrative artwork of worshippers praying toward a blue and gold crusade stage.', label: 'United in faith', illustration: true },
 ]

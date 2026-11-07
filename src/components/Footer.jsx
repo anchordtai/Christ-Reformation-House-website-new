@@ -46,6 +46,7 @@ const Footer = () => {
               />
               <h3 className="text-white font-bold text-lg">Christ's Reformation House International Inc.</h3>
             </div>
+            <p className="text-sm text-white mb-2">Zoe Assembly</p>
             <p className="text-xs tracking-wide text-gray-400 mb-4">CAC REGISTRATION NUMBER 178735</p>
             <p className="text-sm mb-4">
               Where Faith Meets Transformation. Join us for worship, community, and spiritual growth in Christ.

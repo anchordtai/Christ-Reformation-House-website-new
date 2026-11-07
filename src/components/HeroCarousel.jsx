@@ -1,3 +1,4 @@
+import { ScriptureContent } from './ScriptureText'
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react'
@@ -51,7 +52,7 @@ export default function HeroCarousel() {
   }, [index, campaignActive])
   const select = value => { setCurrent((value + slides.length) % slides.length) }
   const registrationOpen = event?.registration_enabled && Date.parse(event.ends_at) > now
-  return <section className={`ministry-hero ${isCrusade ? 'crusade-hero' : ''}`} aria-roledescription="carousel" aria-label="Welcome to Christ’s Reformation House"
+  return <ScriptureContent><section className={`ministry-hero ${isCrusade ? 'crusade-hero' : ''}`} aria-roledescription="carousel" aria-label="Welcome to Christ’s Reformation House"
     onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
     onFocusCapture={e => { if (e.target.matches(':focus-visible')) setFocused(true) }}
     onBlurCapture={e => { if (!e.currentTarget.contains(e.relatedTarget)) setFocused(false) }}
@@ -92,5 +93,5 @@ export default function HeroCarousel() {
       </div>)}
       <figcaption>{failedMedia[slide.image] ? 'Media is unavailable. The event details remain available here.' : slide.illustration ? 'Illustrative prayer scene · December Fire Crusade 2026' : isCrusade ? 'Come and experience the power of God!' : 'Apostle (Dr) Anchord Taiwo'}<span>{isCrusade ? decemberCrusade.venue : 'Senior Pastor · Christ’s Reformation House International'}</span></figcaption>
     </figure></div>
-  </section>
+  </section></ScriptureContent>
 }

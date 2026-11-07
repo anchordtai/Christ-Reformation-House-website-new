@@ -1,6 +1,7 @@
+import { ScriptureContent } from './ScriptureText'
 import { blogDate } from "../services/blog";
 export default function BlogArticle({ post, image }) {
-  return (
+  return (<ScriptureContent>
     <article className="blog-article">
       <p className="ministry-eyebrow">{post.category}</p>
       <h1>{post.title}</h1>
@@ -25,6 +26,6 @@ export default function BlogArticle({ post, image }) {
           <span key={t}>{t}</span>
         ))}
       </div>
-    </article>
+    </article></ScriptureContent>
   );
 }

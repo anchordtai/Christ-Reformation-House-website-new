@@ -1,9 +1,10 @@
+import { ScriptureContent, ScripturePassage } from '../components/ScriptureText'
 import { Link } from "react-router-dom";
 import MetaTags from "../components/MetaTags";
 import { novemberBanners } from "../utils/november-campaign.mjs";
 import "../styles/november-campaign.css";
 export default function NovemberCampaign() {
-  return (
+  return (<ScriptureContent>
     <div className="november-campaign-page">
       <MetaTags
         title="November 2026 — Supernatural Provision"
@@ -51,7 +52,7 @@ export default function NovemberCampaign() {
               <p className="ministry-eyebrow">{b.palette}</p>
               <h2>{b.name}</h2>
               <p>
-                “{b.verse}” <strong>{b.reference} · KJV</strong>
+                “<ScripturePassage reference={b.reference}>{b.verse}</ScripturePassage>” <strong>{b.reference} · KJV</strong>
               </p>
               <a
                 className="secondary-button"
@@ -69,6 +70,6 @@ export default function NovemberCampaign() {
         invite someone to read the Word with you. Downloaded copies are 1080
         pixels wide for social sharing.
       </p>
-    </div>
+    </div></ScriptureContent>
   );
 }

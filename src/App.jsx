@@ -9,6 +9,7 @@ import Header from './components/Header'
 import PageEnhancements from './components/PageEnhancements'
 import MinistryAssistant from './components/MinistryAssistant'
 import Watch from './pages/Watch'
+const Bible=lazy(()=>import('./pages/Bible'))
 const BroadcastEditor=lazy(()=>import('./pages/BroadcastEditor'))
 import Salvation from './pages/Salvation'
 import PrayerSupport from './pages/PrayerSupport'
@@ -66,6 +67,7 @@ function AppRoutes() {
             <Route path="/november" element={<NovemberCampaign />} />
             <Route path="/about" element={<About />} />
             <Route path="/watch" element={<Watch />} />
+            <Route path="/bible" element={<Bible />} />
             <Route path="/admin/broadcast" element={<BroadcastEditor />} />
             <Route path="/sermons" element={<Watch />} />
             <Route path="/sermons/:id" element={<Watch />} />
