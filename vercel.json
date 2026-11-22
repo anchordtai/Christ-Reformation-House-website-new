@@ -1,6 +1,21 @@
 {
   "rewrites": [
     {
+      "source": "/sermon-sitemap.xml",
+      "destination": "https://christ-reformation-house-website-new-1.onrender.com/api/sermon-sitemap.xml"
+    },
+    {
+      "source": "/sermons/:slug",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(facebookexternalhit|Facebot|WhatsApp|Twitterbot|LinkedInBot|TelegramBot|Discordbot|Slackbot).*"
+        }
+      ],
+      "destination": "https://christ-reformation-house-website-new-1.onrender.com/api/sermon-share/:slug"
+    },
+    {
       "source": "/blog/:slug",
       "has": [
         {

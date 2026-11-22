@@ -160,6 +160,8 @@ app.get('/api/sermons/:id', (req, res) => {
   return res.json(item);
 });
 app.use('/api', require('./communications/routes').router);
+app.use('/api', require('./sermon-studio').router);
+app.use('/api', require('./church-notifications').router);
 app.use('/api', require('./events').router);
 app.use('/api', require('./meeting-registration').router);
 app.use('/api', require('./live-broadcast').router);

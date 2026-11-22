@@ -19,9 +19,23 @@ async function prepareDaily(){
  status:'scheduled',scheduled_at:now.toISOString(),expires_at:date+'T23:59:59+01:00',created_by:settings.updated_by,approved_by:row.reviewed_by,approved_at:row.reviewed_at});}
  catch(e){if(e.response?.status!==409)throw e;}
 }
+
+async function prepareSermons(){
+ const [settings]=await db('ministry_sermon_settings','get',{id:'eq.1',limit:1});
+ if(!settings?.email_sermons||!settings.email_sermons_since||!settings.updated_by)return;
+ const since=Date.parse(settings.email_sermons_since),now=new Date();
+ const rows=await db('ministry_sermons','get',{visibility:'eq.public',consent:'eq.true',status:'in.(published,scheduled)',reviewed_at:'not.is.null',publish_at:'lte.'+now.toISOString(),order:'publish_at.desc',limit:20});
+ for(const s of rows){
+  if(!require('../sermon-domain').released(s)||Date.parse(s.publish_at)<since)continue;
+  const source='sermon:'+s.id;
+  if((await db('communication_campaigns','get',{source_key:'eq.'+source,select:'id',limit:1})).length)continue;
+  try{await db('communication_campaigns','post',{}, {channel:'email',category:'services',subject:('New sermon: '+s.title).slice(0,160),text:[s.title,s.speaker,s.scripture,s.summary,ORIGIN+'/sermons/'+s.slug].filter(Boolean).join('\n\n'),source_key:source,source_revision:s.revision,status:'scheduled',scheduled_at:now.toISOString(),expires_at:new Date(now.getTime()+2*86400000).toISOString(),created_by:settings.updated_by,approved_by:settings.updated_by,approved_at:now.toISOString()});}catch(e){if(e.response?.status!==409)throw e;}
+ }
+}
+
 async function runWorker({notificationsOnly=false}={}){
  if(providerConfig().email!=='configured')return {processed:0,state:'setup_required'};
- if(!notificationsOnly)await prepareDaily();
+ if(!notificationsOnly){await prepareDaily();await prepareSermons();}
  // Bounded work survives Render restarts through durable rows. Claims are never automatically replayed.
  const campaigns=notificationsOnly?[]:await db('communication_campaigns','get',{status:'eq.scheduled',channel:'eq.email',scheduled_at:'lte.'+new Date().toISOString(),order:'scheduled_at.asc',limit:3});
  for(const a of campaigns){
@@ -50,6 +64,7 @@ async function runWorker({notificationsOnly=false}={}){
    const date=a.source_key.slice(11),[reading]=await db('devotional_entries','get',{publication_date:'eq.'+date,limit:1});
    released=!!reading&&reading.publication_date===require('../devotionals').today()&&reading.revision===a.source_revision&&!!require('../devotionals').visible(reading);
   }
+  if(a?.source_key?.startsWith('sermon:')){const [sermon]=await db('ministry_sermons','get',{id:'eq.'+a.source_key.slice(7),limit:1});const [settings]=await db('ministry_sermon_settings','get',{id:'eq.1',limit:1});released=!!settings?.email_sermons&&!!sermon&&sermon.revision===a.source_revision&&require('../sermon-domain').released(sermon);}
   const eligible=j.kind==='registration'?!suppressed&&c?.status!=='suppressed':released&&c&&(j.kind==='confirm'?c.status==='pending':c.status==='active')&&(!j.campaign_id||(a?.status==='scheduled'&&c.categories.includes(j.category)));
   if(!eligible){await db('communication_jobs','patch',{id:'eq.'+j.id,status:'eq.attempting'},{status:'cancelled',error_code:'consent_or_campaign_changed'});continue;}
   try{
@@ -64,4 +79,4 @@ async function runWorker({notificationsOnly=false}={}){
  }
  return {processed,state:'processed'};
 }
-module.exports={runWorker,prepareDaily};
+module.exports={runWorker,prepareDaily,prepareSermons};

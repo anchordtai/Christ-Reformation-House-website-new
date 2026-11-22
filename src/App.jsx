@@ -6,6 +6,10 @@ const Crism=lazy(()=>import('./crism/Crism'))
 const DevotionalEditor=lazy(()=>import('./pages/DevotionalEditor'))
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom'
 import Header from './components/Header'
+import {ChurchNotificationProvider,ChurchLiveNotice,NotificationCenter} from './components/ChurchNotifications'
+const SermonLibrary=lazy(()=>import('./pages/SermonLibrary'))
+const SermonStudio=lazy(()=>import('./pages/SermonStudio'))
+const NotificationStudio=lazy(()=>import('./pages/NotificationStudio'))
 import PageEnhancements from './components/PageEnhancements'
 import MinistryAssistant from './components/MinistryAssistant'
 import Watch from './pages/Watch'
@@ -46,7 +50,7 @@ import Meetings from './pages/Meetings'
 const SocialAutomation=lazy(()=>import('./pages/SocialAutomation'))
 const AdminLogin=lazy(()=>import('./pages/AdminLogin'))
 
-function App() { return <Router><AppRoutes /></Router> }
+function App() { return <Router><ChurchNotificationProvider><AppRoutes /></ChurchNotificationProvider></Router> }
 function AppRoutes() {
   const {pathname}=useLocation()
   const institutional=pathname==='/crism'||pathname.startsWith('/crism/')
@@ -56,6 +60,7 @@ function AppRoutes() {
       {!institutional && <MinistryAssistant />}
       <div className="min-h-screen flex flex-col">
         {!institutional && <Header />}
+        {!institutional && <ChurchLiveNotice />}
         <main id="main-content" tabIndex={-1} className="flex-grow">
           {!institutional && <NovemberThemeRibbon />}
           <Suspense fallback={<div className="ministry-section" role="status">Loading page…</div>}><Routes>
@@ -69,8 +74,11 @@ function AppRoutes() {
             <Route path="/watch" element={<Watch />} />
             <Route path="/bible" element={<Bible />} />
             <Route path="/admin/broadcast" element={<BroadcastEditor />} />
-            <Route path="/sermons" element={<Watch />} />
-            <Route path="/sermons/:id" element={<Watch />} />
+            <Route path="/sermons" element={<SermonLibrary />} />
+            <Route path="/admin/sermons" element={<SermonStudio />} />
+            <Route path="/notifications" element={<NotificationCenter />} />
+            <Route path="/admin/notifications" element={<NotificationStudio />} />
+            <Route path="/sermons/:id" element={<SermonLibrary />} />
             <Route path="/live" element={<Watch />} />
             <Route path="/salvation" element={<Salvation />} />
             <Route path="/prayer-support" element={<PrayerSupport />} />

@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Sitemap: https://www.christreformationhouse.org.ng/sermon-sitemap.xml

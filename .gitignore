@@ -38,3 +38,7 @@ backend/*.json
 # Build outputs
 build/
 *.tsbuildinfo
+
+supabase/.temp/
+__pycache__/
+*.pyc

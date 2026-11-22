@@ -19,7 +19,7 @@ export const signOutHost = () => sessionStorage.removeItem(HOST_KEY)
 function rememberHost(session) { sessionStorage.setItem(HOST_KEY,JSON.stringify(session)); return session }
 export const hostLogin = (email,password) => client.post('/meeting-host/login',{email,password}).then(r=>rememberHost(r.data))
 let refreshing
-async function hostToken() {
+export async function hostToken() {
   let session = hostSession()
   if (!session) throw new Error('Sign in as host.')
   if (session.expiresAt <= Date.now()+60000) {
