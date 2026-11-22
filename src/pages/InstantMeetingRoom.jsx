@@ -7,8 +7,10 @@ import DeviceCheck from '../components/meetings/DeviceCheck'
 import InvitationPanel from '../components/meetings/InvitationPanel'
 import JitsiMeeting from '../components/meetings/JitsiMeeting'
 import {validRoom,meetingLink,providerMeetingLink} from '../utils/meeting-links.mjs'
-import {meetingConfig,hostSession,hostLogin,signOutHost,joinEmbeddedMeeting,ministryError} from '../services/ministry'
+import {meetingConfig,hostSession,hostLogin,signOutHost,joinEmbeddedMeeting,ministryError,hostToken} from '../services/ministry'
 import '../styles/meeting-room.css'
+import SermonRecorder,{RecordingNotice} from '../components/SermonRecorder'
+import '../styles/sermon-studio.css'
 
 export default function InstantMeetingRoom(){
   const {id}=useParams(),[params]=useSearchParams()
@@ -41,6 +43,8 @@ export default function InstantMeetingRoom(){
         </>:config&&<><p>{publicProvider?'This invitation is for a public Jitsi room, so it opens the original meeting in its own window.':'The current public Jitsi connection opens in its own window. In-website calling is awaiting the ministry’s JaaS connection.'}</p><a className="ministry-button dark" href={providerMeetingLink(id)} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer" onClick={()=>setNotice('The meeting link was opened. This page cannot confirm whether you joined.')}><Video size={18}/>Open current Jitsi meeting<ArrowUpRight size={16}/></a><p className="meeting-open-note">Hosts must sign in to Jitsi to start the room; guests can join after the host. The church website cannot control Jitsi’s sign-in session.</p></>}
         {error&&<p role="alert" className="platform-error">{error}</p>}{notice&&<p role="status">{notice}</p>}
       </div><InvitationPanel invitation={invitation} showOpen={false}/></div>}
+      {session&&<RecordingNotice room={id}/>}
+      {host&&signed&&<SermonRecorder key={id} room={id} joined={joined} token={hostToken}/>}
       {session&&<ContentShare title={title} url={invitation.url} text="Join our ministry gathering."/>}{!session&&<DeviceCheck/>}<div className="meeting-notice"><ShieldCheck size={22}/><p><strong>For hosts:</strong> start the gathering before your guests arrive. Use the meeting’s security controls for the lobby or room password, and share private invitations only with intended guests.</p></div>
     </section></div>
 }

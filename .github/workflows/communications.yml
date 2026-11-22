@@ -1,5 +1,7 @@
 name: Process ministry email queue
 on:
+  schedule:
+    - cron: '15 * * * *'
   workflow_dispatch:
 permissions: {}
 concurrency:

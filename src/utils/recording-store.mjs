@@ -1,0 +1,7 @@
+function database(){return new Promise((resolve,reject)=>{const r=indexedDB.open('crh-sermon-recordings',1);r.onupgradeneeded=()=>{r.result.createObjectStore('chunks',{keyPath:'id'});r.result.createObjectStore('sessions',{keyPath:'id'})};r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(Error('Local recovery storage is unavailable. Keep this tab open and download recordings.'))})}
+async function operate(store,mode,fn){const db=await database();try{return await new Promise((resolve,reject)=>{const tx=db.transaction(store,mode),request=fn(tx.objectStore(store));let result;request.onsuccess=()=>{result=request.result};tx.oncomplete=()=>resolve(result);tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error)})}finally{db.close()}}
+export const rememberSession=row=>operate('sessions','readwrite',s=>s.put(row))
+export const rememberChunk=(session,kind,index,blob)=>operate('chunks','readwrite',s=>s.put({id:session+':'+kind+':'+index,session,kind,index,blob}))
+export const recordingSessions=()=>operate('sessions','readonly',s=>s.getAll())
+export async function recoverRecording(session,kind,mime){const chunks=await operate('chunks','readonly',s=>s.getAll());return new Blob(chunks.filter(c=>c.session===session&&c.kind===kind).sort((a,b)=>a.index-b.index).map(c=>c.blob),{type:mime})}
+export function downloadBlob(blob,name){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
