@@ -172,6 +172,7 @@ app.use('/api', require('./ministry-store').router);
 app.use('/api', require('./meeting-provider').router);
 app.use('/api', require('./blog').router);
 app.use('/api', require('./devotional-archive').router);
+app.use('/api', require('./devotional-publication').router);
 app.use('/api', require('./devotionals').router);
 app.use('/api', require('./devotional-community').router);
 
@@ -614,4 +615,3 @@ if (require.main === module) app.listen(PORT, '0.0.0.0', () => {
 
 
 module.exports = app;
-

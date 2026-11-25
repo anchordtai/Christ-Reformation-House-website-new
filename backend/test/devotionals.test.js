@@ -28,7 +28,7 @@ beforeEach(()=>{requests=[];user={id:'editor',email_confirmed_at:'2026-01-01',ap
 const post=async(path,body,token='test-token')=>fetch(base+path,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify(body)});
 test('calendar uses Lagos and rejects invalid programme dates',()=>{
  assert.equal(today(new Date('2026-10-31T23:30:00Z')),'2026-11-01');
- assert.throws(()=>validateContent(content,'2026-02-30')); assert.throws(()=>validateContent(content,'2027-11-01'));
+ assert.throws(()=>validateContent(content,'2026-02-30')); assert.throws(()=>validateContent(content,'2100-01-01')); assert.equal(validateContent(content,'2027-11-01').publicationDate,'2027-11-01');
  assert.equal(validateContent(content,'2026-11-01').dayNumber,1);assert.equal(validateContent(content,'2027-10-31').dayNumber,365);
 });
 test('required prayer sections and application fields validated; extra fields removed',()=>{

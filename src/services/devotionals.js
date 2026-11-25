@@ -43,3 +43,16 @@ export const commentOnDevotional = (date,visitor,body) => client.post(`/devotion
 export const moderateComments = (status='pending',offset=0) => client.get('/devotional-editor/comments',{...auth(),params:{status,offset}})
 export const reviewComment = (id,status,expectedStatus) => client.post(`/devotional-editor/comments/${encodeURIComponent(id)}/review`,{status,expectedStatus},auth())
 
+
+export const publicationOverview=()=>client.get('/devotional-publication').then(r=>r.data)
+export const publicationCalendar=month=>client.get('/devotional-publication/calendar/'+month).then(r=>r.data)
+export const translatedReading=(date,language)=>client.get('/devotional-publication/reading/'+date,{params:{language}}).then(r=>r.data)
+export const publicationDesk=month=>client.get('/devotional-editor/publication',{...auth(),params:{month}}).then(r=>r.data)
+export const saveEdition=body=>client.post('/devotional-editor/publication/editions',body,auth()).then(r=>r.data)
+export const saveDevotionalTranslation=(date,language,body)=>client.post('/devotional-editor/publication/translations/'+date+'/'+language,body,auth()).then(r=>r.data)
+export async function downloadPublication(month,language='en',staff=false,format='pdf',date){
+ const url=staff?'/devotional-editor/publication/'+(format==='pdf'?'pdf/':'export/')+month:'/devotional-publication/pdf/'+month
+ const r=await client.get(url,{...(staff?auth():{}),params:{language,format,date},responseType:'blob'})
+ const link=document.createElement('a');link.href=URL.createObjectURL(r.data);link.download='unleash-'+(date||month)+'-'+language+'.'+format;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1000)
+}
+export const countDevotionalOpen=date=>client.post('/devotional-publication/open/'+date,{analyticsConsent:true})

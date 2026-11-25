@@ -1,9 +1,11 @@
 import { ScriptureContent, ScripturePassage } from './ScriptureText'
 import DevotionalBrand from './DevotionalBrand'
+import DevotionalEditionReading from './DevotionalEditionReading'
 const prayerSections = [ ['A. Prayer for the individual','individualPrayers'], ['B. Prayer for the family','familyPrayers'], ['C. Prayer for the Church','churchPrayers'], ['D. Prayer for Nigeria and the world','nationsPrayers'], ["E. Prayer for Christ’s Reformation House Int’l Inc.",'ministryPrayers'] ]
 function Text({ children }) { return <ScriptureContent><div className="dev-text">{String(children || '').split(/\n\s*\n/).map((p,i) => <p key={i}>{p}</p>)}</div></ScriptureContent> }
 function Points({ items }) { return <ScriptureContent><ol>{(items || []).map((p,i) => <li key={i}>{p}</li>)}</ol></ScriptureContent> }
 export default function DevotionalReading({ entry:c }) {
+  if(c.schemaVersion===2)return <DevotionalEditionReading entry={c}/>
   return <ScriptureContent><article className="dev-reading">
     <DevotionalBrand/>
     <p>{c.publicationDate} · {c.monthlyTheme}</p>

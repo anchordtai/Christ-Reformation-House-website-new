@@ -31,7 +31,7 @@ function audit(req,res,next) {
     if(req.method!=='POST')return;
     const route=String(req.route?.path||'');
     if(route==='/ministry-admin/chat/presence')return;
-    if(!/^\/(ministry-admin\/|devotional-editor\/(login|password|entries)|devotional-editor\/comments)/.test(route))return;
+    if(!/^\/(ministry-admin\/|devotional-editor\/(login|password|entries|publication)|devotional-editor\/comments)/.test(route))return;
     const now=Date.now();if(now>windowUntil){recorded=0;windowUntil=now+60000;}if(recorded++>=120)return;
     // Never store bodies, passwords, tokens, chat text, emails or raw IP addresses.
     Promise.resolve().then(()=>axios.post(getSupabaseRestUrl('ministry_security_events'),{actor_id:req.ministryActor||req.editor?.id||null,action:route.slice(0,160),outcome:res.statusCode},{headers:getSupabaseHeaders(),timeout:5000})).catch(()=>console.error('Security event could not be saved'));
