@@ -25,8 +25,8 @@ Reuse reader/editor/login, scripture links/localKJV, archive fulltextRPC, browse
 - [x] Extendexistingreader/editor/DB withmonthlyeditionandtranslationworkflow.
 - [x] ImportDecemberwithoutchangingNovember.
  31Englishdrafts and124unreviewedtranslationrecords imported. November30/30contenthashesunchanged.
-- [ ] Security,regression,publicationgate,readerandbrowserQA.
-- [ ] Merge/deployverifiedchangesandhandover.
+- [x] Security, regression, publication gates, reader and desktop-browser QA.
+- [x] Core upgrade merged and deployed through PR #46; private handover files saved.
 - [ ] Owner/pastoral approvalandcompetenttranslationreviews (externalacceptance; nevermarkdonewithoutactualreview).
 
 ## Verified checkpoint
@@ -34,8 +34,11 @@ Reuse reader/editor/login, scripture links/localKJV, archive fulltextRPC, browse
 - 31 English entries and 124 priority-language draft records are in the existing database.
 - November preservation: all 30 content hashes match the pre-change baseline.
 - New-table RLS is enabled; anonymous SELECT and ordinary-reader UPDATE privileges are absent.
-- Frontend test suite: 163 passed. Backend suite: 182 passed. Production build passed.
+- Frontend test suite: 163 passed. Backend suite: 183 passed after the PDF regression fix. Production build passed.
 - Tests now explicitly disable external network requests and use mocked or loopback services.
 - English review PDF: 165 pages, with a cover, contents and page numbers; rendered pages inspected.
 - Translation sections and date/reference alignment pass structural checks. Language and pastoral approvals remain outstanding.
-- Deployment verification is pending below.
+- Core deployment verified: PR #46, merge fc8c09dcf75d99387318b9c1a7bd1819af29779d, Vercel READY and Render live.
+- Live browser checks: preserved November reading, December cover/calendar, 0/31 unreleased December days, language fallback and protected editorial sign-in.
+- Live API checks: database healthy, December reading/PDF denied before release, staff API returns 401 without sign-in, JaaS meeting provider unchanged.
+- Follow-up correction: preserve every legacy November prayer section in new PDF exports; a dedicated regression test covers legacy and version 2 layouts.
