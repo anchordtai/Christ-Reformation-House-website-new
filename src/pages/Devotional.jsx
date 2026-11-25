@@ -1,6 +1,6 @@
 import CommunicationSignup from '../components/CommunicationSignup'
 import { useEffect, useState } from 'react'
-import { Link, useParams, useNavigate } from 'react-router-dom'
+import { Link, useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { BookOpen, Share2, Printer, Bookmark, Check } from 'lucide-react'
 import DevotionalReading from '../components/DevotionalReading'
 import DevotionalArchive from '../components/DevotionalArchive'
@@ -10,9 +10,15 @@ import { DEVOTIONAL_BRAND as brand } from '../utils/devotional-brand.mjs'
 import DevotionalCommunity, { DevotionalGiving } from '../components/DevotionalCommunity'
 import { readDevotionals, devotionalError, nigeriaToday } from '../services/devotionals'
 import './Devotional.css'
+import DevotionalEditions from '../components/DevotionalEditions'
+import {translatedReading,publicationOverview,downloadPublication,countDevotionalOpen} from '../services/devotionals'
 export default function Devotional() {
   const { date } = useParams()
   const navigate=useNavigate()
+  const [params,setParams]=useSearchParams(),language=params.get('lang')||'en'
+  const [languages,setLanguages]=useState({en:'English'}),[languageNotice,setLanguageNotice]=useState(''),[servedLanguage,setServedLanguage]=useState('en')
+  const [analytics,setAnalytics]=useState(()=>{try{return localStorage.getItem('crhDevotionalAnalytics')==='yes'}catch{return false}})
+  useEffect(()=>{publicationOverview().then(d=>setLanguages(d.languages||{en:'English'})).catch(()=>{})},[])
   const reader=useDevotionalLibrary()
   const selected = date || nigeriaToday()
   const [entry,setEntry] = useState(null)
@@ -23,31 +29,38 @@ export default function Devotional() {
   useEffect(() => {
     let active = true
     setLoading(true); setError(''); setEntry(null); setNotice('')
-    readDevotionals({date:selected}).then(r => { if(active) setEntry(r.data.entries[0] || null) }).catch(e => { if(active) setError(devotionalError(e)) }).finally(() => { if(active) setLoading(false) })
+    setLanguageNotice('');
+    const request=language==='en'?readDevotionals({date:selected}).then(r=>({entry:r.data.entries[0]||null,servedLanguage:'en',notice:''})):translatedReading(selected,language)
+    request.then(r=>{if(active){setEntry(r.entry);setServedLanguage(r.servedLanguage);setLanguageNotice(r.notice)}}).catch(e => { if(active) setError(devotionalError(e)) }).finally(() => { if(active) setLoading(false) })
     return () => { active=false }
-  },[selected,retry])
+  },[selected,retry,language])
   useEffect(()=>{if(entry?.publicationDate)reader.opened(entry.publicationDate)},[entry?.publicationDate,reader.library.rememberHistory])
   useEffect(() => {
     const old = document.title
     document.title = entry ? `${entry.title} | ${brand.title}` : `${brand.title} | CRH Daily Devotional`
     return () => { document.title=old }
   },[entry])
+  useEffect(()=>{if(analytics&&entry?.publicationDate)countDevotionalOpen(entry.publicationDate).catch(()=>{})},[analytics,entry?.publicationDate])
   async function share() {
-    const url = `${window.location.origin}/devotional/${selected}`
+    const url = `${window.location.origin}/devotional/${selected}?lang=${servedLanguage}`
     try {
       if (navigator.share) await navigator.share({ title:`${brand.title} | ${entry.title}`,text:entry.socialSummary,url })
       else { await navigator.clipboard.writeText(url); setNotice('Reading link copied.') }
     } catch(e) { if(e.name !== 'AbortError') setNotice('Copy the reading link from your address bar to share it.') }
   }
   return <div className="dev-page">
-    <header className="dev-hero dev-no-print dev-series-hero"><div className="dev-wrap"><DevotionalBrand variant="page"/><small>365-day programme · 1 November 2026 – 31 October 2027</small></div></header>
+    <header className="dev-hero dev-no-print dev-series-hero"><div className="dev-wrap"><DevotionalBrand variant="page"/><small>A daily encounter with God’s Word · Monthly editions, lasting truth</small></div></header>
     <div className="dev-wrap dev-layout">
-      <div><div className="dev-toolbar dev-no-print"><label>Choose a date<input aria-label="Choose a devotional date" type="date" value={selected} min="2026-11-01" max="2027-10-31" onChange={e => { if(e.target.value) navigate(`/devotional/${e.target.value}`) }}/></label><Link to="/devotional">Today’s reading</Link><a href="#devotional-reading-space">Search & saved readings</a>{entry && <><button aria-pressed={reader.library.bookmarks.includes(entry.publicationDate)} onClick={()=>reader.toggleBookmark(entry.publicationDate)}><Bookmark size={16}/>{reader.library.bookmarks.includes(entry.publicationDate)?'Saved reading':'Save reading'}</button><button onClick={share}><Share2 size={16}/> Share</button><button onClick={() => window.print()}><Printer size={16}/> Print</button></>}</div>
+      <div><div className="dev-toolbar dev-no-print"><label>Choose a date<input aria-label="Choose a devotional date" type="date" value={selected} min="2026-11-01" max="2099-12-31" onChange={e => { if(e.target.value) navigate(`/devotional/${e.target.value}?lang=${language}`) }}/></label><Link to="/devotional">Today’s reading</Link><a href="#devotional-reading-space">Search & saved readings</a>{entry && <><button aria-pressed={reader.library.bookmarks.includes(entry.publicationDate)} onClick={()=>reader.toggleBookmark(entry.publicationDate)}><Bookmark size={16}/>{reader.library.bookmarks.includes(entry.publicationDate)?'Saved reading':'Save reading'}</button><button onClick={share}><Share2 size={16}/> Share</button><button onClick={() => window.print()}><Printer size={16}/> Print</button></>}</div>
+      <div className="dev-toolbar dev-no-print"><label>Reading language<select aria-label="Reading language" value={language} onChange={e=>setParams({lang:e.target.value})}>{Object.entries(languages).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select></label>{[-1,1].map(delta=>{const day=new Date(selected+'T12:00:00Z');day.setUTCDate(day.getUTCDate()+delta);return <Link key={delta} to={'/devotional/'+day.toISOString().slice(0,10)+'?lang='+language}>{delta<0?'Previous day':'Next day'}</Link>})}{entry&&<><button onClick={async()=>{try{await navigator.clipboard.writeText(entry.mainReference+' ('+entry.translation+')\n'+entry.mainPassage);setNotice('Scripture copied.')}catch{setNotice('Select the Scripture text to copy it.')}}}>Copy Scripture</button><button onClick={async()=>{try{await downloadPublication(selected.slice(0,7),servedLanguage,false,'pdf',selected)}catch{setNotice('PDF is unavailable. Use Print to save this reading as a PDF.')}}}>Download daily PDF</button></>}</div>
+      {languageNotice&&<p className="dev-library-note" role="status">{languageNotice}</p>}
       <p role="status">{notice}</p>
       {(reader.storageNotice||!reader.persistent)&&<p role="status" className="dev-library-note">{reader.storageNotice||'Browser storage is unavailable. Your reading preferences may last only in this tab.'}</p>}
       {loading ? <div className="dev-card" role="status">Loading your reading…</div> : error ? <div className="dev-card" role="alert"><p>{error}</p><button onClick={() => setRetry(x=>x+1)}>Try again</button></div> : entry ? <DevotionalReading entry={entry}/> : <div className="dev-card"><BookOpen/><h2>No reading has been released for {selected}.</h2><p>Devotionals appear here after pastoral review and their scheduled release. You can choose an available reading from the archive.</p></div>}
       {entry&&<section className="dev-reading-progress dev-no-print"><div><h2>Make time for the Word.</h2><p>Finished reflecting on this reading? Mark it as read on this device.</p></div><button aria-pressed={reader.library.completed.includes(entry.publicationDate)} onClick={()=>reader.toggleRead(entry.publicationDate)}><Check size={17}/>{reader.library.completed.includes(entry.publicationDate)?'Marked as read · Undo':'Mark as read'}</button></section>}
       {entry && <DevotionalCommunity key={entry.publicationDate} entry={entry}/>}
+      <DevotionalEditions selected={selected} language={language}/>
+      <label className="dev-check dev-no-print"><input type="checkbox" checked={analytics} onChange={e=>{setAnalytics(e.target.checked);try{localStorage.setItem('crhDevotionalAnalytics',e.target.checked?'yes':'no')}catch{}}}/>Share anonymous aggregate reading opens. No account or reading history is sent.</label>
       <CommunicationSignup/>
       <DevotionalGiving/>
       </div>
@@ -55,4 +68,3 @@ export default function Devotional() {
     </div>
   </div>
 }
-

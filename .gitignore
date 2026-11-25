@@ -42,3 +42,8 @@ build/
 supabase/.temp/
 __pycache__/
 *.pyc
+!backend/publication-labels.json
+
+# Unpublished editorial content is stored in the church database and private review exports.
+/publication/
+/output/

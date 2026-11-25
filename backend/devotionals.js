@@ -3,7 +3,7 @@ const axios = require('axios');
 const { getSupabaseHeaders, getSupabaseRestUrl } = require('./supabase');
 const router = express.Router();
 const START = '2026-11-01';
-const END = '2027-10-31';
+const END = '2099-12-31';
 const textFields = ['title','monthlyTheme','dailyTheme','messageTitle','mainReference','mainPassage','translation','centralTruth','message','declaration','dailyAction','closingPrayer','memoryReference','memoryVerse','reflectionQuestion','socialSummary','author'];
 const listFields = ['supportingReferences','keyLessons','individualPrayers','familyPrayers','churchPrayers','nationsPrayers','ministryPrayers'];
 function fail(status, message) { return Object.assign(new Error(message), { status }); }
@@ -13,6 +13,7 @@ function dayNumber(date) { return Math.round((Date.parse(date)-Date.parse(START)
 function validateContent(input, date) {
   if (!validDate(date) || date < START || date > END) throw fail(400, 'Choose a date in the devotional programme.');
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw fail(400, 'A devotional entry is required.');
+  if(input.schemaVersion===2)return require('./devotional-publication-domain').validateV2(input,date);
   const c = { publicationDate: date, dayNumber: dayNumber(date), programmeStart: START };
   for (const key of textFields) {
     if (typeof input[key] !== 'string' || !input[key].trim() || input[key].length > (key === 'message' ? 16000 : 8000)) throw fail(400, `Complete ${key}.`);
@@ -34,9 +35,10 @@ function validateContent(input, date) {
 }
 function releaseValues(body, date, user, now = new Date()) {
   const status = body.status || 'draft';
-  if (!['draft','scheduled','published'].includes(status)) throw fail(400, 'Invalid editorial status.');
-  if (status === 'draft') return { status, release_at:null, reviewed_by:null, reviewed_at:null };
+  if (!['draft','under_review','approved','scheduled','published','archived'].includes(status)) throw fail(400, 'Invalid editorial status.');
+  if (['draft','under_review','archived'].includes(status)) return { status, release_at:null, reviewed_by:null, reviewed_at:null };
   if (body.reviewAcknowledged !== true) throw fail(400, 'Confirm pastoral review before release.');
+  if(status==='approved')return {status,release_at:null,reviewed_by:user.id,reviewed_at:now.toISOString()};
   const release = new Date(body.releaseAt);
   if (!body.releaseAt || !/T.*(?:Z|[+-]\d{2}:\d{2})$/.test(body.releaseAt) || Number.isNaN(release.getTime())) throw fail(400, 'Provide a release time with a time zone.');
   if (today(release) < date) throw fail(400, 'Release cannot precede the devotional date.');
@@ -45,7 +47,7 @@ function releaseValues(body, date, user, now = new Date()) {
   return { status, release_at:release.toISOString(), reviewed_by:user.id, reviewed_at:now.toISOString() };
 }
 function visible(row, now = new Date()) { return ['published','scheduled'].includes(row.status) && row.reviewed_by && row.reviewed_at && row.release_at && new Date(row.release_at) <= now && row.publication_date <= today(now); }
-function publicEntry(row) { return { ...row.content, publicationDate:row.publication_date, dayNumber:dayNumber(row.publication_date) }; }
+function publicEntry(row) { return { ...row.content, publicationDate:row.publication_date, dayNumber:row.content.schemaVersion===2?Number(row.publication_date.slice(8)):dayNumber(row.publication_date) }; }
 async function db(method, params, data) {
   const response = await axios({ method, url:getSupabaseRestUrl('devotional_entries'), params, data, headers:{ ...getSupabaseHeaders(), Prefer:'return=representation' }, timeout:10000 });
   return response.data;
@@ -149,4 +151,3 @@ router.post('/devotional-editor/entries/:date', wrap(async (req,res) => {
   res.json({ entry:result[0] });
 }));
 module.exports = { router, validateContent, releaseValues, visible, publicEntry, validDate, today, verifiedUser };
-
