@@ -831,3 +831,46 @@
 }
 
 .crism-crest{width:108px;height:72px;object-fit:contain;border-radius:4px;background:#fff}.crism-hero-seal .large{width:min(360px,100%);height:auto;aspect-ratio:3/2;background:#fff;border-radius:8px}.crism-brand{gap:12px}@media(max-width:760px){.crism-crest{width:85px;height:57px}.crism-hero-seal .large{width:min(320px,100%);height:auto}.crism-brand small{font-size:.65rem}.crism-brand strong{font-size:1.6rem}}
+
+/* Original CRISM imagery, navy/gold overlays and restrained motion. */
+.crism-image-hero{position:relative;isolation:isolate;min-height:660px}
+.crism-hero-background{position:absolute;z-index:-2;inset:0;width:100%;height:100%;object-fit:cover;object-position:center;animation:crism-hero-drift 18s ease-out both}
+.crism-image-hero:after{content:"";position:absolute;z-index:-1;inset:0;background:linear-gradient(90deg,rgba(5,20,34,.94),rgba(7,25,41,.76) 48%,rgba(9,28,43,.30))}
+.crism-image-hero .crism-hero-grid{min-height:660px;padding-block:76px}
+.crism-image-hero h1{font-size:clamp(3rem,5.3vw,5rem);text-shadow:0 3px 24px #05142466}
+.crism-image-hero .crism-hero-copy{color:#eef0ed;max-width:570px}
+.crism-image-hero .crism-hero-grid>div:first-child{animation:crism-rise .85s ease-out both}
+.crism-image-hero .crism-hero-seal{background:#0c2336c7;border:1px solid #c5a46755;border-radius:16px;padding:26px 22px;box-shadow:0 24px 70px #0004;backdrop-filter:blur(8px);animation:crism-rise 1s .1s ease-out both}
+.crism-image-hero .crism-seal-orbit{display:none}
+.crism-image-hero .crism-status{color:#e4ded0}
+.crism-formation{display:grid;grid-template-columns:1.05fr 1fr;align-items:center;gap:68px}
+.crism-formation h2 em{color:#8b6530;font-weight:400}
+.crism-formation>div>p{color:var(--muted)}
+.crism-scene{margin:0 0 38px;position:relative;border-radius:16px;overflow:hidden;isolation:isolate;box-shadow:0 22px 48px #10283d14;background:var(--navy);color:#fff}
+.crism-scene img{display:block;width:100%;height:auto;aspect-ratio:3/2;object-fit:cover;transition:transform .7s ease}
+.crism-scene:after{content:"";position:absolute;z-index:0;inset:35% 0 0;background:linear-gradient(transparent,#071c30e8);pointer-events:none}
+.crism-scene figcaption{position:absolute;z-index:1;inset:auto 28px 24px;font-family:Georgia,serif;font-size:1.7rem;line-height:1.2;text-shadow:0 2px 6px #0005}
+.crism-scene small{display:block;font:10px/1.6 Arial,sans-serif;letter-spacing:.04em;color:#e4e7e6;margin-top:10px}
+.crism-scene.compact img{max-height:320px;object-position:center 40%}
+.crism-formation .crism-scene{margin:0}
+.crism-image-title{background:var(--navy);color:white;position:relative;isolation:isolate;overflow:hidden;padding-block:82px}
+.crism-title-image{position:absolute;z-index:-2;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 40%}
+.crism-image-title:after{content:"";position:absolute;z-index:-1;inset:0;background:linear-gradient(90deg,#081f33f2,#0b253dd9 55%,#0b253d88)}
+.crism-image-title .crism-eyebrow{color:#e5ca96!important}
+.crism-image-title .crism-lead{color:#f1f0e9}
+.crism-school{border-radius:12px;overflow:hidden;padding:0 27px 30px;transition:transform .25s ease,box-shadow .25s ease,background .25s ease}
+.crism-schools{background:transparent;border:0;gap:22px}
+.crism-school-photo{margin:0 -27px 24px;width:calc(100% + 54px);overflow:hidden;background:#d8cbb3}
+.crism-school-photo img{display:block;width:100%;height:auto;aspect-ratio:16/9;object-fit:cover;transition:transform .55s ease}
+.crism-school:hover{transform:translateY(-5px);box-shadow:0 18px 36px #10283d18}
+.crism-school:hover .crism-school-photo img{transform:scale(1.035)}
+.crism-image-motto{background:linear-gradient(90deg,#081f33e8,#081f33cf),url('/assets/crism/ministry-service.webp') center 44%/cover}
+.crism-button{border-radius:4px;transition:background .2s,transform .2s,box-shadow .2s}
+.crism-button:hover{transform:translateY(-2px);box-shadow:0 8px 20px #0002}
+.crism-reveal.reveal-ready,.crism-school.reveal-ready,.crism-pillars article.reveal-ready{opacity:0;transform:translateY(22px);transition:opacity .7s ease,transform .7s ease}
+.crism-reveal.is-revealed,.crism-school.is-revealed,.crism-pillars article.is-revealed{opacity:1;transform:translateY(0)}
+@keyframes crism-rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+@keyframes crism-hero-drift{from{transform:scale(1.045)}to{transform:scale(1)}}
+@media(max-width:1000px){.crism-formation{gap:35px}.crism-image-hero .crism-hero-grid{gap:28px}.crism-image-hero .crism-hero-seal{padding:20px 14px}}
+@media(max-width:760px){.crism-image-hero,.crism-image-hero .crism-hero-grid{min-height:0}.crism-image-hero .crism-hero-grid{padding-block:54px;gap:28px}.crism-image-hero .crism-hero-seal{max-width:400px;width:100%;margin:auto}.crism-image-hero:after{background:linear-gradient(180deg,#071b2df2,#0b233ac9)}.crism-hero-background{object-position:64% center}.crism-formation{grid-template-columns:1fr;gap:32px}.crism-image-title{padding-block:52px}.crism-scene figcaption{font-size:1.4rem;inset:auto 20px 18px}.crism-school{padding-inline:26px}.crism-school-photo{margin-inline:-26px;width:calc(100% + 52px)}.crism-scene.compact img{min-height:220px}}
+@media(prefers-reduced-motion:reduce){.crism-site *{animation:none!important;transition:none!important}.crism-site .reveal-ready{opacity:1!important;transform:none!important}}

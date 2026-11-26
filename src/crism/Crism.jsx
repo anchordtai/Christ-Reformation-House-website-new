@@ -9,6 +9,7 @@ import {
 } from "react-router-dom";
 import { institution as I, schools, programmes, values } from "./catalogue";
 import "./crism.css";
+import {schoolImages,imageForSchool,SchoolScene,useSchoolReveal} from "./visuals";
 import Portal, {VerifyAward} from "./portal/Portal";
 import Admissions from "./portal/Admissions";
 export function Crest({large=false}){return <img className={large?'crism-crest large':'crism-crest'} src="/assets/crism/logo.jpg" alt="CRISM — Christ Reformation International School of Ministry" width={large?360:108} height={large?240:72}/>;}
@@ -22,11 +23,13 @@ const nav = [
   ["/crism/portal", "School portal"],
 ];
 function Arrow() {
-  return <span aria-hidden="true">↗</span>;
+  return <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M5 19 19 5M5 5h14v14"/></svg>;
 }
 function Title({ eyebrow, title, children }) {
+  const {pathname}=useLocation();const image=/vision|mission|president|contact/.test(pathname)?schoolImages.service:/library|theology|biblical/.test(pathname)?schoolImages.study:schoolImages.community;
   return (
-    <section className="crism-page-title">
+    <section className="crism-page-title crism-image-title">
+      <img className="crism-title-image" src={image.src} alt="" aria-hidden="true" width="1536" height="1024" decoding="async"/>
       <div className="crism-wrap">
         <p className="crism-eyebrow">{eyebrow}</p>
         <h1>{title}</h1>
@@ -51,7 +54,7 @@ function SchoolCards() {
           key={s.slug}
           className="crism-school"
         >
-          <span className="crism-school-number">0{i + 1}</span>
+          <div className="crism-school-photo"><img src={imageForSchool(s.slug).src} alt={imageForSchool(s.slug).alt} width="1536" height="1024" loading="lazy" decoding="async"/></div><span className="crism-school-number">0{i + 1}</span>
           <h3>School of {s.name}</h3>
           <p>{s.description}</p>
           <span className="crism-text-link">
@@ -65,7 +68,8 @@ function SchoolCards() {
 function Home() {
   return (
     <>
-      <section className="crism-hero">
+      <section className="crism-hero crism-image-hero">
+        <img className="crism-hero-background" src={schoolImages.study.src} alt="" aria-hidden="true" width="1536" height="1024" fetchPriority="high" decoding="async"/>
         <div className="crism-wrap crism-hero-grid">
           <div>
             <p className="crism-eyebrow">Scripture. Formation. Service.</p>
@@ -124,7 +128,7 @@ function Home() {
           </div>
           <p>
             Knowledge matters. So do character, prayer, compassion and faithful
-            practice. CRISM’s proposed academic framework brings biblical study
+            practice. CRISM’s academic framework brings biblical study
             and ministerial formation into the same conversation.
           </p>
         </div>
@@ -154,6 +158,7 @@ function Home() {
           ))}
         </div>
       </section>
+      <section className="crism-section crism-wrap crism-formation crism-reveal"><SchoolScene kind="community" caption="Learn in community. Grow in purpose."/><div><p className="crism-eyebrow">A calling worth preparing for</p><h2>Deep roots.<br/><em>Lasting impact.</em></h2><p>Bring your questions, your experience and your desire to serve. Explore a structured path through Scripture, Christian character and practical ministry.</p><div className="crism-actions"><Link className="crism-button navy" to="/crism/admissions">Begin your journey <Arrow /></Link><Link className="crism-text-link" to="/crism/portal">Open school portal <Arrow /></Link></div><p className="crism-small">Certificate · 3 months &nbsp; | &nbsp; Diploma · 6 months</p></div></section>
       <section className="crism-section crism-tinted">
         <div className="crism-wrap">
           <div className="crism-section-head">
@@ -209,9 +214,9 @@ function Home() {
           ))}
         </ol>
       </section>
-      <section className="crism-motto">
+      <section className="crism-motto crism-image-motto">
         <div className="crism-wrap">
-          <p className="crism-eyebrow">Our proposed institutional motto</p>
+          <p className="crism-eyebrow">Our institutional motto</p>
           <h2>
             Equipping Lives.
             <br />
@@ -251,6 +256,7 @@ function About({ vision = false, president = false }) {
           : "A distinct institutional identity, affiliated with Christ’s Reformation House International Inc."}
       </Title>
       <section className="crism-section crism-wrap crism-reading">
+        {!president&&<SchoolScene kind={vision?"service":"community"} caption={vision?"Learning expressed through compassionate service.":"A community shaped by Scripture and purpose."}/>}
         {president ? (
           <>
             <h2>Leadership and formation</h2>
@@ -617,6 +623,7 @@ function Detail({ type }) {
 export default function Crism() {
   const [open, setOpen] = useState(false),
     { pathname } = useLocation();
+  useSchoolReveal(pathname);
   useEffect(() => {
     setOpen(false);
     const old = document.title;
@@ -710,7 +717,7 @@ export default function Crism() {
             <p>{I.motto}</p>
             <p><a href={`mailto:${I.email}`}>{I.email}</a></p>
             <p className="crism-small">
-              Provisional institutional motto. An institution in development,
+              Certificate and Diploma ministry training,
               affiliated with {I.affiliation}
             </p>
           </div>
