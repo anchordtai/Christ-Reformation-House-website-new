@@ -54,7 +54,7 @@ function SchoolCards() {
           key={s.slug}
           className="crism-school"
         >
-          <div className="crism-school-photo"><img src={imageForSchool(s.slug).src} alt={imageForSchool(s.slug).alt} width="1536" height="1024" loading="lazy" decoding="async"/></div><span className="crism-school-number">0{i + 1}</span>
+          <div className="crism-school-photo"><img src={imageForSchool(s.slug).src} alt={imageForSchool(s.slug).alt} width="960" height="640" loading="lazy" decoding="async"/></div><span className="crism-school-number">0{i + 1}</span>
           <h3>School of {s.name}</h3>
           <p>{s.description}</p>
           <span className="crism-text-link">
