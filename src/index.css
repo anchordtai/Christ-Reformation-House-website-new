@@ -228,3 +228,4 @@ main section.bg-gradient-to-r.from-blue-600.to-purple-600 p { color:#d7e0ed; }
  .ministry-button,.ministry-button-outline,.ministry-pathway,.ministry-pathway:before,.ministry-feature,.ministry-card-action svg,.ministry-text-link svg,.ministry-feature span svg { transition:none; }
  .ministry-button:hover,.ministry-button-outline:hover,.ministry-pathway:hover,.ministry-feature:hover { transform:none; }
 }
+.header-explore{position:relative}.header-explore>summary{cursor:pointer;padding:.75rem;list-style:none}.header-explore>summary::after{content:'⌄';margin-left:.5rem}.header-explore>div{position:absolute;right:0;top:100%;background:#fff;border:1px solid #d4dfe8;box-shadow:0 12px 35px #10283d26;padding:.75rem;width:15rem;display:flex;flex-direction:column;align-items:stretch;z-index:80;border-radius:.5rem}.header-explore>div>a{display:block;padding:.6rem 1rem}.header-explore>summary:focus-visible{outline:3px solid #b79551;outline-offset:2px}

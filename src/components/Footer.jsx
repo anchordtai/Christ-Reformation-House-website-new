@@ -15,6 +15,8 @@ const Footer = () => {
     { path: '/live', label: 'Live', adminOnly: true },
     { path: '/events', label: 'Events' },
     { path: '/ministries', label: 'Ministries' },
+    { path: '/missions', label: 'Global Mission' },
+    { path: '/community', label: 'CRH Community' },
     { path: '/blog', label: 'Blog' },
     { path: '/devotional', label: 'Devotional' },
     { path: '/meetings', label: 'Meetings' },
@@ -23,6 +25,9 @@ const Footer = () => {
 
   const resources = [
     { path: '/donate', label: 'Give Online' },
+    { path: '/crism/admissions', label: 'School of Ministry admissions' },
+    { path: '/crism/portal', label: 'School portal' },
+    { path: '/admin', label: 'Staff administration' },
     { path: '/prayer-support', label: 'Prayer & Support' },
     { path: '/contact', label: 'Contact Us' },
     { path: '/store', label: 'Church Store' },
@@ -115,6 +120,10 @@ const Footer = () => {
               <li className="flex items-center space-x-2">
                 <Mail size={18} className="flex-shrink-0" />
                 <a href={`mailto:${APP_CONFIG.CHURCH_EMAIL}`} className="text-sm hover:text-blue-400 transition-colors">{APP_CONFIG.CHURCH_EMAIL}</a>
+              </li>
+              <li className="flex items-start space-x-2">
+                <Mail size={18} className="mt-1 flex-shrink-0" />
+                <div className="min-w-0 text-sm"><p className="text-gray-400">School of Ministry admissions</p><a href={`mailto:${APP_CONFIG.SCHOOL_EMAIL}`} className="break-all hover:text-blue-400 transition-colors">{APP_CONFIG.SCHOOL_EMAIL}</a></div>
               </li>
               <li className="flex items-center space-x-2">
                 <MessageCircle size={18} className="flex-shrink-0" />

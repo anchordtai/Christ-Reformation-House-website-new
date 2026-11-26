@@ -35,7 +35,7 @@ async function prepareSermons(){
 
 async function runWorker({notificationsOnly=false}={}){
  if(providerConfig().email!=='configured')return {processed:0,state:'setup_required'};
- if(!notificationsOnly){await prepareDaily();await prepareSermons();}
+ if(!notificationsOnly){try{await rpc('crism_finalize_due_attempts',{});}catch{console.error('Academic deadline reconciliation unavailable');}await prepareDaily();await prepareSermons();}
  // Bounded work survives Render restarts through durable rows. Claims are never automatically replayed.
  const campaigns=notificationsOnly?[]:await db('communication_campaigns','get',{status:'eq.scheduled',channel:'eq.email',scheduled_at:'lte.'+new Date().toISOString(),order:'scheduled_at.asc',limit:3});
  for(const a of campaigns){

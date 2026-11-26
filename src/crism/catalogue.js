@@ -3,8 +3,8 @@ export const institution = {
   short: "CRISM",
   affiliation: "Christ’s Reformation House International Inc.",
   motto: "Equipping Lives. Transforming Ministries. Advancing the Kingdom.",
-  president: "Apostle (Dr.) Anchord Taiwo",
-  email: "info@christreformationhouse.org.ng",
+  president: "Apostle Anchord Taiwo",
+  email: "admissions@christreformationhouse.org.ng",
   phone: "+2348138463804",
   location: "Giri, FCT Abuja, Nigeria",
 };

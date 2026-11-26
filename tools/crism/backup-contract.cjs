@@ -1,0 +1,3 @@
+const TABLES=['crism_profiles','crism_roles','crism_settings','crism_programmes','crism_intakes','crism_courses','crism_lessons','crism_classes','crism_resources','crism_applications','crism_enrollments','crism_progress','crism_assignments','crism_assignment_allowances','crism_submissions','crism_exams','crism_exam_allowances','crism_attempts','crism_results','crism_awards','crism_invoices','crism_audit'];
+function validateBackup(value){if(value?.format!=='CRISM-academic-backup-v1'||!value.tables||Object.keys(value.tables).length!==TABLES.length||TABLES.some(t=>!Array.isArray(value.tables[t]))||Object.keys(value.tables).some(t=>!TABLES.includes(t)))throw Error('Not a supported complete CRISM academic backup.');return value;}
+module.exports={TABLES,validateBackup};

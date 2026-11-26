@@ -21,6 +21,7 @@ export const LIVE_STREAM_CONFIG = {
 export const APP_CONFIG = {
   CHURCH_NAME: "Christ's Reformation House International",
   CHURCH_EMAIL: 'info@christreformationhouse.org.ng',
+  SCHOOL_EMAIL: 'admissions@christreformationhouse.org.ng',
   CHURCH_PHONE: '+2348138463804, +2347032878124',
   CHURCH_WHATSAPP: '+2348138463804',
   CHURCH_WHATSAPP_LINK: 'https://wa.me/2348138463804',
