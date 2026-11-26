@@ -829,3 +829,5 @@
     scroll-behavior: auto !important;
   }
 }
+
+.crism-crest{width:108px;height:72px;object-fit:contain;border-radius:4px;background:#fff}.crism-hero-seal .large{width:min(360px,100%);height:auto;aspect-ratio:3/2;background:#fff;border-radius:8px}.crism-brand{gap:12px}@media(max-width:760px){.crism-crest{width:85px;height:57px}.crism-hero-seal .large{width:min(320px,100%);height:auto}.crism-brand small{font-size:.65rem}.crism-brand strong{font-size:1.6rem}}

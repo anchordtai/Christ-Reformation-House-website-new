@@ -6,7 +6,7 @@ async function sendEmail(job){
  // Fixed provider URL; one recipient per request. Never silently fall back to paid SMS.
  const result=await axios.post('https://api.brevo.com/v3/smtp/email',{
   sender:{name:"Christ's Reformation House International Inc.",email:'info@christreformationhouse.org.ng'},
-  replyTo:{email:'info@christreformationhouse.org.ng'},to:[{email:job.email}],
+  replyTo:{email:String(job.source_key||'').startsWith('crism-')?'admissions@christreformationhouse.org.ng':'info@christreformationhouse.org.ng'},to:[{email:job.email}],
   subject:job.subject,htmlContent:job.kind==='registration'?require('./notifications').receiptHtml(job.subject,job.text):job.html,textContent:job.text,
   headers:{idempotencyKey:job.id},tags:['crh-communications']
  },{headers:{'api-key':process.env.BREVO_API_KEY,'Content-Type':'application/json'},timeout:20000});

@@ -1,7 +1,5 @@
-name: Process ministry email queue
+name: Process ministry email queue (manual fallback)
 on:
-  schedule:
-    - cron: '15 * * * *'
   workflow_dispatch:
 permissions: {}
 concurrency:

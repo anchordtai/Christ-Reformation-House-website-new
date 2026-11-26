@@ -9,51 +9,9 @@ import {
 } from "react-router-dom";
 import { institution as I, schools, programmes, values } from "./catalogue";
 import "./crism.css";
-export function Crest({ large = false }) {
-  return (
-    <svg
-      className={large ? "crism-crest large" : "crism-crest"}
-      viewBox="0 0 180 210"
-      role="img"
-      aria-label="CRISM academic crest: Bible, cross and globe"
-    >
-      <path
-        d="M12 15h156v92c0 45-37 73-78 93-41-20-78-48-78-93Z"
-        fill="#10283d"
-        stroke="#c5a467"
-        strokeWidth="4"
-      />
-      <path
-        d="M24 27h132v79c0 35-29 61-66 80-37-19-66-45-66-80Z"
-        fill="none"
-        stroke="#c5a467"
-      />
-      <circle
-        cx="90"
-        cy="76"
-        r="37"
-        fill="none"
-        stroke="#c5a467"
-        strokeWidth="1.5"
-      />
-      <ellipse cx="90" cy="76" rx="18" ry="37" fill="none" stroke="#c5a467" />
-      <path d="M54 66h72M54 86h72M90 39v74" stroke="#c5a467" fill="none" />
-      <path d="M85 44h10v18h17v10H95v25H85V72H68V62h17Z" fill="#f8f2e6" />
-      <path
-        d="M40 116q25-10 50 5 25-15 50-5v35q-25-8-50 6-25-14-50-6Z"
-        fill="#f8f2e6"
-        stroke="#c5a467"
-        strokeWidth="2"
-      />
-      <path
-        d="M90 122v33m-39-27q17-3 29 3m-29 8q17-3 29 3m20-11q12-6 29-3m-29 14q12-6 29-3"
-        fill="none"
-        stroke="#b29258"
-        strokeWidth="2"
-      />
-    </svg>
-  );
-}
+import Portal, {VerifyAward} from "./portal/Portal";
+import Admissions from "./portal/Admissions";
+export function Crest({large=false}){return <img className={large?'crism-crest large':'crism-crest'} src="/assets/crism/logo.jpg" alt="CRISM — Christ Reformation International School of Ministry" width={large?360:108} height={large?240:72}/>;}
 const nav = [
   ["/crism", "Home"],
   ["/crism/about", "About"],
@@ -61,6 +19,7 @@ const nav = [
   ["/crism/programmes", "Programmes"],
   ["/crism/admissions", "Admissions"],
   ["/crism/contact", "Contact"],
+  ["/crism/portal", "School portal"],
 ];
 function Arrow() {
   return <span aria-hidden="true">↗</span>;
@@ -79,8 +38,7 @@ function Title({ eyebrow, title, children }) {
 function Status() {
   return (
     <p className="crism-status">
-      <span aria-hidden="true">●</span> Institution in development · Proposed
-      programmes · Admissions not yet open
+      <span aria-hidden="true">●</span> Certificate and Diploma training · Admissions: 10 December 2026–10 January 2027
     </p>
   );
 }
@@ -123,7 +81,7 @@ function Home() {
             </p>
             <div className="crism-actions">
               <Link className="crism-button gold" to="/crism/programmes">
-                Explore proposed programmes <Arrow />
+                Explore programmes <Arrow />
               </Link>
               <Link className="crism-button outline" to="/crism/about">
                 Discover CRISM
@@ -223,9 +181,7 @@ function Home() {
             Understand the path.
           </h2>
           <p>
-            Begin with the proposed programme catalogue. Entry requirements,
-            study periods, fees and application dates will be published after
-            institutional approval.
+            Begin with the proposed programme catalogue. Certificate and Diploma admissions run 10 December 2026–10 January 2027. Review the school fees, create an account and follow the approved intake information.
           </p>
           <Link className="crism-button navy" to="/crism/admissions">
             Read admission information <Arrow />
@@ -417,8 +373,7 @@ function Catalogue() {
   return (
     <>
       <Title eyebrow="Proposed programme catalogue" title="Study with purpose.">
-        Explore certificates, diplomas and ministerial development. These
-        programmes are proposed; applications are not yet open.
+        Certificate and Diploma admissions run 10 December 2026–10 January 2027. Advanced programmes remain under development.
       </Title>
       <section className="crism-section crism-wrap">
         <div className="crism-filters">
@@ -509,9 +464,7 @@ function Programme({ slug }) {
         <div className="crism-notice">
           <h2>Programme under academic development</h2>
           <p>
-            Entry requirements, curriculum, duration, delivery arrangements,
-            fees and intake dates have not yet been confirmed. This listing does
-            not accept applications or payments.
+            Certificate programmes run for 3 months and Diploma programmes for 6 months. Startup admissions run 10 December 2026–10 January 2027. The application fee is ₦2,500, with ₦20,000 tuition and certification after an offer. Approved curriculum and intake availability are shown in the school portal. This information page does not accept applications or payments.
           </p>
         </div>
         <h2>A foundation for thoughtful ministry</h2>
@@ -548,8 +501,8 @@ function Information({ kind }) {
     fees: [
       "Tuition & scholarships",
       "Accessible learning. Clear information.",
-      "Fees have not been announced.",
-      "Tuition, application fees, payment plans, refund terms and scholarship criteria will be published after approval. Do not pay a church donation expecting automatic student admission or tuition credit.",
+      "Application: ₦2,500. Tuition and certification: ₦20,000.",
+      "Total school fees are ₦22,500. School invoices use the existing Flutterwave gateway and are recorded separately from church donations. View foreign-currency quotes in the admissions page and portal before paying. Scholarship and refund policies require separate approval.",
     ],
     scholarships: [
       "Scholarships & sponsorship",
@@ -560,7 +513,7 @@ function Information({ kind }) {
     faculty: [
       "Faculty & lecturers",
       "Teaching shaped by knowledge and character.",
-      "Faculty appointments are not yet published.",
+      "Academic officer: Pastor Cecilia Taiwo.",
       "Verified biographies, qualifications, specializations and teaching assignments will be added after appointments are confirmed.",
     ],
     library: [
@@ -572,8 +525,8 @@ function Information({ kind }) {
     calendar: [
       "Academic calendar",
       "Plan your learning journey.",
-      "Academic dates have not been announced.",
-      "Approved intakes, semesters, class schedules and assessment periods will be published with Africa/Lagos and relevant international time-zone information.",
+      "Admissions: 10 December 2026–10 January 2027.",
+      "The admission window uses Africa/Lagos time. The teaching start date will be announced separately. Enrolled students see live classes and assessment deadlines in their own local time in the school portal.",
     ],
     news: [
       "News & events",
@@ -589,8 +542,8 @@ function Information({ kind }) {
         <h2>{content[2]}</h2>
         <p className="crism-lead">{content[3]}</p>
         {kind === "library" && (
-          <Link className="crism-button navy" to="/devotional">
-            Read the church devotional <Arrow />
+          <Link className="crism-button navy" to="/crism/portal">
+            Open the student library <Arrow />
           </Link>
         )}
         <div className="crism-notice">
@@ -720,6 +673,10 @@ export default function Crism() {
       </header>
       <Routes>
         <Route index element={<Home />} />
+        <Route path="portal" element={<Portal />} />
+        <Route path="verify/:token" element={<VerifyAward />} />
+        <Route path="admissions" element={<Admissions />} />
+        <Route path="privacy" element={<SchoolPrivacy />} />
         <Route path="about" element={<About />} />
         <Route path="vision-mission" element={<About vision />} />
         <Route path="president" element={<About president />} />
@@ -728,7 +685,6 @@ export default function Crism() {
         <Route path="programmes" element={<Catalogue />} />
         <Route path="programmes/:slug" element={<Detail type="programme" />} />
         {[
-          "admissions",
           "fees",
           "scholarships",
           "faculty",
@@ -752,6 +708,7 @@ export default function Crism() {
               </span>
             </Link>
             <p>{I.motto}</p>
+            <p><a href={`mailto:${I.email}`}>{I.email}</a></p>
             <p className="crism-small">
               Provisional institutional motto. An institution in development,
               affiliated with {I.affiliation}
@@ -793,11 +750,12 @@ export default function Crism() {
             {I.affiliation}
           </p>
           <p>
-            Student, lecturer and administration portals are planned and are not
-            open for registration.
+            Certificate and Diploma school portal. Degree admissions remain closed.
           </p>
         </div>
       </footer>
     </div>
   );
 }
+
+function SchoolPrivacy(){return <section className="school-portal crism-wrap"><h1>School privacy information</h1><div className="school-card"><p>CRISM uses your confirmed email, name, country, time zone, application statements, academic work and payment references to operate admissions, teaching, assessment and academic records.</p><p>Authorised academic staff can access records needed for their assigned duties. Lecturers can access their assigned courses and submitted coursework. Students can access their own records. School signup does not subscribe you to marketing.</p><p>Do not submit private counselling details, medical records or another person’s information in applications or coursework. Ministry training is not a clinical counselling qualification.</p><p>Issued awards can be verified by anyone holding their verification link; verification displays the award holder’s name, programme, issue date and current award status. No student directory or transcript is published.</p><p>Request corrections or account support at admissions@christreformationhouse.org.ng. Financial and issued academic evidence may need to be retained even if an account is closed. Before opening admissions, the academic office must approve a detailed records retention policy.</p></div></section>}

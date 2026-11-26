@@ -61,7 +61,7 @@ const Contact = () => {
       <section className="bg-slate-950 text-white px-5 py-12 md:py-16">
         <div className="container-custom grid items-center gap-10 lg:grid-cols-2">
           <div><p className="text-xs font-semibold uppercase tracking-widest text-amber-300 mb-5">You are welcome here</p><h1 className="text-4xl md:text-5xl font-bold mb-5">Let’s connect.</h1><p className="text-slate-300 text-lg leading-relaxed">Have a question, planning a visit, or looking for a place to grow in faith? Connect with Christ’s Reformation House International.</p></div>
-          <figure><img src="/assets/portraits/anchord-black.webp" alt="Apostle (Dr) Anchord Taiwo in a black suit" width="1200" height="800" className="w-full rounded-2xl" decoding="async" /><figcaption className="mt-2 text-xs text-slate-400">Apostle (Dr) Anchord Taiwo</figcaption></figure>
+          <figure><img src="/assets/portraits/anchord-black.webp" alt="Apostle Anchord Taiwo in a black suit" width="1200" height="800" className="w-full rounded-2xl" decoding="async" /><figcaption className="mt-2 text-xs text-slate-400">Apostle Anchord Taiwo</figcaption></figure>
         </div>
       </section>
 
@@ -105,6 +105,12 @@ const Contact = () => {
                 </div>
               </div>
 
+              <div className="card">
+                <div className="flex items-start">
+                  <Mail className="w-6 h-6 text-blue-600 mr-3 mt-1 flex-shrink-0" />
+                  <div className="min-w-0"><h3 className="font-semibold mb-2">School of Ministry admissions</h3><a href={`mailto:${APP_CONFIG.SCHOOL_EMAIL}`} className="break-all text-gray-600 hover:text-blue-600">{APP_CONFIG.SCHOOL_EMAIL}</a><p className="mt-3"><Link to="/crism/admissions" className="underline">Certificate and Diploma admissions</Link></p></div>
+                </div>
+              </div>
               <div className="card">
                 <div className="flex items-start">
                   <MessageCircle className="w-6 h-6 text-green-600 mr-3 mt-1 flex-shrink-0" />

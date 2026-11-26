@@ -3,6 +3,9 @@ const CommunicationDesk=lazy(()=>import('./pages/CommunicationDesk'))
 const CommunicationSubscription=lazy(()=>import('./pages/CommunicationSubscription'))
 const CommunicationPrivacy=lazy(()=>import('./pages/CommunicationSubscription').then(m=>({default:m.CommunicationPrivacy})))
 const Crism=lazy(()=>import('./crism/Crism'))
+const Community=lazy(()=>import('./global/GlobalMinistry'))
+const Missions=lazy(()=>import('./global/GlobalMinistry').then(m=>({default:m.Missions})))
+const CommunityPrivacy=lazy(()=>import('./global/GlobalMinistry').then(m=>({default:m.CommunityPrivacy})))
 const DevotionalEditor=lazy(()=>import('./pages/DevotionalEditor'))
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom'
 import Header from './components/Header'
@@ -42,6 +45,7 @@ const BlogEditor=lazy(()=>import('./pages/BlogEditor'))
 const Help=lazy(()=>import('./pages/Help'))
 const Support=lazy(()=>import('./pages/Support'))
 const SupportDesk=lazy(()=>import('./pages/SupportDesk'))
+const AdminWorkspace=lazy(()=>import('./pages/AdminWorkspace'))
 import EventRegister from './pages/EventRegister'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
@@ -67,8 +71,12 @@ function AppRoutes() {
             <Route path="/" element={<Home />} />
             <Route path="/subscribe/*" element={<CommunicationSubscription />} />
             <Route path="/communication-privacy" element={<CommunicationPrivacy />} />
+            <Route path="/admin" element={<AdminWorkspace />} />
             <Route path="/admin/communications" element={<CommunicationDesk />} />
             <Route path="/crism/*" element={<Crism />} />
+            <Route path="/missions" element={<Missions />} />
+            <Route path="/community" element={<Community />} />
+            <Route path="/community/privacy" element={<CommunityPrivacy />} />
             <Route path="/november" element={<NovemberCampaign />} />
             <Route path="/about" element={<About />} />
             <Route path="/watch" element={<Watch />} />

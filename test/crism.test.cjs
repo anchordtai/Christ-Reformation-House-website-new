@@ -24,6 +24,8 @@ const React = require("react"),
   { Simulate } = require("react-dom/test-utils");
 const temp = fs.mkdtempSync(path.join(process.cwd(), ".crism-test-"));
 let View, root, node;
+const axios=require('axios'),oldAdapter=axios.defaults.adapter;
+axios.defaults.adapter=async config=>({status:200,statusText:'OK',headers:{},config,data:config.url.endsWith('/fees')?{equivalents:[{currency:'NGN',amount_minor:2250000,application:{amount_minor:250000},tuition:{amount_minor:2000000}}]}:{programmes:[],intakes:[]}});
 before(async () => {
   const out = path.join(temp, "view.cjs");
   await build({
@@ -34,12 +36,14 @@ before(async () => {
     platform: "node",
     jsx: "automatic",
     loader: { ".css": "empty" },
-    external: ["react", "react-dom", "react-router-dom"],
+    define: {"import.meta.env":JSON.stringify({PROD:false,VITE_API_URL:""})},
+    external: ["react", "react-dom", "react-router-dom", "axios"],
   });
   View = require(out).default;
 });
 after(() => {
   fs.rmSync(temp, { recursive: true, force: true });
+  axios.defaults.adapter=oldAdapter;
   dom.window.close();
 });
 beforeEach(() => {
@@ -81,7 +85,7 @@ const change = async (el, value) =>
 test("institution homepage has its own identity, affiliation and honest opening status", async () => {
   await render("/crism");
   assert.match(heading(), /Rooted in the Word/);
-  assert.match(node.textContent, /Admissions not yet open/);
+  assert.match(node.textContent, /Admissions: 10 December 2026/);
   assert.match(node.textContent, /Six proposed schools/);
   assert.equal(node.querySelectorAll(".crism-school").length, 6);
   assert.equal(node.querySelector('a[href="/crism/student"]'), null);
@@ -158,13 +162,15 @@ test("contact handoff uses the existing ministry inbox and warns against private
   assert.ok(node.querySelector('a[href="/contact"]'));
   assert.match(node.textContent, /do not send passports/);
   assert.ok(
-    node.querySelector('a[href^="mailto:info@christreformationhouse.org.ng"]'),
+    node.querySelector('a[href^="mailto:admissions@christreformationhouse.org.ng"]'),
   );
   assert.equal(node.querySelector("form"), null);
 });
-test("admissions information does not imply an operational application flow", async () => {
+test("admissions shows approved window, fees and a real portal link while draft curricula stay gated", async () => {
   await render("/crism/admissions");
-  assert.match(node.textContent, /Admissions are not yet open/);
-  assert.match(node.textContent, /No application fee is being collected/);
-  assert.equal(node.querySelector('a[href="/crism/apply"]'), null);
+  assert.match(node.textContent, /10 December 2026–10 January 2027/);
+  assert.match(node.textContent, /2,500/);
+  assert.ok(node.querySelector('a[href="/crism/portal"]'));
+  assert.match(node.textContent,/Degree admissions remain closed/);
+  assert.equal(node.querySelectorAll('.school-grid:last-of-type .school-card').length,12);
 });

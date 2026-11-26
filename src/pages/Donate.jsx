@@ -19,7 +19,7 @@ function readCheckout() {
   } catch { return null }
 }
 export default function Donate() {
-  const [form, setForm] = useState({ amount: '', currency: 'NGN', donationType: 'general', name: '', email: '', phone: '', message: '' })
+  const [form, setForm] = useState({ missionProjectId:new URLSearchParams(window.location.search).get('mission')||null, amount: '', currency: 'NGN', donationType: 'general', name: '', email: '', phone: '', message: '' })
   const [card, setCard] = useState(emptyCard)
   const [checkout, setCheckout] = useState(readCheckout)
   const [config, setConfig] = useState(null)
@@ -164,7 +164,7 @@ export default function Donate() {
         <div className="rounded-2xl border border-slate-200 bg-white p-5"><h3 className="font-semibold">Need help with a gift?</h3><p className="mt-2 text-sm text-slate-600">If you were charged, keep your reference and check its status before making another payment.</p><a className="mt-4 inline-block break-all text-sm font-medium text-blue-700 underline" href={`mailto:${APP_CONFIG.CHURCH_EMAIL}`}>{APP_CONFIG.CHURCH_EMAIL}</a><Link to="/contact" className="mt-3 block text-sm text-blue-700 underline">Contact the ministry</Link></div>
       </aside>
       <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8 lg:col-span-2">
-        <div className="mb-7 flex items-start justify-between gap-4"><div><h2 className="text-2xl font-bold">{checkout ? 'Continue your gift' : 'Give online'}</h2><p className="mt-2 text-sm text-slate-600">Global giving · Powered by Flutterwave</p></div><ShieldCheck className="h-7 w-7 shrink-0 text-emerald-700" /></div>
+        <div className="mb-7 flex items-start justify-between gap-4"><div><h2 className="text-2xl font-bold">{checkout ? 'Continue your gift' : 'Give online'}</h2><p className="mt-2 text-sm text-slate-600">Global giving · Powered by Flutterwave</p><p className="mt-2 text-sm"><Link className="underline" to="/crism/portal">Pay School of Ministry application or tuition fees</Link></p>{form.missionProjectId&&<p className="mt-2 text-sm text-amber-800">This gift is designated to the mission project selected from the CRH mission page.</p>}</div><ShieldCheck className="h-7 w-7 shrink-0 text-emerald-700" /></div>
         {error && <div ref={errorRef} tabIndex={-1} role="alert" className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{error}</div>}
         {checkout && <div className="mb-6 space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm"><p>Keep this reference to resume or check your payment. Please check before giving again.</p><p className="break-all font-mono text-xs">{txRef}</p><div className="flex flex-wrap gap-4"><Link className="font-semibold text-blue-800 underline" to={returnPath}>Check payment status</Link><button type="button" disabled={loading} onClick={resume} className="font-semibold text-blue-800 underline disabled:opacity-50">Resume payment instructions</button></div></div>}
         {configError ? <div role="alert"><p className="text-slate-700">{configError}</p><button className="mt-4 rounded-xl bg-slate-900 px-5 py-3 text-white" onClick={() => setConfigAttempt(n => n + 1)}>Retry connection</button></div> : !config ? <p role="status" className="flex gap-3 text-slate-600"><Loader2 className="h-5 w-5 animate-spin" />Loading giving options…</p> : instructions ? <div className="space-y-5" aria-labelledby="payment-instructions-title">

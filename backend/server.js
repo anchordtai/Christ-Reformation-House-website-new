@@ -159,6 +159,10 @@ app.get('/api/sermons/:id', (req, res) => {
   if (!item) return res.status(404).json({ error: 'Sermon not found' });
   return res.json(item);
 });
+app.use('/api', require('./ministry-overview').router);
+app.use('/api', require('./global-ministry').router);
+app.use('/api', require('./crism/routes').router);
+app.use('/api', require('./crism/payments').router);
 app.use('/api', require('./communications/routes').router);
 app.use('/api', require('./sermon-studio').router);
 app.use('/api', require('./church-notifications').router);
@@ -260,11 +264,13 @@ app.post('/api/donations', async (req, res) => {
   if (!isValidEmail(email)) return res.status(400).json({ error: 'Valid email is required' });
   if (typeof name !== 'string' || !name.trim() || name.trim().length > 120) return res.status(400).json({ error: 'Full name is required (maximum 120 characters)' });
   if (!donationCode) return res.status(400).json({ error: 'Donation type is required' });
+  const missionProjectId=req.body?.missionProjectId||null;
+  if(missionProjectId&&!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(missionProjectId))return res.status(400).json({error:'Invalid mission project.'});
   const checkoutId = req.body?.checkout_id;
   if (checkoutId && !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(checkoutId)) return res.status(400).json({ error: 'Invalid checkout identifier' });
   const txRef = checkoutId ? `crh-${checkoutId.toLowerCase()}` : makeTxRef();
   const replyExisting = (donation) => {
-    if (Number(donation.amount) !== numAmount || donation.currency !== currencyCode || donation.email !== email.trim().toLowerCase() || donation.donation_type !== donationCode) {
+    if (Number(donation.amount) !== numAmount || donation.currency !== currencyCode || donation.email !== email.trim().toLowerCase() || donation.donation_type !== donationCode || (donation.metadata?.mission_project_id||null)!==missionProjectId) {
       return res.status(409).json({ error: 'This checkout already belongs to another donation. Check its payment status before starting again.' });
     }
     return res.json({ success: true, tx_ref: donation.tx_ref, status: donation.status });
@@ -274,6 +280,7 @@ app.post('/api/donations', async (req, res) => {
       const existing = await getDonationByTxRef(txRef);
       if (existing) return replyExisting(existing);
     }
+    if(missionProjectId){const [project]=await require('./crism/db').db('crh_mission_projects','get',{id:'eq.'+missionProjectId,status:'eq.published',select:'id',limit:1});if(!project)return res.status(400).json({error:'This mission project is not available for giving.'});}
     const type = await getActiveDonationType(donationCode);
     if (!type) return res.status(400).json({ error: 'Invalid or inactive donation type' });
     const donation = await createDonation({
@@ -288,7 +295,7 @@ app.post('/api/donations', async (req, res) => {
       payment_method: 'flutterwave',
       status: 'pending',
       verification_attempts: 0,
-      metadata: { donation_type_id: type.id },
+      metadata: { donation_type_id: type.id, ...(missionProjectId?{mission_project_id:missionProjectId}:{}) },
     });
     if (!donation) return res.status(502).json({ error: 'Unable to create donation record' });
     return res.status(201).json({ success: true, donation_id: donation.id, tx_ref: txRef, status: 'pending' });
@@ -564,6 +571,7 @@ app.post('/api/payments/webhook', async (req, res) => {
   const chargeId = String(data.id || '').trim();
   if (!txRef || !chargeId) return res.status(400).json({ error: 'Webhook transaction data missing' });
   try {
+    if (await require('./crism/payments').webhook(txRef,chargeId)) return res.status(200).json({received:true});
     if (await require('./ministry-store').webhook(txRef,chargeId)) return res.status(200).json({received:true});
     const donation = await getDonationByTxRef(txRef);
     if (!donation) return res.status(200).json({ received: true });
